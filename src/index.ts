@@ -15,6 +15,14 @@ import { connectDB } from './config/db.js';
 import { globalErrorHandler, AppError } from './middleware/errorHandler.js';
 import { apiLimiter, authLimiter, enquiryLimiter } from './middleware/rateLimiter.js';
 import authRoutes from './routes/auth.js';
+import destinationRoutes from './routes/destinations.js';
+import packageRoutes from './routes/packages.js';
+import reviewRoutes from './routes/reviews.js';
+import bookingRoutes from './routes/bookings.js';
+import enquiryRoutes from './routes/enquiries.js';
+import newsletterRoutes from './routes/newsletter.js';
+import careerRoutes from './routes/careers.js';
+import userRoutes from './routes/users.js';
 
 const app = express();
 
@@ -63,6 +71,14 @@ if (env.NODE_ENV === 'development') {
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/destinations', destinationRoutes);
+app.use('/api/packages', packageRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/enquiries', enquiryRoutes);
+app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/careers', careerRoutes);
+app.use('/api/users', userRoutes);
 
 // Health check endpoint
 app.get('/api/health', (_req, res) => {
