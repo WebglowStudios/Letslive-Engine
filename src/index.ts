@@ -14,6 +14,7 @@ import { env } from './config/env.js';
 import { connectDB } from './config/db.js';
 import { globalErrorHandler, AppError } from './middleware/errorHandler.js';
 import { apiLimiter, authLimiter, enquiryLimiter } from './middleware/rateLimiter.js';
+import authRoutes from './routes/auth.js';
 
 const app = express();
 
@@ -59,6 +60,9 @@ app.use(compression());
 if (env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
+
+// Routes
+app.use('/api/auth', authRoutes);
 
 // Health check endpoint
 app.get('/api/health', (_req, res) => {
