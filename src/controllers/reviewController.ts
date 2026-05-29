@@ -57,6 +57,40 @@ const recalculateRatings = async (packageId: unknown, destinationId?: unknown) =
   }
 };
 
+// @desc    Get featured/approved reviews for homepage testimonials
+// @route   GET /api/reviews/featured
+export const getFeaturedReviews = asyncHandler(async (_req: Request, res: Response) => {
+  const reviews = await Review.find({ isApproved: true })
+    .populate('user', 'firstName lastName avatar')
+    .populate('package', 'name slug')
+    .populate('destination', 'name slug')
+    .sort({ rating: -1, createdAt: -1 })
+    .limit(6);
+
+  res.status(200).json({
+    status: 'success',
+    results: reviews.length,
+    data: reviews,
+  });
+});
+
+// @desc    Get current user's reviews
+// @route   GET /api/reviews/me
+export const getMyReviews = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!._id;
+
+  const reviews = await Review.find({ user: userId })
+    .populate('package', 'name slug images')
+    .populate('destination', 'name slug')
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    status: 'success',
+    results: reviews.length,
+    data: reviews,
+  });
+});
+
 // @desc    Get reviews by package
 // @route   GET /api/reviews/package/:packageId
 export const getReviewsByPackage = asyncHandler(async (req: Request, res: Response) => {

@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import {
+  getFeaturedReviews,
   getReviewsByPackage,
   getReviewsByDestination,
+  getMyReviews,
   createReview,
   updateReview,
   deleteReview,
@@ -11,6 +13,8 @@ import { protect, adminOnly } from '../middleware/auth.js';
 
 const router = Router();
 
+router.get('/featured', getFeaturedReviews);
+router.get('/me', protect, getMyReviews);
 router.get('/package/:packageId', getReviewsByPackage);
 router.get('/destination/:destId', getReviewsByDestination);
 router.post('/', protect, createReview);
