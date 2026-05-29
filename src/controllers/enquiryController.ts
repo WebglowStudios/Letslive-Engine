@@ -2,11 +2,17 @@ import { Request, Response } from 'express';
 import Enquiry from '../models/Enquiry.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { sendEnquiryReceived } from '../services/emailService.js';
 
 // @desc    Create an enquiry
 // @route   POST /api/enquiries
 export const createEnquiry = asyncHandler(async (req: Request, res: Response) => {
   const enquiry = await Enquiry.create(req.body);
+
+  // Send enquiry received email (fire-and-forget)
+  sendEnquiryReceived(enquiry.email, enquiry.firstName).catch((err) =>
+    console.error('Failed to send enquiry received email:', err)
+  );
 
   res.status(201).json({
     status: 'success',

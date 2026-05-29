@@ -5,7 +5,6 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import mongoSanitize from 'express-mongo-sanitize';
 import hpp from 'hpp';
 import compression from 'compression';
 import morgan from 'morgan';
@@ -55,8 +54,20 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 // 6. Cookie parser
 app.use(cookieParser());
 
-// 7. Data sanitization against NoSQL injection
-app.use(mongoSanitize());
+// 7. Data sanitization against NoSQL injection (custom, Express 5 compatible)
+app.use((req, _res, next) => {
+  const sanitize = (obj: Record<string, unknown>): void => {
+    for (const key in obj) {
+      if (key.startsWith('$') || key.includes('.')) {
+        delete obj[key];
+      } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+        sanitize(obj[key] as Record<string, unknown>);
+      }
+    }
+  };
+  if (req.body && typeof req.body === 'object') sanitize(req.body);
+  next();
+});
 
 // 8. Prevent HTTP parameter pollution
 app.use(hpp());
@@ -68,6 +79,15 @@ app.use(compression());
 if (env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
+
+// Root route
+app.get('/', (_req, res) => {
+  res.status(200).json({
+    message: '🚀 LetsLive Engine is running',
+    version: '1.0.0',
+    endpoints: '/api/health for full status',
+  });
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -91,7 +111,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 // 404 handler for unmatched routes
-app.all('*', (req, _res, next) => {
+app.use((req, _res, next) => {
   next(new AppError(`Cannot find ${req.originalUrl} on this server`, 404));
 });
 

@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
 import Booking from '../models/Booking.js';
 import Package from '../models/Package.js';
+import User from '../models/User.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { sendBookingConfirmation } from '../services/emailService.js';
 
 // @desc    Create a booking
 // @route   POST /api/bookings
@@ -26,6 +28,23 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
     destination: pkg.destination,
     totalAmount,
   });
+
+  // Send booking confirmation email (fire-and-forget)
+  const user = await User.findById(userId);
+  if (user) {
+    sendBookingConfirmation(user.email, user.firstName, {
+      bookingId: String(booking._id),
+      packageName: pkg.name,
+      travelDate: req.body.travelDate
+        ? new Date(req.body.travelDate).toLocaleDateString('en-IN', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })
+        : 'TBD',
+      totalAmount,
+    }).catch((err) => console.error('Failed to send booking confirmation:', err));
+  }
 
   res.status(201).json({
     status: 'success',

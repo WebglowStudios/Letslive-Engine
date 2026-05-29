@@ -16,6 +16,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
 } from '../validations/auth.js';
+import { sendVerificationEmail, sendResetPasswordEmail } from '../services/emailService.js';
 
 interface JwtPayload {
   id: string;
@@ -38,8 +39,13 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.create(data);
 
   // Generate verification token
-  const verificationToken = user.createVerificationToken();
+  const rawToken = user.createVerificationToken();
   await user.save({ validateBeforeSave: false });
+
+  // Send verification email (fire-and-forget)
+  sendVerificationEmail(user.email, rawToken, user.firstName).catch((err) =>
+    console.error('Failed to send verification email:', err)
+  );
 
   // Generate auth tokens
   const accessToken = generateAccessToken(String(user._id));
@@ -56,7 +62,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     data: {
       user: userObj,
       // Return token in dev mode for testing
-      ...(env.NODE_ENV === 'development' && { verificationToken }),
+      ...(env.NODE_ENV === 'development' && { verificationToken: rawToken }),
     },
   });
 });
@@ -176,14 +182,19 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
   }
 
   // Generate reset token
-  const resetToken = user.createResetToken();
+  const rawToken = user.createResetToken();
   await user.save({ validateBeforeSave: false });
+
+  // Send reset password email (fire-and-forget)
+  sendResetPasswordEmail(user.email, rawToken, user.firstName).catch((err) =>
+    console.error('Failed to send reset password email:', err)
+  );
 
   // Skip sending email for now, return token in dev mode
   res.status(200).json({
     status: 'success',
     message: 'Password reset token generated',
-    ...(env.NODE_ENV === 'development' && { resetToken }),
+    ...(env.NODE_ENV === 'development' && { resetToken: rawToken }),
   });
 });
 
