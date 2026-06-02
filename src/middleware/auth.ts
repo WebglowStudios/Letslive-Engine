@@ -38,3 +38,20 @@ export const adminOnly = (req: Request, _res: Response, next: NextFunction): voi
   }
   next();
 };
+
+// Flexible role-based access control
+export const roleCheck = (...allowedRoles: string[]) => {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
+      next(new AppError(`Access denied. Required role: ${allowedRoles.join(' or ')}.`, 403));
+      return;
+    }
+    next();
+  };
+};
+
+// Staff+ access (admin, manager, staff)
+export const staffOnly = roleCheck('admin', 'manager', 'staff');
+
+// Manager+ access (admin, manager)
+export const managerOnly = roleCheck('admin', 'manager');

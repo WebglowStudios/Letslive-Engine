@@ -8,6 +8,7 @@ export interface IItineraryDay {
   activities: string[];
   meals: string[];
   accommodation: string;
+  images: string[];
 }
 
 export interface IStay {
@@ -22,6 +23,7 @@ export interface ITransfer {
   title: string;
   description: string;
   details: string[];
+  images: string[];
 }
 
 export interface IActivity {
@@ -29,6 +31,7 @@ export interface IActivity {
   description: string;
   duration: string;
   details: string[];
+  images: string[];
 }
 
 export interface IPackage extends Document {
@@ -38,6 +41,9 @@ export interface IPackage extends Document {
   description?: string;
   shortDescription?: string;
   images: string[];
+  destinationImages: string[];
+  stayImages: string[];
+  activityImages: string[];
   heroImage?: string;
   duration: { nights: number; days: number };
   hotelRating?: string;
@@ -57,6 +63,7 @@ export interface IPackage extends Document {
   activities: IActivity[];
   knowBeforeYouGo: string[];
   thingsToCarry: string[];
+  keyPoints: string[];
   badge?: string;
   isActive: boolean;
   isFeatured: boolean;
@@ -77,6 +84,9 @@ const packageSchema = new Schema<IPackage>(
     description: { type: String },
     shortDescription: { type: String },
     images: [{ type: String }],
+    destinationImages: [{ type: String }],
+    stayImages: [{ type: String }],
+    activityImages: [{ type: String }],
     heroImage: { type: String },
     duration: {
       nights: { type: Number },
@@ -106,6 +116,7 @@ const packageSchema = new Schema<IPackage>(
         activities: [{ type: String }],
         meals: [{ type: String }],
         accommodation: { type: String },
+        images: [{ type: String }],
       },
     ],
     inclusions: [{ type: String }],
@@ -124,6 +135,7 @@ const packageSchema = new Schema<IPackage>(
         title: { type: String },
         description: { type: String },
         details: [{ type: String }],
+        images: [{ type: String }],
       },
     ],
     activities: [
@@ -132,10 +144,12 @@ const packageSchema = new Schema<IPackage>(
         description: { type: String },
         duration: { type: String },
         details: [{ type: String }],
+        images: [{ type: String }],
       },
     ],
     knowBeforeYouGo: [{ type: String }],
     thingsToCarry: [{ type: String }],
+    keyPoints: [{ type: String }],
     badge: { type: String },
     isActive: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },

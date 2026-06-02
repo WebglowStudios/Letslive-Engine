@@ -28,7 +28,7 @@ export async function sendEmail({ to, subject, html }: SendEmailOptions): Promis
   }
 
   await transporter.sendMail({
-    from: '"LetsLive Tours" <noreply@letslivetours.in>',
+    from: `"LetsLive Tours" <${env.SMTP_USER}>`,
     to,
     subject,
     html,

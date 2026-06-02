@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { ZodError } from 'zod';
 import { env } from '../config/env.js';
 
 export class AppError extends Error {
@@ -61,7 +62,28 @@ export const globalErrorHandler = (
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
 
+  // Handle Zod validation errors
+  if (err instanceof ZodError) {
+    const messages = err.issues.map((issue) => issue.message);
+    res.status(400).json({
+      status: 'fail',
+      message: messages.join('. '),
+      errors: err.issues,
+    });
+    return;
+  }
+
   if (env.NODE_ENV === 'development') {
+    // Still format Zod errors nicely in dev
+    if (err instanceof ZodError) {
+      const messages = err.issues.map((issue) => issue.message);
+      res.status(400).json({
+        status: 'fail',
+        message: messages.join('. '),
+        errors: err.issues,
+      });
+      return;
+    }
     res.status(err.statusCode).json({
       status: err.status,
       error: err,

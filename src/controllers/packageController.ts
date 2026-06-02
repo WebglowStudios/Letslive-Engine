@@ -103,13 +103,23 @@ export const getFeaturedPackages = asyncHandler(async (_req: Request, res: Respo
   });
 });
 
-// @desc    Get single package by slug
+// @desc    Get single package by slug or ID
 // @route   GET /api/packages/:slug
 export const getPackageBySlug = asyncHandler(async (req: Request, res: Response) => {
-  const pkg = await Package.findOne({ slug: req.params.slug }).populate(
+  const param = req.params.slug as string;
+
+  // Try by slug first, then by _id
+  let pkg = await Package.findOne({ slug: param }).populate(
     'destination',
     'name slug country region'
   );
+
+  if (!pkg && param.match(/^[0-9a-fA-F]{24}$/)) {
+    pkg = await Package.findById(param).populate(
+      'destination',
+      'name slug country region'
+    );
+  }
 
   if (!pkg) {
     throw new AppError('Package not found', 404);

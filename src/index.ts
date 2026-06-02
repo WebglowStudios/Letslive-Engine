@@ -22,6 +22,7 @@ import enquiryRoutes from './routes/enquiries.js';
 import newsletterRoutes from './routes/newsletter.js';
 import careerRoutes from './routes/careers.js';
 import userRoutes from './routes/users.js';
+import adminRoutes from './routes/admin.js';
 
 const app = express();
 
@@ -32,9 +33,21 @@ await connectDB();
 app.use(helmet());
 
 // 2. CORS
+const allowedOrigins = [
+  env.FRONTEND_URL,
+  'http://localhost:3000',
+  'http://localhost:3001',
+];
 app.use(
   cors({
-    origin: env.FRONTEND_URL,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, true); // Allow all in dev
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   })
@@ -42,7 +55,8 @@ app.use(
 
 // 3. Rate limiters on specific paths
 app.use('/api', apiLimiter);
-app.use('/api/auth', authLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
 app.use('/api/enquiries', enquiryLimiter);
 
 // 4. Body parser
@@ -99,6 +113,7 @@ app.use('/api/enquiries', enquiryRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/careers', careerRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check endpoint
 app.get('/api/health', (_req, res) => {

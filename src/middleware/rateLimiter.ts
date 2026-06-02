@@ -1,8 +1,11 @@
 import rateLimit from 'express-rate-limit';
+import { env } from '../config/env.js';
+
+const isDev = env.NODE_ENV === 'development';
 
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,
+  max: isDev ? 100 : 5, // Relaxed in development
   message: {
     status: 'fail',
     message: 'Too many attempts. Please try again after 15 minutes.',
@@ -13,7 +16,7 @@ export const authLimiter = rateLimit({
 
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: isDev ? 1000 : 100, // Relaxed in development
   message: {
     status: 'fail',
     message: 'Too many requests from this IP. Please try again later.',
@@ -24,7 +27,7 @@ export const apiLimiter = rateLimit({
 
 export const enquiryLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10,
+  max: isDev ? 100 : 10, // Relaxed in development
   message: {
     status: 'fail',
     message: 'Too many enquiries. Please try again after an hour.',

@@ -92,10 +92,17 @@ export const getFeaturedDestinations = asyncHandler(async (_req: Request, res: R
   });
 });
 
-// @desc    Get single destination by slug
+// @desc    Get single destination by slug or ID
 // @route   GET /api/destinations/:slug
 export const getDestinationBySlug = asyncHandler(async (req: Request, res: Response) => {
-  const destination = await Destination.findOne({ slug: req.params.slug });
+  const param = req.params.slug as string;
+
+  // Try by slug first, then by _id
+  let destination = await Destination.findOne({ slug: param });
+
+  if (!destination && param.match(/^[0-9a-fA-F]{24}$/)) {
+    destination = await Destination.findById(param);
+  }
 
   if (!destination) {
     throw new AppError('Destination not found', 404);

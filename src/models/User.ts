@@ -9,7 +9,7 @@ export interface IUser extends Document {
   phone?: string;
   password: string;
   avatar?: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'manager' | 'staff' | 'guest';
   wishlist: mongoose.Types.ObjectId[];
   isVerified: boolean;
   verificationToken?: string;
@@ -40,7 +40,7 @@ const userSchema = new Schema<IUser>(
     phone: { type: String, trim: true },
     password: { type: String, required: true, minlength: 8, select: false },
     avatar: { type: String },
-    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    role: { type: String, enum: ['user', 'admin', 'manager', 'staff', 'guest'], default: 'user' },
     wishlist: [{ type: Schema.Types.ObjectId, ref: 'Package' }],
     isVerified: { type: Boolean, default: false },
     verificationToken: { type: String },
