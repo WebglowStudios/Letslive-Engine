@@ -33,6 +33,13 @@ export interface IDestination extends Document {
   travelTips: ITravelTip[];
   whyVisit: IWhyVisit[];
   partners: string[];
+  groupDeal?: {
+    title: string;
+    description: string;
+    image: string;
+    discountText: string;
+  };
+  photoGallery: { image: string; label: string }[];
   isActive: boolean;
   isFeatured: boolean;
   createdAt: Date;
@@ -75,6 +82,18 @@ const destinationSchema = new Schema<IDestination>(
       },
     ],
     partners: [{ type: String }],
+    groupDeal: {
+      title: { type: String },
+      description: { type: String },
+      image: { type: String },
+      discountText: { type: String },
+    },
+    photoGallery: [
+      {
+        image: { type: String },
+        label: { type: String },
+      },
+    ],
     isActive: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
   },
