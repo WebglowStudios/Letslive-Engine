@@ -24,6 +24,8 @@ import careerRoutes from './routes/careers.js';
 import userRoutes from './routes/users.js';
 import adminRoutes from './routes/admin.js';
 import articleRoutes from './routes/articles.js';
+import operationRoutes from './routes/operations.js';
+import vendorRoutes from './routes/vendors.js';
 
 const app = express();
 
@@ -36,6 +38,7 @@ app.use(helmet());
 // 2. CORS
 const allowedOrigins = [
   env.FRONTEND_URL,
+  process.env.ADMIN_URL || 'http://localhost:3001',
   'http://localhost:3000',
   'http://localhost:3001',
 ];
@@ -45,8 +48,10 @@ app.use(
       // Allow requests with no origin (mobile apps, curl, etc.)
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
+      } else if (env.NODE_ENV !== 'production') {
+        callback(null, true); // Allow all in dev only
       } else {
-        callback(null, true); // Allow all in dev
+        callback(new Error('Not allowed by CORS'));
       }
     },
     credentials: true,
@@ -116,6 +121,8 @@ app.use('/api/careers', careerRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/articles', articleRoutes);
+app.use('/api/operations', operationRoutes);
+app.use('/api/vendors', vendorRoutes);
 
 // Health check endpoint
 app.get('/api/health', (_req, res) => {

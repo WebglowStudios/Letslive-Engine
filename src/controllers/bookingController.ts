@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import Booking from '../models/Booking.js';
 import Package from '../models/Package.js';
 import User from '../models/User.js';
+import Operation from '../models/Operation.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { sendBookingConfirmation } from '../services/emailService.js';
@@ -176,6 +177,44 @@ export const updateBookingStatus = asyncHandler(async (req: Request, res: Respon
   }
   if (paymentStatus) booking.paymentStatus = paymentStatus;
   await booking.save();
+
+  // Auto-create Operation when booking is confirmed for the first time
+  if (bookingStatus === 'confirmed') {
+    const existingOp = await Operation.findOne({ booking: booking._id });
+    if (!existingOp) {
+      // Populate needed fields
+      const populatedBooking = await Booking.findById(booking._id)
+        .populate('package', 'name price')
+        .populate('destination', 'name')
+        .populate('user', 'firstName lastName email phone');
+
+      if (populatedBooking) {
+        const pkg = populatedBooking.package as unknown as { name?: string; price?: number; _id?: string };
+        const dest = populatedBooking.destination as unknown as { name?: string };
+        const usr = populatedBooking.user as unknown as { firstName?: string; lastName?: string; email?: string; phone?: string };
+        const travellers = populatedBooking.travellers as { adults?: number; children?: number; infants?: number };
+        const pax = (travellers?.adults || 1) + (travellers?.children || 0);
+
+        await Operation.create({
+          booking: booking._id,
+          package: pkg?._id || undefined,
+          customer: {
+            name: usr ? `${usr.firstName || ''} ${usr.lastName || ''}`.trim() : 'Customer',
+            email: usr?.email || '',
+            phone: usr?.phone || '',
+            pax,
+          },
+          destination: dest?.name || 'TBD',
+          travelDates: {
+            start: populatedBooking.travelDate,
+            end: populatedBooking.returnDate || populatedBooking.travelDate,
+          },
+          sellingPrice: populatedBooking.totalAmount || 0,
+          status: 'planning',
+        });
+      }
+    }
+  }
 
   res.status(200).json({
     status: 'success',
