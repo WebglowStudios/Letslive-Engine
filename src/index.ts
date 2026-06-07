@@ -26,6 +26,7 @@ import adminRoutes from './routes/admin.js';
 import articleRoutes from './routes/articles.js';
 import operationRoutes from './routes/operations.js';
 import vendorRoutes from './routes/vendors.js';
+import uploadRoutes from './routes/upload.js';
 
 const app = express();
 
@@ -123,6 +124,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/articles', articleRoutes);
 app.use('/api/operations', operationRoutes);
 app.use('/api/vendors', vendorRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Health check endpoint
 app.get('/api/health', (_req, res) => {
