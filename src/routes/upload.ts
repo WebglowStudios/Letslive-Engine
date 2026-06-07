@@ -28,6 +28,45 @@ const upload = multer({
   },
 });
 
+// @desc    Get all uploaded images (media library)
+// @route   GET /api/upload/library
+// @access  Staff+
+router.get(
+  '/library',
+  protect,
+  staffOnly,
+  asyncHandler(async (req: Request, res: Response) => {
+    if (!process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME === 'your-cloud') {
+      return res.status(200).json({ status: 'success', data: [] });
+    }
+
+    const folder = (req.query.folder as string) || 'letslivetours';
+    const maxResults = parseInt(req.query.limit as string) || 100;
+
+    try {
+      const result = await cloudinary.api.resources({
+        type: 'upload',
+        prefix: folder,
+        max_results: maxResults,
+        resource_type: 'image',
+      });
+
+      const images = result.resources.map((r: { secure_url: string; public_id: string; width: number; height: number; created_at: string; bytes: number }) => ({
+        url: r.secure_url,
+        publicId: r.public_id,
+        width: r.width,
+        height: r.height,
+        createdAt: r.created_at,
+        size: r.bytes,
+      }));
+
+      res.status(200).json({ status: 'success', data: images });
+    } catch {
+      res.status(200).json({ status: 'success', data: [] });
+    }
+  })
+);
+
 // @desc    Upload single image to Cloudinary
 // @route   POST /api/upload
 // @access  Staff+
