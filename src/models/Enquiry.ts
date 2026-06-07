@@ -15,8 +15,10 @@ export interface IEnquiry extends Document {
   destination?: string;
   travelDate?: Date;
   message?: string;
+  packageName?: string;
   package?: mongoose.Types.ObjectId;
-  status: 'new' | 'in-progress' | 'resolved' | 'closed';
+  status: 'new' | 'assigned' | 'in-progress' | 'follow-up' | 'converted' | 'resolved' | 'closed';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
   assignedTo?: mongoose.Types.ObjectId;
   notes: INote[];
   source: 'website' | 'whatsapp' | 'phone';
@@ -38,11 +40,17 @@ const enquirySchema = new Schema<IEnquiry>(
     destination: { type: String },
     travelDate: { type: Date },
     message: { type: String },
+    packageName: { type: String },
     package: { type: Schema.Types.ObjectId, ref: 'Package' },
     status: {
       type: String,
-      enum: ['new', 'in-progress', 'resolved', 'closed'],
+      enum: ['new', 'assigned', 'in-progress', 'follow-up', 'converted', 'resolved', 'closed'],
       default: 'new',
+    },
+    priority: {
+      type: String,
+      enum: ['low', 'medium', 'high', 'urgent'],
+      default: 'medium',
     },
     assignedTo: { type: Schema.Types.ObjectId, ref: 'User' },
     notes: [

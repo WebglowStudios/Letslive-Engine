@@ -42,7 +42,8 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
             year: 'numeric',
           })
         : 'TBD',
-      totalAmount,
+      amount: totalAmount,
+      travellers: `${adults} Adult${adults > 1 ? 's' : ''}${children ? `, ${children} Child${children > 1 ? 'ren' : ''}` : ''}`,
     }).catch((err) => console.error('Failed to send booking confirmation:', err));
   }
 
@@ -163,7 +164,16 @@ export const updateBookingStatus = asyncHandler(async (req: Request, res: Respon
     throw new AppError('Booking not found', 404);
   }
 
-  if (bookingStatus) booking.bookingStatus = bookingStatus;
+  if (bookingStatus) {
+    booking.bookingStatus = bookingStatus;
+    // Auto-sync payment status when booking status changes
+    if (bookingStatus === 'confirmed' && booking.paymentStatus === 'pending') {
+      booking.paymentStatus = 'paid';
+    }
+    if (bookingStatus === 'cancelled' && booking.paymentStatus === 'paid') {
+      booking.paymentStatus = 'refunded';
+    }
+  }
   if (paymentStatus) booking.paymentStatus = paymentStatus;
   await booking.save();
 

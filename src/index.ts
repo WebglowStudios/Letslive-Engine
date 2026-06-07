@@ -23,6 +23,7 @@ import newsletterRoutes from './routes/newsletter.js';
 import careerRoutes from './routes/careers.js';
 import userRoutes from './routes/users.js';
 import adminRoutes from './routes/admin.js';
+import articleRoutes from './routes/articles.js';
 
 const app = express();
 
@@ -114,6 +115,7 @@ app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/careers', careerRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/articles', articleRoutes);
 
 // Health check endpoint
 app.get('/api/health', (_req, res) => {

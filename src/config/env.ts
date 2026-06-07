@@ -32,6 +32,7 @@ export const env = {
   CLOUDINARY_CLOUD_NAME: getEnv('CLOUDINARY_CLOUD_NAME', ''),
   CLOUDINARY_API_KEY: getEnv('CLOUDINARY_API_KEY', ''),
   CLOUDINARY_API_SECRET: getEnv('CLOUDINARY_API_SECRET', ''),
+  ADMIN_EMAIL: getEnv('ADMIN_EMAIL', 'admin@letslivetours.in'),
 } as const;
 
 export default env;

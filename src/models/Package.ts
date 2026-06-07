@@ -67,6 +67,12 @@ export interface IPackage extends Document {
   badge?: string;
   isActive: boolean;
   isFeatured: boolean;
+  isCustom: boolean;
+  clientName?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  enquiryId?: mongoose.Types.ObjectId;
+  createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -153,6 +159,13 @@ const packageSchema = new Schema<IPackage>(
     badge: { type: String },
     isActive: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
+    // Custom itinerary fields
+    isCustom: { type: Boolean, default: false },
+    clientName: { type: String },
+    clientEmail: { type: String },
+    clientPhone: { type: String },
+    enquiryId: { type: Schema.Types.ObjectId, ref: 'Enquiry' },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }
 );

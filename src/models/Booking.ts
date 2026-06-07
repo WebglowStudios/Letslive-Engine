@@ -16,6 +16,8 @@ export interface IBooking extends Document {
   travelDate: Date;
   returnDate?: Date;
   travellers: { adults: number; children: number; infants: number };
+  travellersDetails: { name: string; age?: number; phone?: string; type: 'adult' | 'child' | 'infant' }[];
+  primaryTraveller: { firstName: string; lastName: string; email: string; phone?: string };
   totalAmount: number;
   paidAmount: number;
   paymentStatus: 'pending' | 'partial' | 'paid' | 'refunded';
@@ -42,6 +44,20 @@ const bookingSchema = new Schema<IBooking>(
       adults: { type: Number, default: 1 },
       children: { type: Number, default: 0 },
       infants: { type: Number, default: 0 },
+    },
+    travellersDetails: [
+      {
+        name: { type: String },
+        age: { type: Number },
+        phone: { type: String },
+        type: { type: String, enum: ['adult', 'child', 'infant'], default: 'adult' },
+      },
+    ],
+    primaryTraveller: {
+      firstName: { type: String },
+      lastName: { type: String },
+      email: { type: String },
+      phone: { type: String },
     },
     totalAmount: { type: Number, required: true },
     paidAmount: { type: Number, default: 0 },
@@ -70,7 +86,24 @@ const bookingSchema = new Schema<IBooking>(
     cancellationReason: { type: String },
     cancelledAt: { type: Date },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: {
+      virtuals: true,
+      transform(_doc, ret) {
+        // Expose bookingStatus as 'status' for frontend compatibility
+        (ret as Record<string, unknown>).status = ret.bookingStatus;
+        return ret;
+      },
+    },
+    toObject: {
+      virtuals: true,
+      transform(_doc, ret) {
+        (ret as Record<string, unknown>).status = ret.bookingStatus;
+        return ret;
+      },
+    },
+  }
 );
 
 // Auto-generate bookingId like "LLT-2026-00001"

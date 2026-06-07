@@ -23,7 +23,13 @@ export const getCareers = asyncHandler(async (req: Request, res: Response) => {
 // @desc    Get career by slug (public)
 // @route   GET /api/careers/:slug
 export const getCareerBySlug = asyncHandler(async (req: Request, res: Response) => {
-  const career = await Career.findOne({ slug: req.params.slug }).select('-applications');
+  const param = req.params.slug as string;
+
+  // Try by slug first, then by _id
+  let career = await Career.findOne({ slug: param }).select('-applications');
+  if (!career && param.match(/^[0-9a-fA-F]{24}$/)) {
+    career = await Career.findById(param).select('-applications');
+  }
 
   if (!career) {
     throw new AppError('Career not found', 404);

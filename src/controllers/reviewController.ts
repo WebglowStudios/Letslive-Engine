@@ -2,8 +2,11 @@ import { Request, Response } from 'express';
 import Review from '../models/Review.js';
 import Package from '../models/Package.js';
 import Destination from '../models/Destination.js';
+import User from '../models/User.js';
+import Booking from '../models/Booking.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { sendReviewThanks } from '../services/emailService.js';
 
 // Helper: Recalculate ratings for a package and its destination
 const recalculateRatings = async (packageId: unknown, destinationId?: unknown) => {
@@ -144,14 +147,29 @@ export const createReview = asyncHandler(async (req: Request, res: Response) => 
     throw new AppError('Package not found', 404);
   }
 
+  // Check if user has a confirmed/completed booking for this package
+  const booking = await Booking.findOne({
+    user: userId,
+    package: packageId,
+    bookingStatus: { $in: ['confirmed', 'completed'] },
+  });
+
   const review = await Review.create({
     ...req.body,
     user: userId,
     destination: pkg.destination,
+    booking: booking?._id || undefined,
+    isVerified: !!booking,
   });
 
   // Recalculate ratings
   await recalculateRatings(packageId, pkg.destination);
+
+  // Send thank you email
+  const reviewer = await User.findById(userId);
+  if (reviewer) {
+    sendReviewThanks(reviewer.email, reviewer.firstName, pkg.name).catch(console.error);
+  }
 
   res.status(201).json({
     status: 'success',
@@ -234,5 +252,42 @@ export const approveReview = asyncHandler(async (req: Request, res: Response) =>
   res.status(200).json({
     status: 'success',
     data: review,
+  });
+});
+
+// @desc    Check if current user can review a package (must have booked, not already reviewed)
+// @route   GET /api/reviews/can-review/:packageId
+export const canReviewPackage = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!._id;
+  const { packageId } = req.params;
+
+  // Check if user has a confirmed/completed booking for this package
+  const booking = await Booking.findOne({
+    user: userId,
+    package: packageId,
+    bookingStatus: { $in: ['confirmed', 'completed'] },
+  });
+
+  if (!booking) {
+    res.status(200).json({
+      status: 'success',
+      data: { canReview: false, reason: 'no_booking' },
+    });
+    return;
+  }
+
+  // Check if user already reviewed this package
+  const existingReview = await Review.findOne({ user: userId, package: packageId });
+  if (existingReview) {
+    res.status(200).json({
+      status: 'success',
+      data: { canReview: false, reason: 'already_reviewed', review: existingReview },
+    });
+    return;
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: { canReview: true, bookingId: booking._id },
   });
 });

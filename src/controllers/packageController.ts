@@ -19,7 +19,7 @@ export const getPackages = asyncHandler(async (req: Request, res: Response) => {
     limit = '12',
   } = req.query;
 
-  const query: Record<string, unknown> = { isActive: true };
+  const query: Record<string, unknown> = { isActive: true, isCustom: { $ne: true } };
 
   if (destination) {
     query.destination = destination;
@@ -92,7 +92,7 @@ export const getPackages = asyncHandler(async (req: Request, res: Response) => {
 // @desc    Get featured packages
 // @route   GET /api/packages/featured
 export const getFeaturedPackages = asyncHandler(async (_req: Request, res: Response) => {
-  const packages = await Package.find({ isFeatured: true, isActive: true })
+  const packages = await Package.find({ isFeatured: true, isActive: true, isCustom: { $ne: true } })
     .populate('destination', 'name slug')
     .limit(8);
 
@@ -145,6 +145,7 @@ export const getPackagesByDestination = asyncHandler(async (req: Request, res: R
   const query: Record<string, unknown> = {
     destination: destination._id,
     isActive: true,
+    isCustom: { $ne: true },
   };
 
   if (category) {
@@ -183,6 +184,10 @@ export const getPackagesByDestination = asyncHandler(async (req: Request, res: R
 // @desc    Create a package
 // @route   POST /api/packages
 export const createPackage = asyncHandler(async (req: Request, res: Response) => {
+  // If custom itinerary, set createdBy
+  if (req.body.isCustom && req.user) {
+    req.body.createdBy = req.user._id;
+  }
   const pkg = await Package.create(req.body);
 
   // Increment destination packageCount
