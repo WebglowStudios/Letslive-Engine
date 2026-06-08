@@ -14,9 +14,15 @@ export const getDestinations = asyncHandler(async (req: Request, res: Response) 
     sort,
     page = '1',
     limit = '12',
+    admin,
   } = req.query;
 
   const query: Record<string, unknown> = { isActive: true };
+
+  // Only filter by approval for public requests (not admin dashboard)
+  if (!admin) {
+    query.approvalStatus = { $nin: ['pending', 'rejected'] };
+  }
 
   if (category) {
     query.category = category;
@@ -83,7 +89,7 @@ export const getDestinations = asyncHandler(async (req: Request, res: Response) 
 // @desc    Get featured destinations
 // @route   GET /api/destinations/featured
 export const getFeaturedDestinations = asyncHandler(async (_req: Request, res: Response) => {
-  const destinations = await Destination.find({ isFeatured: true, isActive: true }).limit(6);
+  const destinations = await Destination.find({ isFeatured: true, isActive: true, approvalStatus: { $nin: ['pending', 'rejected'] } }).limit(6);
 
   res.status(200).json({
     status: 'success',

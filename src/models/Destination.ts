@@ -42,6 +42,7 @@ export interface IDestination extends Document {
   photoGallery: { image: string; label: string }[];
   isActive: boolean;
   isFeatured: boolean;
+  approvalStatus: 'pending' | 'approved' | 'rejected';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -96,6 +97,7 @@ const destinationSchema = new Schema<IDestination>(
     ],
     isActive: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
+    approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
   },
   { timestamps: true }
 );

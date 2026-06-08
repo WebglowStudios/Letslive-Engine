@@ -67,6 +67,7 @@ export interface IPackage extends Document {
   badge?: string;
   isActive: boolean;
   isFeatured: boolean;
+  approvalStatus: 'pending' | 'approved' | 'rejected';
   isCustom: boolean;
   clientName?: string;
   clientEmail?: string;
@@ -159,6 +160,7 @@ const packageSchema = new Schema<IPackage>(
     badge: { type: String },
     isActive: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
+    approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
     // Custom itinerary fields
     isCustom: { type: Boolean, default: false },
     clientName: { type: String },

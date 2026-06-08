@@ -17,9 +17,15 @@ export const getPackages = asyncHandler(async (req: Request, res: Response) => {
     sort,
     page = '1',
     limit = '12',
+    admin,
   } = req.query;
 
   const query: Record<string, unknown> = { isActive: true, isCustom: { $ne: true } };
+
+  // Only filter by approval for public requests (not admin dashboard)
+  if (!admin) {
+    query.approvalStatus = { $nin: ['pending', 'rejected'] };
+  }
 
   if (destination) {
     query.destination = destination;
@@ -92,7 +98,7 @@ export const getPackages = asyncHandler(async (req: Request, res: Response) => {
 // @desc    Get featured packages
 // @route   GET /api/packages/featured
 export const getFeaturedPackages = asyncHandler(async (_req: Request, res: Response) => {
-  const packages = await Package.find({ isFeatured: true, isActive: true, isCustom: { $ne: true } })
+  const packages = await Package.find({ isFeatured: true, isActive: true, isCustom: { $ne: true }, approvalStatus: { $nin: ['pending', 'rejected'] } })
     .populate('destination', 'name slug')
     .limit(8);
 
@@ -146,6 +152,7 @@ export const getPackagesByDestination = asyncHandler(async (req: Request, res: R
     destination: destination._id,
     isActive: true,
     isCustom: { $ne: true },
+    approvalStatus: { $nin: ['pending', 'rejected'] },
   };
 
   if (category) {
