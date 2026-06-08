@@ -30,6 +30,9 @@ import uploadRoutes from './routes/upload.js';
 
 const app = express();
 
+// Trust first proxy (Nginx) so rate-limiter and req.ip work correctly
+app.set('trust proxy', 1);
+
 // Connect to MongoDB
 await connectDB();
 
