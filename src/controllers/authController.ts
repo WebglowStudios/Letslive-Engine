@@ -160,7 +160,7 @@ export const refreshTokenHandler = asyncHandler(
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'strict',
       maxAge: 15 * 60 * 1000,
     });
 
