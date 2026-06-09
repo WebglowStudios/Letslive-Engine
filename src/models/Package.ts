@@ -68,6 +68,8 @@ export interface IPackage extends Document {
   isActive: boolean;
   isFeatured: boolean;
   approvalStatus: 'pending' | 'approved' | 'rejected';
+  flightsIncluded: boolean;
+  travellerCount?: string;
   isCustom: boolean;
   clientName?: string;
   clientEmail?: string;
@@ -158,6 +160,8 @@ const packageSchema = new Schema<IPackage>(
     thingsToCarry: [{ type: String }],
     keyPoints: [{ type: String }],
     badge: { type: String },
+    flightsIncluded: { type: Boolean, default: false },
+    travellerCount: { type: String },
     isActive: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
     approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
