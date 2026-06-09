@@ -7,41 +7,18 @@ async function run() {
   await mongoose.connect(PROD_URI);
   console.log('Connected to PRODUCTION database');
 
-  // 1. Upgrade Bhushan Thakare from staff → manager
+  // Downgrade Bhushan Thakare back to manager
   const bhushan = await User.findOneAndUpdate(
     { email: 'bhushanthakare89@gmail.com' },
     { role: 'manager' },
     { new: true }
   );
   if (bhushan) {
-    console.log(`✅ Updated bhushanthakare89@gmail.com → role: manager`);
+    console.log(`✅ bhushanthakare89@gmail.com → role: manager`);
   } else {
     console.log('⚠️  bhushanthakare89@gmail.com not found');
   }
 
-  // 2. Create admin: Shubham Pathak
-  const existing = await User.findOne({ email: 'info.letslive@gmail.com' });
-  if (existing) {
-    console.log('User info.letslive@gmail.com already exists. Skipping.');
-  } else {
-    const admin = await User.create({
-      firstName: 'Shubham',
-      lastName: 'Pathak',
-      email: 'info.letslive@gmail.com',
-      password: 'Shubham2026',
-      role: 'admin',
-      isVerified: true,
-    });
-    console.log('\n✅ Admin created successfully!');
-    console.log('────────────────────────────────────');
-    console.log(`   Name:     ${admin.firstName} ${admin.lastName}`);
-    console.log(`   Email:    info.letslive@gmail.com`);
-    console.log(`   Password: Shubham2026`);
-    console.log(`   Role:     admin`);
-    console.log('────────────────────────────────────');
-  }
-
-  console.log('\nLogin at: https://admin.letslivetours.com/login');
   await mongoose.disconnect();
   process.exit(0);
 }
