@@ -159,4 +159,21 @@ router.post(
   })
 );
 
+// @desc    Delete image from Cloudinary
+// @route   DELETE /api/upload/:publicId
+// @access  Staff+
+router.delete(
+  '/:publicId',
+  protect,
+  staffOnly,
+  asyncHandler(async (req: Request, res: Response) => {
+    const publicId = decodeURIComponent(req.params.publicId as string);
+    if (!publicId) {
+      throw new AppError('No publicId provided', 400);
+    }
+    await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+    res.status(200).json({ status: 'success', message: 'Image deleted' });
+  })
+);
+
 export default router;
