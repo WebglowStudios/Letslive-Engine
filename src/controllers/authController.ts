@@ -88,8 +88,8 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   if (!isMatch) {
     // Increment login attempts
     user.loginAttempts += 1;
-    if (user.loginAttempts >= 5) {
-      user.lockUntil = new Date(Date.now() + 30 * 60 * 1000); // Lock for 30 minutes
+    if (user.loginAttempts >= 10) {
+      user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // Lock for 15 minutes
     }
     await user.save({ validateBeforeSave: false });
     throw new AppError('Invalid email or password', 401);
