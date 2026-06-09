@@ -47,7 +47,7 @@ router.post('/:id/duplicate', protect, staffOnly, asyncHandler(async (req: Reque
   }
 
   // Strip MongoDB-managed fields and create a fresh copy
-  const { _id, slug, createdAt, updatedAt, __v, ...rest } = original as Record<string, unknown>;
+  const { _id, slug, createdAt, updatedAt, __v, ...rest } = original as unknown as Record<string, unknown>;
   void _id; void slug; void createdAt; void updatedAt; void __v;
 
   const copy = await Package.create({
