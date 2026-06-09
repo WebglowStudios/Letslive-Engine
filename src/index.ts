@@ -71,10 +71,10 @@ app.use('/api', apiLimiter);
 app.use('/api/enquiries', enquiryLimiter);
 
 // 4. Body parser
-app.use(express.json({ limit: '10kb' }));
+app.use(express.json({ limit: '5mb' }));
 
 // 5. URL encoded parser
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 // 6. Cookie parser
 app.use(cookieParser());
