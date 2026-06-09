@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import Destination from '../models/Destination.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { logActivity } from '../utils/logActivity.js';
 
 // @desc    Get all destinations with filtering, search, sort, pagination
 // @route   GET /api/destinations
@@ -125,10 +126,16 @@ export const getDestinationBySlug = asyncHandler(async (req: Request, res: Respo
 export const createDestination = asyncHandler(async (req: Request, res: Response) => {
   const destination = await Destination.create(req.body);
 
-  res.status(201).json({
-    status: 'success',
-    data: destination,
+  await logActivity({
+    req,
+    action: 'create',
+    entity: 'destination',
+    entityId: String(destination._id),
+    entityName: destination.name,
+    description: `Created destination "${destination.name}"`,
   });
+
+  res.status(201).json({ status: 'success', data: destination });
 });
 
 // @desc    Update a destination
@@ -143,10 +150,21 @@ export const updateDestination = asyncHandler(async (req: Request, res: Response
     throw new AppError('Destination not found', 404);
   }
 
-  res.status(200).json({
-    status: 'success',
-    data: destination,
+  const action = req.body.approvalStatus ? 'approve' : 'update';
+  const description = req.body.approvalStatus
+    ? `Changed destination "${destination.name}" approval to ${req.body.approvalStatus}`
+    : `Updated destination "${destination.name}"`;
+
+  await logActivity({
+    req,
+    action,
+    entity: 'destination',
+    entityId: String(destination._id),
+    entityName: destination.name,
+    description,
   });
+
+  res.status(200).json({ status: 'success', data: destination });
 });
 
 // @desc    Delete a destination
@@ -158,8 +176,14 @@ export const deleteDestination = asyncHandler(async (req: Request, res: Response
     throw new AppError('Destination not found', 404);
   }
 
-  res.status(204).json({
-    status: 'success',
-    data: null,
+  await logActivity({
+    req,
+    action: 'delete',
+    entity: 'destination',
+    entityId: String(destination._id),
+    entityName: destination.name,
+    description: `Deleted destination "${destination.name}"`,
   });
+
+  res.status(204).json({ status: 'success', data: null });
 });

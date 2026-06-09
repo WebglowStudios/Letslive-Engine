@@ -3,6 +3,7 @@ import Package from '../models/Package.js';
 import Destination from '../models/Destination.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { logActivity } from '../utils/logActivity.js';
 
 // @desc    Get all packages with filtering, search, sort, pagination
 // @route   GET /api/packages
@@ -191,21 +192,23 @@ export const getPackagesByDestination = asyncHandler(async (req: Request, res: R
 // @desc    Create a package
 // @route   POST /api/packages
 export const createPackage = asyncHandler(async (req: Request, res: Response) => {
-  // If custom itinerary, set createdBy
   if (req.body.isCustom && req.user) {
     req.body.createdBy = req.user._id;
   }
   const pkg = await Package.create(req.body);
 
-  // Increment destination packageCount
-  await Destination.findByIdAndUpdate(pkg.destination, {
-    $inc: { packageCount: 1 },
+  await Destination.findByIdAndUpdate(pkg.destination, { $inc: { packageCount: 1 } });
+
+  await logActivity({
+    req,
+    action: 'create',
+    entity: 'package',
+    entityId: String(pkg._id),
+    entityName: pkg.name,
+    description: `Created package "${pkg.name}"`,
   });
 
-  res.status(201).json({
-    status: 'success',
-    data: pkg,
-  });
+  res.status(201).json({ status: 'success', data: pkg });
 });
 
 // @desc    Update a package
@@ -220,10 +223,23 @@ export const updatePackage = asyncHandler(async (req: Request, res: Response) =>
     throw new AppError('Package not found', 404);
   }
 
-  res.status(200).json({
-    status: 'success',
-    data: pkg,
+  // Detect approval status change
+  const action = req.body.approvalStatus ? 'approve' : 'update';
+  const description = req.body.approvalStatus
+    ? `Changed package "${pkg.name}" approval to ${req.body.approvalStatus}`
+    : `Updated package "${pkg.name}"`;
+
+  await logActivity({
+    req,
+    action,
+    entity: 'package',
+    entityId: String(pkg._id),
+    entityName: pkg.name,
+    description,
+    meta: req.body.approvalStatus ? { approvalStatus: req.body.approvalStatus } : undefined,
   });
+
+  res.status(200).json({ status: 'success', data: pkg });
 });
 
 // @desc    Delete a package
@@ -235,13 +251,16 @@ export const deletePackage = asyncHandler(async (req: Request, res: Response) =>
     throw new AppError('Package not found', 404);
   }
 
-  // Decrement destination packageCount
-  await Destination.findByIdAndUpdate(pkg.destination, {
-    $inc: { packageCount: -1 },
+  await Destination.findByIdAndUpdate(pkg.destination, { $inc: { packageCount: -1 } });
+
+  await logActivity({
+    req,
+    action: 'delete',
+    entity: 'package',
+    entityId: String(pkg._id),
+    entityName: pkg.name,
+    description: `Deleted package "${pkg.name}"`,
   });
 
-  res.status(204).json({
-    status: 'success',
-    data: null,
-  });
+  res.status(204).json({ status: 'success', data: null });
 });

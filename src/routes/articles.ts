@@ -3,6 +3,7 @@ import Article from '../models/Article.js';
 import { protect, staffOnly } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { logActivity } from '../utils/logActivity.js';
 
 const router = Router();
 
@@ -44,6 +45,7 @@ router.get('/:slug', asyncHandler(async (req: Request, res: Response) => {
 router.post('/', protect, staffOnly, asyncHandler(async (req: Request, res: Response) => {
   req.body.author = req.user!._id;
   const article = await Article.create(req.body);
+  await logActivity({ req, action: 'create', entity: 'article', entityId: String(article._id), entityName: article.title, description: `Created article "${article.title}"` });
   res.status(201).json({ status: 'success', data: article });
 }));
 
@@ -51,6 +53,7 @@ router.post('/', protect, staffOnly, asyncHandler(async (req: Request, res: Resp
 router.put('/:id', protect, staffOnly, asyncHandler(async (req: Request, res: Response) => {
   const article = await Article.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
   if (!article) throw new AppError('Article not found', 404);
+  await logActivity({ req, action: 'update', entity: 'article', entityId: String(article._id), entityName: article.title, description: `Updated article "${article.title}"` });
   res.status(200).json({ status: 'success', data: article });
 }));
 
@@ -58,6 +61,7 @@ router.put('/:id', protect, staffOnly, asyncHandler(async (req: Request, res: Re
 router.delete('/:id', protect, staffOnly, asyncHandler(async (req: Request, res: Response) => {
   const article = await Article.findByIdAndDelete(req.params.id);
   if (!article) throw new AppError('Article not found', 404);
+  await logActivity({ req, action: 'delete', entity: 'article', entityId: String(article._id), entityName: article.title, description: `Deleted article "${article.title}"` });
   res.status(204).json({ status: 'success', data: null });
 }));
 

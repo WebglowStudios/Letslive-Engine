@@ -6,6 +6,7 @@ import Operation from '../models/Operation.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { sendBookingConfirmation } from '../services/emailService.js';
+import { logActivity } from '../utils/logActivity.js';
 
 // @desc    Create a booking
 // @route   POST /api/bookings
@@ -177,6 +178,16 @@ export const updateBookingStatus = asyncHandler(async (req: Request, res: Respon
   }
   if (paymentStatus) booking.paymentStatus = paymentStatus;
   await booking.save();
+
+  await logActivity({
+    req,
+    action: 'status_change',
+    entity: 'booking',
+    entityId: String(booking._id),
+    entityName: String(booking._id),
+    description: `Updated booking #${String(booking._id).slice(-6).toUpperCase()} — status: ${bookingStatus || booking.bookingStatus}, payment: ${paymentStatus || booking.paymentStatus}`,
+    meta: { bookingStatus, paymentStatus },
+  });
 
   // Auto-create Operation when booking is confirmed for the first time
   if (bookingStatus === 'confirmed') {
