@@ -68,8 +68,6 @@ app.use(
 
 // 3. Rate limiters on specific paths
 app.use('/api', apiLimiter);
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
 app.use('/api/enquiries', enquiryLimiter);
 
 // 4. Body parser

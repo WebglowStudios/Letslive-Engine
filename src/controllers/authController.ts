@@ -78,24 +78,14 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     throw new AppError('Invalid email or password', 401);
   }
 
-  // Check if account is locked
-  if (user.lockUntil && user.lockUntil > new Date()) {
-    throw new AppError('Account is temporarily locked. Please try again later.', 423);
-  }
-
+  // Check if account is locked — skipping lockout for now
   // Compare password
   const isMatch = await user.comparePassword(data.password);
   if (!isMatch) {
-    // Increment login attempts
-    user.loginAttempts += 1;
-    if (user.loginAttempts >= 10) {
-      user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // Lock for 15 minutes
-    }
-    await user.save({ validateBeforeSave: false });
     throw new AppError('Invalid email or password', 401);
   }
 
-  // Reset login attempts on successful login
+  // Reset any old login attempts
   if (user.loginAttempts > 0) {
     user.loginAttempts = 0;
     user.lockUntil = undefined;
