@@ -22,6 +22,12 @@ export interface IStay {
 export interface ITransfer {
   title: string;
   description: string;
+  transferType: string;
+  vehicleType: string;
+  from: string;
+  to: string;
+  stops: string[];
+  day: number;
   details: string[];
   images: string[];
 }
@@ -143,6 +149,12 @@ const packageSchema = new Schema<IPackage>(
       {
         title: { type: String },
         description: { type: String },
+        transferType: { type: String },
+        vehicleType: { type: String },
+        from: { type: String },
+        to: { type: String },
+        stops: [{ type: String }],
+        day: { type: Number },
         details: [{ type: String }],
         images: [{ type: String }],
       },
