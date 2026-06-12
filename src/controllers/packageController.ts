@@ -152,8 +152,12 @@ export const getPackagesByDestination = asyncHandler(async (req: Request, res: R
   const query: Record<string, unknown> = {
     destination: destination._id,
     isActive: true,
-    isCustom: { $ne: true },
     approvalStatus: { $nin: ['pending', 'rejected'] },
+    // Custom itineraries only appear if explicitly enabled
+    $or: [
+      { isCustom: { $ne: true } },
+      { isCustom: true, showOnDestination: true },
+    ],
   };
 
   if (category) {
@@ -197,7 +201,9 @@ export const createPackage = asyncHandler(async (req: Request, res: Response) =>
   }
   const pkg = await Package.create(req.body);
 
-  await Destination.findByIdAndUpdate(pkg.destination, { $inc: { packageCount: 1 } });
+  if (pkg.destination) {
+    await Destination.findByIdAndUpdate(pkg.destination, { $inc: { packageCount: 1 } });
+  }
 
   await logActivity({
     req,
@@ -251,7 +257,9 @@ export const deletePackage = asyncHandler(async (req: Request, res: Response) =>
     throw new AppError('Package not found', 404);
   }
 
-  await Destination.findByIdAndUpdate(pkg.destination, { $inc: { packageCount: -1 } });
+  if (pkg.destination) {
+    await Destination.findByIdAndUpdate(pkg.destination, { $inc: { packageCount: -1 } });
+  }
 
   await logActivity({
     req,

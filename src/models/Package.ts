@@ -43,7 +43,7 @@ export interface IActivity {
 export interface IPackage extends Document {
   name: string;
   slug: string;
-  destination: mongoose.Types.ObjectId;
+  destination?: mongoose.Types.ObjectId;
   description?: string;
   shortDescription?: string;
   images: string[];
@@ -77,6 +77,7 @@ export interface IPackage extends Document {
   flightsIncluded: boolean;
   travellerCount?: string;
   isCustom: boolean;
+  showOnDestination: boolean;
   clientName?: string;
   clientEmail?: string;
   clientPhone?: string;
@@ -93,7 +94,6 @@ const packageSchema = new Schema<IPackage>(
     destination: {
       type: Schema.Types.ObjectId,
       ref: 'Destination',
-      required: true,
       index: true,
     },
     description: { type: String },
@@ -179,6 +179,7 @@ const packageSchema = new Schema<IPackage>(
     approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
     // Custom itinerary fields
     isCustom: { type: Boolean, default: false },
+  showOnDestination: { type: Boolean, default: false },
     clientName: { type: String },
     clientEmail: { type: String },
     clientPhone: { type: String },
