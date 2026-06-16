@@ -21,11 +21,17 @@ export const getPackages = asyncHandler(async (req: Request, res: Response) => {
     admin,
   } = req.query;
 
-  const query: Record<string, unknown> = { isActive: true, isCustom: { $ne: true } };
+  const query: Record<string, unknown> = {};
 
-  // Only filter by approval for public requests (not admin dashboard)
+  // For admin dashboard: show all packages (including inactive)
+  // For public: only show active, non-custom packages
   if (!admin) {
+    query.isActive = true;
+    query.isCustom = { $ne: true };
     query.approvalStatus = { $nin: ['pending', 'rejected'] };
+  } else {
+    // Admin still excludes custom itineraries (they have their own page)
+    query.isCustom = { $ne: true };
   }
 
   if (destination) {
