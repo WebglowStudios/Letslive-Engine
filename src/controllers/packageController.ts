@@ -205,6 +205,10 @@ export const createPackage = asyncHandler(async (req: Request, res: Response) =>
   if (req.body.isCustom && req.user) {
     req.body.createdBy = req.user._id;
   }
+  // Strip empty destination to avoid ObjectId cast error
+  if (!req.body.destination) {
+    delete req.body.destination;
+  }
   const pkg = await Package.create(req.body);
 
   if (pkg.destination) {
@@ -226,6 +230,10 @@ export const createPackage = asyncHandler(async (req: Request, res: Response) =>
 // @desc    Update a package
 // @route   PUT /api/packages/:id
 export const updatePackage = asyncHandler(async (req: Request, res: Response) => {
+  // Strip empty destination to avoid ObjectId cast error
+  if (!req.body.destination) {
+    delete req.body.destination;
+  }
   const pkg = await Package.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
     runValidators: true,
