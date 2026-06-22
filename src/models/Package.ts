@@ -19,6 +19,14 @@ export interface IStay {
   amenities: string[];
 }
 
+export interface ITransferLeg {
+  from: string;
+  to: string;
+  stops: string[];
+  transferType?: string;
+  vehicleType?: string;
+}
+
 export interface ITransfer {
   title: string;
   description: string;
@@ -27,6 +35,7 @@ export interface ITransfer {
   from: string;
   to: string;
   stops: string[];
+  legs: ITransferLeg[];
   day: number;
   details: string[];
   images: string[];
@@ -154,6 +163,15 @@ const packageSchema = new Schema<IPackage>(
         from: { type: String },
         to: { type: String },
         stops: [{ type: String }],
+        legs: [
+          {
+            from: { type: String },
+            to: { type: String },
+            stops: [{ type: String }],
+            transferType: { type: String },
+            vehicleType: { type: String },
+          },
+        ],
         day: { type: Number },
         details: [{ type: String }],
         images: [{ type: String }],
