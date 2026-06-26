@@ -26,7 +26,7 @@ router.post('/', protect, staffOnly, async (req: Request, res: Response) => {
     name,
     category,
     items: items.filter((i: string) => i && i.trim()),
-    createdBy: (req as Record<string, unknown>).user ? ((req as Record<string, unknown>).user as Record<string, unknown>)._id : undefined,
+    createdBy: req.user?._id,
   });
   res.status(201).json({ status: 'success', data: template });
 });
