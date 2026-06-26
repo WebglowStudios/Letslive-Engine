@@ -67,8 +67,11 @@ app.use(
   })
 );
 
-// 3. Rate limiters on specific paths
-app.use('/api', apiLimiter);
+// 3. Rate limiters on specific paths (skip upload routes — they're auth-protected and need more headroom)
+app.use('/api', (req, res, next) => {
+  if (req.path.startsWith('/upload')) return next();
+  return apiLimiter(req, res, next);
+});
 app.use('/api/enquiries', enquiryLimiter);
 
 // 4. Body parser
