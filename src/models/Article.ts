@@ -9,6 +9,7 @@ export interface IArticle extends Document {
   coverImage: string;
   category: string;
   tags: string[];
+  destination?: mongoose.Types.ObjectId;
   author: mongoose.Types.ObjectId;
   readTime: number;
   isPublished: boolean;
@@ -26,6 +27,7 @@ const articleSchema = new Schema<IArticle>(
     coverImage: { type: String },
     category: { type: String, default: 'travel' },
     tags: [{ type: String }],
+    destination: { type: Schema.Types.ObjectId, ref: 'Destination', index: true },
     author: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     readTime: { type: Number, default: 5 },
     isPublished: { type: Boolean, default: false },

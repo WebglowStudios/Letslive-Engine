@@ -16,6 +16,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const filter: Record<string, unknown> = { isPublished: true };
   if (req.query.category) filter.category = req.query.category;
   if (req.query.tag) filter.tags = { $regex: new RegExp(req.query.tag as string, 'i') };
+  if (req.query.destination) filter.destination = req.query.destination;
 
   const [articles, total] = await Promise.all([
     Article.find(filter).populate('author', 'firstName lastName').sort({ publishedAt: -1 }).skip(skip).limit(limit),
