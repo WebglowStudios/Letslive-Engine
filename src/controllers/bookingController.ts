@@ -2,10 +2,11 @@ import { Request, Response } from 'express';
 import Booking from '../models/Booking.js';
 import Package from '../models/Package.js';
 import User from '../models/User.js';
+import Enquiry from '../models/Enquiry.js';
 import Operation from '../models/Operation.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
-import { sendBookingConfirmation } from '../services/emailService.js';
+import { sendBookingConfirmation, sendAdminNewBooking } from '../services/emailService.js';
 import { logActivity } from '../utils/logActivity.js';
 
 // @desc    Create a booking
@@ -24,18 +25,52 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
 
   const totalAmount = pkg.price * adults + pkg.price * 0.7 * children;
 
+  // Get user details for enquiry creation
+  const user = await User.findById(userId);
+  const customerName = user ? `${user.firstName} ${user.lastName}`.trim() : 'Customer';
+  const customerEmail = user?.email || req.body.contactEmail || '';
+  const customerPhone = user?.phone || req.body.contactPhone || '';
+
+  // Auto-create enquiry for this booking (so every booking has an enquiry trail)
+  let enquiryId: string | undefined;
+
+  // Check if package already has a linked enquiry (custom itinerary case)
+  if (pkg.enquiryId) {
+    // Update existing enquiry status to "converted"
+    await Enquiry.findByIdAndUpdate(pkg.enquiryId, { status: 'converted' });
+    enquiryId = String(pkg.enquiryId);
+  } else {
+    // Create a new enquiry for this booking
+    const newEnquiry = await Enquiry.create({
+      type: 'booking',
+      firstName: user?.firstName || req.body.primaryTraveller?.firstName || 'Customer',
+      lastName: user?.lastName || req.body.primaryTraveller?.lastName || '',
+      email: customerEmail,
+      phone: customerPhone,
+      packageName: pkg.name,
+      package: pkg._id,
+      destination: pkg.destination ? String(pkg.destination) : undefined,
+      travelDate: req.body.travelDate,
+      message: `Booked via website. ${req.body.specialRequests || ''}`.trim(),
+      status: 'converted',
+      priority: 'high',
+      source: 'website',
+    });
+    enquiryId = String(newEnquiry._id);
+  }
+
   const booking = await Booking.create({
     ...req.body,
     user: userId,
     destination: pkg.destination,
+    enquiry: enquiryId,
     totalAmount,
   });
 
-  // Send booking confirmation email (fire-and-forget)
-  const user = await User.findById(userId);
+  // Send booking confirmation email to customer (fire-and-forget)
   if (user) {
     sendBookingConfirmation(user.email, user.firstName, {
-      bookingId: String(booking._id),
+      bookingId: booking.bookingId || String(booking._id),
       packageName: pkg.name,
       travelDate: req.body.travelDate
         ? new Date(req.body.travelDate).toLocaleDateString('en-IN', {
@@ -48,6 +83,16 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
       travellers: `${adults} Adult${adults > 1 ? 's' : ''}${children ? `, ${children} Child${children > 1 ? 'ren' : ''}` : ''}`,
     }).catch((err) => console.error('Failed to send booking confirmation:', err));
   }
+
+  // Send admin notification email (fire-and-forget)
+  sendAdminNewBooking(
+    customerName,
+    pkg.name,
+    totalAmount,
+    req.body.travelDate
+      ? new Date(req.body.travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+      : 'TBD'
+  ).catch((err) => console.error('Failed to send admin booking notification:', err));
 
   res.status(201).json({
     status: 'success',

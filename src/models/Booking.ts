@@ -38,6 +38,7 @@ const bookingSchema = new Schema<IBooking>(
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     package: { type: Schema.Types.ObjectId, ref: 'Package', required: true, index: true },
     destination: { type: Schema.Types.ObjectId, ref: 'Destination' },
+    enquiry: { type: Schema.Types.ObjectId, ref: 'Enquiry' },
     travelDate: { type: Date, required: true },
     returnDate: { type: Date },
     travellers: {
