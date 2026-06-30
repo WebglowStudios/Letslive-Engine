@@ -17,6 +17,10 @@ export interface IStay {
   nights: number;
   roomType: string;
   amenities: string[];
+  checkIn?: string;
+  checkOut?: string;
+  address?: string;
+  confirmationNo?: string;
 }
 
 export interface ITransferLeg {
@@ -49,6 +53,19 @@ export interface IActivity {
   images: string[];
 }
 
+export interface IFlight {
+  day: number;
+  airline: string;
+  flightNumber: string;
+  from: string;
+  to: string;
+  departure: string;
+  arrival: string;
+  pnr?: string;
+  class?: string;
+  notes?: string;
+}
+
 export interface IPackage extends Document {
   name: string;
   slug: string;
@@ -61,6 +78,7 @@ export interface IPackage extends Document {
   activityImages: string[];
   heroImage?: string;
   duration: { nights: number; days: number };
+  travelDates?: { startDate?: Date; endDate?: Date };
   hotelRating?: string;
   category?: 'luxury' | 'honeymoon' | 'family' | 'adventure' | 'group' | 'budget';
   originalPrice?: number;
@@ -76,6 +94,7 @@ export interface IPackage extends Document {
   stays: IStay[];
   transfers: ITransfer[];
   activities: IActivity[];
+  flights: IFlight[];
   knowBeforeYouGo: string[];
   thingsToCarry: string[];
   keyPoints: string[];
@@ -116,6 +135,10 @@ const packageSchema = new Schema<IPackage>(
       nights: { type: Number },
       days: { type: Number },
     },
+    travelDates: {
+      startDate: { type: Date },
+      endDate: { type: Date },
+    },
     hotelRating: { type: String },
     category: {
       type: String,
@@ -152,6 +175,10 @@ const packageSchema = new Schema<IPackage>(
         nights: { type: Number },
         roomType: { type: String },
         amenities: [{ type: String }],
+        checkIn: { type: String },
+        checkOut: { type: String },
+        address: { type: String },
+        confirmationNo: { type: String },
       },
     ],
     transfers: [
@@ -189,6 +216,20 @@ const packageSchema = new Schema<IPackage>(
     knowBeforeYouGo: [{ type: String }],
     thingsToCarry: [{ type: String }],
     keyPoints: [{ type: String }],
+    flights: [
+      {
+        day: { type: Number },
+        airline: { type: String },
+        flightNumber: { type: String },
+        from: { type: String },
+        to: { type: String },
+        departure: { type: String },
+        arrival: { type: String },
+        pnr: { type: String },
+        class: { type: String },
+        notes: { type: String },
+      },
+    ],
     badge: { type: String },
     flightsIncluded: { type: Boolean, default: false },
     travellerCount: { type: String },
