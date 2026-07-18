@@ -248,9 +248,9 @@ const packageSchema = new Schema<IPackage>(
   { timestamps: true }
 );
 
-// Auto-generate slug from name
+// Auto-generate slug from name only when slug isn't already explicitly provided
 packageSchema.pre('validate', function () {
-  if (this.isModified('name') || !this.slug) {
+  if (!this.slug) {
     this.slug = slugify(this.name, { lower: true, strict: true });
   }
 });
