@@ -48,12 +48,16 @@ router.post('/:id/duplicate', protect, staffOnly, asyncHandler(async (req: Reque
 
   // Strip MongoDB-managed fields and create a fresh copy
   const { _id, slug, createdAt, updatedAt, __v, ...rest } = original as unknown as Record<string, unknown>;
-  void _id; void slug; void createdAt; void updatedAt; void __v;
+  void _id; void createdAt; void updatedAt; void __v;
+
+  // Build a unique name by appending a timestamp so repeated duplicates never clash
+  const copyName = `${rest.name} -- copy`;
+  const uniqueSlug = `${slug}-copy-${Date.now()}`;
 
   const copy = await Package.create({
     ...rest,
-    name: `${rest.name} -- copy`,
-    // slug is auto-generated from name in pre-validate hook
+    name: copyName,
+    slug: uniqueSlug,
     isFeatured: false,
     approvalStatus: 'pending',
     rating: 0,
