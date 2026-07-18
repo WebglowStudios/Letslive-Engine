@@ -13,6 +13,7 @@ export interface IBooking extends Document {
   user: mongoose.Types.ObjectId;
   package: mongoose.Types.ObjectId;
   destination?: mongoose.Types.ObjectId;
+  enquiry?: mongoose.Types.ObjectId;
   travelDate: Date;
   returnDate?: Date;
   travellers: { adults: number; children: number; infants: number };
@@ -91,16 +92,16 @@ const bookingSchema = new Schema<IBooking>(
     timestamps: true,
     toJSON: {
       virtuals: true,
-      transform(_doc, ret) {
+      transform(_doc, ret: Record<string, unknown>) {
         // Expose bookingStatus as 'status' for frontend compatibility
-        (ret as Record<string, unknown>).status = ret.bookingStatus;
+        ret.status = ret.bookingStatus;
         return ret;
       },
     },
     toObject: {
       virtuals: true,
-      transform(_doc, ret) {
-        (ret as Record<string, unknown>).status = ret.bookingStatus;
+      transform(_doc, ret: Record<string, unknown>) {
+        ret.status = ret.bookingStatus;
         return ret;
       },
     },
@@ -108,7 +109,7 @@ const bookingSchema = new Schema<IBooking>(
 );
 
 // Auto-generate bookingId like "LLT-2026-00001"
-bookingSchema.pre('save', async function () {
+bookingSchema.pre('save', async function (this: IBooking) {
   if (!this.isNew || this.bookingId) return;
 
   const year = new Date().getFullYear();
