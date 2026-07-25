@@ -33,6 +33,8 @@ export const env = {
   CLOUDINARY_API_KEY: getEnv('CLOUDINARY_API_KEY', ''),
   CLOUDINARY_API_SECRET: getEnv('CLOUDINARY_API_SECRET', ''),
   ADMIN_EMAIL: getEnv('ADMIN_EMAIL', 'admin@letslivetours.in'),
+  RAZORPAY_KEY_ID: getEnv('RAZORPAY_KEY_ID', ''),
+  RAZORPAY_KEY_SECRET: getEnv('RAZORPAY_KEY_SECRET', ''),
 } as const;
 
 export default env;

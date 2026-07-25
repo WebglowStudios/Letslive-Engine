@@ -28,6 +28,7 @@ import operationRoutes from './routes/operations.js';
 import vendorRoutes from './routes/vendors.js';
 import uploadRoutes from './routes/upload.js';
 import packageTemplateRoutes from './routes/packageTemplates.js';
+import paymentRoutes from './routes/payments.js';
 
 const app = express();
 
@@ -134,6 +135,7 @@ app.use('/api/operations', operationRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/package-templates', packageTemplateRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Health check endpoint
 app.get('/api/health', (_req, res) => {

@@ -1,0 +1,246 @@
+import { Request, Response } from 'express';
+import crypto from 'crypto';
+import Razorpay from 'razorpay';
+import { asyncHandler } from '../middleware/asyncHandler.js';
+import { AppError } from '../middleware/errorHandler.js';
+import { env } from '../config/env.js';
+import Booking from '../models/Booking.js';
+import Package from '../models/Package.js';
+
+// Lazily initialise Razorpay so the server doesn't crash on boot if keys are missing
+function getRazorpay(): Razorpay {
+  if (!env.RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET) {
+    throw new AppError('Razorpay is not configured on this server', 503);
+  }
+  return new Razorpay({
+    key_id: env.RAZORPAY_KEY_ID,
+    key_secret: env.RAZORPAY_KEY_SECRET,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/payments/create-order
+// Body: { bookingId, paymentType: 'full' | 'deposit' | 'balance' }
+//
+// Creates a Razorpay order for:
+//   - 'full'    → charge totalAmount in one go
+//   - 'deposit' → charge the configured deposit amount
+//   - 'balance' → charge the outstanding balance (totalAmount - paidAmount)
+// ─────────────────────────────────────────────────────────────────────────────
+export const createOrder = asyncHandler(async (req: Request, res: Response) => {
+  const { bookingId, paymentType = 'full' } = req.body as {
+    bookingId: string;
+    paymentType: 'full' | 'deposit' | 'balance';
+  };
+
+  if (!bookingId) throw new AppError('bookingId is required', 400);
+
+  const booking = await Booking.findById(bookingId).populate('package');
+  if (!booking) throw new AppError('Booking not found', 404);
+
+  // Ownership check
+  if (booking.user.toString() !== String(req.user!._id)) {
+    throw new AppError('Not authorised', 403);
+  }
+
+  if (booking.paymentStatus === 'paid') {
+    throw new AppError('This booking is already fully paid', 400);
+  }
+
+  const pkg = booking.package as unknown as {
+    paymentConfig?: {
+      mode: 'full' | 'partial';
+      depositType: 'percent' | 'fixed';
+      depositValue: number;
+      depositLabel?: string;
+      balanceDueDays?: number;
+    };
+  };
+
+  const paymentConfig = pkg?.paymentConfig;
+  const totalAmount = booking.totalAmount;
+  const alreadyPaid = booking.paidAmount || 0;
+  const outstanding = totalAmount - alreadyPaid;
+
+  let chargeAmount: number;
+  let receiptLabel: string;
+
+  if (paymentType === 'deposit') {
+    if (!paymentConfig || paymentConfig.mode !== 'partial') {
+      throw new AppError('This package does not support deposit payments', 400);
+    }
+    if (alreadyPaid > 0) {
+      throw new AppError('Deposit has already been paid', 400);
+    }
+    chargeAmount =
+      paymentConfig.depositType === 'percent'
+        ? Math.round((paymentConfig.depositValue / 100) * totalAmount)
+        : paymentConfig.depositValue;
+    receiptLabel = 'deposit';
+  } else if (paymentType === 'balance') {
+    if (outstanding <= 0) throw new AppError('No outstanding balance', 400);
+    chargeAmount = outstanding;
+    receiptLabel = 'balance';
+  } else {
+    // full
+    chargeAmount = outstanding > 0 ? outstanding : totalAmount;
+    receiptLabel = 'full';
+  }
+
+  if (chargeAmount <= 0) {
+    throw new AppError('Charge amount must be greater than zero', 400);
+  }
+
+  const razorpay = getRazorpay();
+
+  // Razorpay amounts are in paise (1 INR = 100 paise)
+  const order = await razorpay.orders.create({
+    amount: chargeAmount * 100,
+    currency: 'INR',
+    receipt: `${receiptLabel}-${String(booking._id).slice(-8)}`,
+    notes: {
+      bookingId: String(booking._id),
+      internalBookingId: booking.bookingId || '',
+      paymentType: receiptLabel,
+      userId: String(req.user!._id),
+    },
+  });
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      orderId: order.id,
+      amount: chargeAmount,         // in INR for display
+      amountPaise: chargeAmount * 100,
+      currency: 'INR',
+      keyId: env.RAZORPAY_KEY_ID,
+      bookingId: String(booking._id),
+      internalBookingId: booking.bookingId,
+      paymentType: receiptLabel,
+    },
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/payments/verify
+// Body: { razorpay_order_id, razorpay_payment_id, razorpay_signature,
+//         bookingId, paymentType, amount }
+// ─────────────────────────────────────────────────────────────────────────────
+export const verifyPayment = asyncHandler(async (req: Request, res: Response) => {
+  const {
+    razorpay_order_id,
+    razorpay_payment_id,
+    razorpay_signature,
+    bookingId,
+    paymentType,
+    amount, // in INR
+  } = req.body as {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+    bookingId: string;
+    paymentType: 'full' | 'deposit' | 'balance';
+    amount: number;
+  };
+
+  // 1. Verify HMAC signature
+  const body = razorpay_order_id + '|' + razorpay_payment_id;
+  const expectedSignature = crypto
+    .createHmac('sha256', env.RAZORPAY_KEY_SECRET)
+    .update(body)
+    .digest('hex');
+
+  if (expectedSignature !== razorpay_signature) {
+    throw new AppError('Payment verification failed — invalid signature', 400);
+  }
+
+  // 2. Find and update booking
+  const booking = await Booking.findById(bookingId);
+  if (!booking) throw new AppError('Booking not found', 404);
+
+  if (booking.user.toString() !== String(req.user!._id)) {
+    throw new AppError('Not authorised', 403);
+  }
+
+  // 3. Record payment in history
+  booking.paymentHistory.push({
+    amount,
+    method: 'razorpay',
+    transactionId: razorpay_payment_id,
+    date: new Date(),
+    status: 'success',
+  });
+
+  // 4. Update paidAmount and derive paymentStatus
+  booking.paidAmount = (booking.paidAmount || 0) + amount;
+
+  if (booking.paidAmount >= booking.totalAmount) {
+    booking.paymentStatus = 'paid';
+    // Auto-confirm the booking when fully paid
+    if (booking.bookingStatus === 'pending') {
+      booking.bookingStatus = 'confirmed';
+    }
+  } else {
+    booking.paymentStatus = 'partial';
+  }
+
+  await booking.save();
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      bookingId: String(booking._id),
+      internalBookingId: booking.bookingId,
+      paidAmount: booking.paidAmount,
+      totalAmount: booking.totalAmount,
+      paymentStatus: booking.paymentStatus,
+      bookingStatus: booking.bookingStatus,
+      razorpayPaymentId: razorpay_payment_id,
+    },
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/payments/config/:packageId
+// Returns the payment config for a given package (deposit % etc.)
+// Used by the frontend to decide what to show before checkout
+// ─────────────────────────────────────────────────────────────────────────────
+export const getPaymentConfig = asyncHandler(async (req: Request, res: Response) => {
+  const pkg = await Package.findById(req.params.packageId).select('paymentConfig price name');
+  if (!pkg) throw new AppError('Package not found', 404);
+
+  const pc = (pkg as unknown as {
+    paymentConfig?: {
+      mode: 'full' | 'partial';
+      depositType: 'percent' | 'fixed';
+      depositValue: number;
+      depositLabel?: string;
+      balanceDueDays?: number;
+    };
+  }).paymentConfig;
+
+  const mode = pc?.mode || 'full';
+  const depositType = pc?.depositType || 'percent';
+  const depositValue = pc?.depositValue ?? 30;
+  const price = pkg.price;
+
+  const depositAmount =
+    mode === 'partial'
+      ? depositType === 'percent'
+        ? Math.round((depositValue / 100) * price)
+        : depositValue
+      : price;
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      mode,
+      depositType,
+      depositValue,
+      depositLabel: pc?.depositLabel || null,
+      balanceDueDays: pc?.balanceDueDays || 30,
+      depositAmount, // pre-calculated in INR
+      keyId: env.RAZORPAY_KEY_ID,
+    },
+  });
+});

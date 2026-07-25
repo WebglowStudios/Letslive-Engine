@@ -111,6 +111,14 @@ export interface IPackage extends Document {
   clientPhone?: string;
   enquiryId?: mongoose.Types.ObjectId;
   createdBy?: mongoose.Types.ObjectId;
+  // Payment configuration
+  paymentConfig: {
+    mode: 'full' | 'partial';           // full = pay full amount; partial = pay deposit now, rest later
+    depositType: 'percent' | 'fixed';   // how the deposit is expressed
+    depositValue: number;               // e.g. 30 (percent) or 10000 (fixed ₹)
+    depositLabel?: string;              // custom label shown to user e.g. "Book with ₹5000"
+    balanceDueDays?: number;            // days before travel by which balance must be paid
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -244,6 +252,14 @@ const packageSchema = new Schema<IPackage>(
     clientPhone: { type: String },
     enquiryId: { type: Schema.Types.ObjectId, ref: 'Enquiry' },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    // Payment configuration per package
+    paymentConfig: {
+      mode: { type: String, enum: ['full', 'partial'], default: 'full' },
+      depositType: { type: String, enum: ['percent', 'fixed'], default: 'percent' },
+      depositValue: { type: Number, default: 30 },
+      depositLabel: { type: String },
+      balanceDueDays: { type: Number, default: 30 },
+    },
   },
   { timestamps: true }
 );
