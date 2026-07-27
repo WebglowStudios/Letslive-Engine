@@ -35,6 +35,7 @@ export const env = {
   ADMIN_EMAIL: getEnv('ADMIN_EMAIL', 'admin@letslivetours.in'),
   RAZORPAY_KEY_ID: getEnv('RAZORPAY_KEY_ID', ''),
   RAZORPAY_KEY_SECRET: getEnv('RAZORPAY_KEY_SECRET', ''),
+  RAZORPAY_WEBHOOK_SECRET: getEnv('RAZORPAY_WEBHOOK_SECRET', ''),
 } as const;
 
 export default env;

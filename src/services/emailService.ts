@@ -288,3 +288,157 @@ export async function sendStaffEnquiryAssigned(
 
   await sendEmail({ to: staffEmail, subject: `Enquiry Assigned: ${customerName} — ${enquiryType}`, html });
 }
+
+// ─── CRM: DNP 3 Alert ────────────────────────────────────────────────────────
+export async function sendDNP3Alert(
+  managerEmail: string,
+  customerName: string,
+  staffName: string
+): Promise<void> {
+  const html = wrapTemplate(`
+    <p style="margin:0 0 16px;font-size:22px;font-weight:700;color:#1a1a1a;">⚠️ Lead Needs Attention — DNP 3</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#444;line-height:1.7;">
+      The lead <strong>${customerName}</strong> has had <strong>3 unanswered call attempts</strong> by ${staffName}.
+      Please consider reassigning or escalating this enquiry.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff8f0;border-radius:10px;padding:20px;margin:20px 0;border:1px solid #f5a623;">
+      <tr><td style="padding:8px 16px;font-size:13px;color:#888;">Lead</td><td style="padding:8px 16px;font-size:14px;color:#1a1a1a;font-weight:600;text-align:right;">${customerName}</td></tr>
+      <tr><td style="padding:8px 16px;font-size:13px;color:#888;">Assigned To</td><td style="padding:8px 16px;font-size:14px;color:#1a1a1a;font-weight:600;text-align:right;">${staffName}</td></tr>
+      <tr><td style="padding:8px 16px;font-size:13px;color:#888;">DNP Count</td><td style="padding:8px 16px;font-size:14px;color:#f5a623;font-weight:700;text-align:right;">3 attempts</td></tr>
+    </table>
+    <p style="margin:0;font-size:14px;color:#444;">Log in to the admin panel to reassign or review this lead.</p>
+  `);
+
+  await sendEmail({ to: managerEmail, subject: `⚠️ DNP Alert: ${customerName} — 3 Unanswered Calls`, html });
+}
+
+// ─── CRM: DNP 6 Alert ────────────────────────────────────────────────────────
+export async function sendDNP6Alert(
+  recipientEmail: string,
+  customerName: string
+): Promise<void> {
+  const html = wrapTemplate(`
+    <p style="margin:0 0 16px;font-size:22px;font-weight:700;color:#ef4444;">🚨 Lead Going Cold — DNP 6+</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#444;line-height:1.7;">
+      <strong>${customerName}</strong> has had <strong>6 or more unanswered call attempts</strong>.
+      This lead may need to be closed or handed off.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff5f5;border-radius:10px;padding:20px;margin:20px 0;border:1px solid #ef4444;">
+      <tr><td style="padding:8px 16px;font-size:13px;color:#888;">Lead</td><td style="padding:8px 16px;font-size:14px;color:#1a1a1a;font-weight:600;text-align:right;">${customerName}</td></tr>
+      <tr><td style="padding:8px 16px;font-size:13px;color:#888;">DNP Count</td><td style="padding:8px 16px;font-size:14px;color:#ef4444;font-weight:700;text-align:right;">6+ attempts</td></tr>
+    </table>
+    <p style="margin:0;font-size:14px;color:#444;">Consider marking this lead as closed with a lost reason in the admin panel.</p>
+  `);
+
+  await sendEmail({ to: recipientEmail, subject: `🚨 Lead Cold: ${customerName} — 6+ Unanswered Calls`, html });
+}
+
+// ─── CRM: Conversion Congrats ─────────────────────────────────────────────────
+export async function sendConversionCongrats(
+  staffEmail: string,
+  staffName: string,
+  customerName: string,
+  bookingValue: number
+): Promise<void> {
+  const formattedValue = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(bookingValue);
+  const html = wrapTemplate(`
+    <p style="margin:0 0 16px;font-size:22px;font-weight:700;color:#10b981;">🎉 Conversion! Great Work!</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#444;line-height:1.7;">
+      Congratulations ${staffName}! Your lead <strong>${customerName}</strong> has converted into a confirmed booking.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4;border-radius:10px;padding:20px;margin:20px 0;border:1px solid #10b981;">
+      <tr><td style="padding:8px 16px;font-size:13px;color:#888;">Customer</td><td style="padding:8px 16px;font-size:14px;color:#1a1a1a;font-weight:600;text-align:right;">${customerName}</td></tr>
+      <tr><td style="padding:8px 16px;font-size:13px;color:#888;">Booking Value</td><td style="padding:8px 16px;font-size:18px;color:#10b981;font-weight:700;text-align:right;">${formattedValue}</td></tr>
+    </table>
+    <p style="margin:0;font-size:14px;color:#444;">The operations team has been notified and will handle the trip planning.</p>
+  `);
+
+  await sendEmail({ to: staffEmail, subject: `🎉 Converted! ${customerName} — ${formattedValue} booking`, html });
+}
+
+// ─── CRM: Follow-Up Reminder (for cron job) ────────────────────────────────────
+export async function sendFollowUpReminder(
+  staffEmail: string,
+  staffName: string,
+  followUps: { customerName: string; phone: string; notes?: string }[]
+): Promise<void> {
+  const rows = followUps.map((f) => `
+    <tr>
+      <td style="padding:10px 16px;font-size:14px;color:#1a1a1a;font-weight:600;border-bottom:1px solid #f0f0f0;">${f.customerName}</td>
+      <td style="padding:10px 16px;font-size:14px;color:#444;border-bottom:1px solid #f0f0f0;">${f.phone}</td>
+      <td style="padding:10px 16px;font-size:13px;color:#888;border-bottom:1px solid #f0f0f0;">${f.notes || '—'}</td>
+    </tr>`).join('');
+
+  const html = wrapTemplate(`
+    <p style="margin:0 0 16px;font-size:22px;font-weight:700;color:#1a1a1a;">📅 Your Follow-Ups for Today</p>
+    <p style="margin:0 0 20px;font-size:15px;color:#444;line-height:1.7;">
+      Hi ${staffName}, you have <strong>${followUps.length} follow-up${followUps.length > 1 ? 's' : ''}</strong> scheduled for today.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;overflow:hidden;border:1px solid #e5e5e5;">
+      <thead>
+        <tr style="background:#004d5e;">
+          <th style="padding:12px 16px;font-size:12px;color:rgba(255,255,255,.8);text-align:left;">Customer</th>
+          <th style="padding:12px 16px;font-size:12px;color:rgba(255,255,255,.8);text-align:left;">Phone</th>
+          <th style="padding:12px 16px;font-size:12px;color:rgba(255,255,255,.8);text-align:left;">Notes</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p style="margin:20px 0 0;font-size:14px;color:#444;">Log in to the admin panel to view full details and log your call outcomes.</p>
+  `);
+
+  await sendEmail({ to: staffEmail, subject: `📅 ${followUps.length} Follow-Up${followUps.length > 1 ? 's' : ''} Due Today — LetsLive CRM`, html });
+}
+
+// ─── Send Booking Link to Customer ────────────────────────────────────────────
+export async function sendBookingLink(opts: {
+  customerEmail: string;
+  customerName: string;
+  packageName: string;
+  packageSlug: string;
+  staffName: string;
+  price?: number;
+}): Promise<void> {
+  const { customerEmail, customerName, packageName, packageSlug, staffName, price } = opts;
+  const bookingUrl = `${process.env.FRONTEND_URL || 'https://www.letslivetours.com'}/book/${packageSlug}`;
+  const priceText = price
+    ? `<p style="margin:0 0 4px;font-size:13px;color:#888;">Starting from <strong style="color:#004d5e;">₹${price.toLocaleString('en-IN')}</strong></p>`
+    : '';
+
+  const html = wrapTemplate(`
+    <p style="margin:0 0 16px;font-size:22px;font-weight:700;color:#1a1a1a;">Your Package is Ready! 🎉</p>
+    <p style="margin:0 0 20px;font-size:15px;color:#444;line-height:1.7;">
+      Hi <strong>${customerName}</strong>,<br/><br/>
+      ${staffName} from LetsLive Tours has put together a travel package especially for you.
+      Click the button below to review the details and complete your booking.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;margin-bottom:24px;">
+      <tr>
+        <td style="padding:20px 24px;">
+          <p style="margin:0 0 6px;font-size:18px;font-weight:700;color:#1a1a1a;">${packageName}</p>
+          ${priceText}
+          <p style="margin:8px 0 0;font-size:13px;color:#888;">Prepared by ${staffName} · LetsLive Tours</p>
+        </td>
+      </tr>
+    </table>
+
+    <div style="text-align:center;margin:28px 0;">
+      <a href="${bookingUrl}"
+         style="display:inline-block;padding:14px 36px;background:#004d5e;color:#ffffff;text-decoration:none;border-radius:50px;font-size:15px;font-weight:700;letter-spacing:0.3px;">
+        View Package &amp; Book Now →
+      </a>
+    </div>
+
+    <p style="margin:20px 0 0;font-size:13px;color:#888;line-height:1.6;">
+      Or copy this link: <a href="${bookingUrl}" style="color:#004d5e;">${bookingUrl}</a><br/>
+      This link doesn't expire. If you have any questions, just reply to this email or call us.
+    </p>
+  `);
+
+  await sendEmail({
+    to: customerEmail,
+    subject: `Your LetsLive Tours Package is Ready — ${packageName}`,
+    html,
+  });
+}

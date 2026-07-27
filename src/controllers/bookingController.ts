@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import Booking from '../models/Booking.js';
 import Package from '../models/Package.js';
 import User from '../models/User.js';
@@ -6,7 +7,7 @@ import Enquiry from '../models/Enquiry.js';
 import Operation from '../models/Operation.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
-import { sendBookingConfirmation, sendAdminNewBooking } from '../services/emailService.js';
+import { sendBookingConfirmation, sendAdminNewBooking, sendConversionCongrats } from '../services/emailService.js';
 import { logActivity } from '../utils/logActivity.js';
 
 // @desc    Create a booking
@@ -126,11 +127,11 @@ export const getBookingById = asyncHandler(async (req: Request, res: Response) =
     throw new AppError('Booking not found', 404);
   }
 
-  // Check ownership or admin
+  // Check ownership or staff+
   const isOwner = booking.user.toString() === req.user!._id.toString();
-  const isAdmin = req.user!.role === 'admin';
+  const isStaffOrAbove = ["admin", "manager", "staff"].includes(req.user!.role);
 
-  if (!isOwner && !isAdmin) {
+  if (!isOwner && !isStaffOrAbove) {
     throw new AppError('Not authorized to view this booking', 403);
   }
 
@@ -254,6 +255,7 @@ export const updateBookingStatus = asyncHandler(async (req: Request, res: Respon
         await Operation.create({
           booking: booking._id,
           package: pkg?._id || undefined,
+          enquiry: populatedBooking.enquiry || undefined,
           customer: {
             name: usr ? `${usr.firstName || ''} ${usr.lastName || ''}`.trim() : 'Customer',
             email: usr?.email || '',
@@ -268,6 +270,31 @@ export const updateBookingStatus = asyncHandler(async (req: Request, res: Respon
           sellingPrice: populatedBooking.totalAmount || 0,
           status: 'planning',
         });
+
+        // ── Task 1: Sync enquiry → converted + conversionValue ──────────────
+        if (populatedBooking.enquiry) {
+          const linkedEnquiry = await Enquiry.findById(populatedBooking.enquiry).populate('assignedTo', 'firstName lastName email');
+          if (linkedEnquiry && linkedEnquiry.status !== 'converted') {
+            const prevStatus = linkedEnquiry.status;
+            linkedEnquiry.status = 'converted';
+            linkedEnquiry.conversionValue = populatedBooking.totalAmount || 0;
+            linkedEnquiry.bookingRef = booking._id as unknown as mongoose.Types.ObjectId;
+            await linkedEnquiry.save();
+
+            // Congrats email to the staff who owned this enquiry (fire-and-forget)
+            const assignedStaff = linkedEnquiry.assignedTo as unknown as { firstName: string; lastName?: string; email: string } | null;
+            if (assignedStaff?.email) {
+              const customerName = `${linkedEnquiry.firstName} ${linkedEnquiry.lastName || ''}`.trim();
+              sendConversionCongrats(
+                assignedStaff.email,
+                `${assignedStaff.firstName} ${assignedStaff.lastName || ''}`.trim(),
+                customerName,
+                populatedBooking.totalAmount || 0
+              ).catch(console.error);
+            }
+          }
+        }
+        // ───────────────────────────────────────────────────────────────────
       }
     }
   }

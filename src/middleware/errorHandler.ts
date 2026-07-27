@@ -42,10 +42,35 @@ const handleDuplicateKeyError = (err: MongoDuplicateKeyError): AppError => {
 };
 
 const handleValidationError = (err: MongooseValidationError): AppError => {
-  const errors = Object.values(err.errors).map((el) => el.message);
-  const message = `Invalid input data: ${errors.join('. ')}`;
+  const fieldLabels: Record<string, string> = {
+    travelDate: 'Travel date',
+    'primaryTraveller.firstName': 'First name',
+    'primaryTraveller.lastName': 'Last name',
+    'primaryTraveller.email': 'Email address',
+    'primaryTraveller.phone': 'Phone number',
+    contactPhone: 'Contact phone',
+    contactEmail: 'Contact email',
+    totalAmount: 'Total amount',
+    package: 'Package',
+    user: 'User',
+    email: 'Email address',
+    phone: 'Phone number',
+    firstName: 'First name',
+    lastName: 'Last name',
+    password: 'Password',
+  };
+  const errors = Object.entries(err.errors).map(([field, el]) => {
+    const label = fieldLabels[field] || field.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase());
+    // Replace mongoose's "Path `x` is required" with "X is required"
+    const msg = el.message
+      .replace(/^Path `[^`]+` is required/, `${label} is required`)
+      .replace(/^Path `[^`]+`/, label);
+    return msg;
+  });
+  const message = errors.join('. ');
   return new AppError(message, 400);
 };
+
 
 const handleJWTError = (): AppError =>
   new AppError('Invalid token. Please log in again.', 401);
@@ -74,21 +99,14 @@ export const globalErrorHandler = (
   }
 
   if (env.NODE_ENV === 'development') {
-    // Still format Zod errors nicely in dev
-    if (err instanceof ZodError) {
-      const messages = err.issues.map((issue) => issue.message);
-      res.status(400).json({
-        status: 'fail',
-        message: messages.join('. '),
-        errors: err.issues,
-      });
-      return;
-    }
-    res.status(err.statusCode).json({
-      status: err.status,
-      error: err,
-      message: err.message,
-      stack: err.stack,
+    // Format errors cleanly even in dev
+    let error = { ...err, message: err.message };
+    if (err.name === 'CastError') error = handleCastError(err as unknown as MongooseCastError) as typeof err;
+    if (err.code === 11000) error = handleDuplicateKeyError(err as unknown as MongoDuplicateKeyError) as typeof err;
+    if (err.name === 'ValidationError') error = handleValidationError(err as unknown as MongooseValidationError) as typeof err;
+    res.status(error.statusCode || err.statusCode || 500).json({
+      status: error.status || err.status || 'error',
+      message: error.message || err.message,
     });
     return;
   }

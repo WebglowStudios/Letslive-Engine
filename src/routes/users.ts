@@ -8,12 +8,15 @@ import {
   removeFromWishlist,
   getWishlist,
   deleteUser,
+  getStaffList,
 } from '../controllers/userController.js';
-import { protect, adminOnly } from '../middleware/auth.js';
+import { protect, adminOnly, staffOnly } from '../middleware/auth.js';
 
 const router = Router();
 
 router.get('/', protect, adminOnly, getAllUsers);
+// Staff list for reassign dropdowns — any logged-in staff can access
+router.get('/staff', protect, staffOnly, getStaffList);
 router.get('/wishlist', protect, getWishlist);
 router.post('/wishlist/:packageId', protect, addToWishlist);
 router.delete('/wishlist/:packageId', protect, removeFromWishlist);

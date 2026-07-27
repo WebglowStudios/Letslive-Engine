@@ -69,18 +69,28 @@ export const getStaff = asyncHandler(async (_req: Request, res: Response) => {
   });
 });
 
-// @desc    Create a staff member
+// @desc    Create a staff member OR customer account
 // @route   POST /api/admin/staff
 export const createStaff = asyncHandler(async (req: Request, res: Response) => {
-  const { firstName, lastName, email, role, password } = req.body;
+  const { firstName, lastName, email, role, password, phone, enquiryId } = req.body;
 
   if (!firstName || !lastName || !email || !password) {
     throw new AppError('Please provide all required fields', 400);
   }
 
-  const allowedRoles = ['admin', 'manager', 'staff', 'guest'];
-  if (!allowedRoles.includes(role)) {
+  const requestingRole = req.user!.role;
+
+  // Non-admins can only create customer accounts (user/guest)
+  const adminRoles = ['admin'];
+  const customerRoles = ['user', 'guest'];
+  const allAllowed = ['admin', 'manager', 'staff', 'user', 'guest'];
+
+  if (!allAllowed.includes(role)) {
     throw new AppError('Invalid role', 400);
+  }
+
+  if (!adminRoles.includes(requestingRole) && !customerRoles.includes(role)) {
+    throw new AppError('You do not have permission to create accounts with this role', 403);
   }
 
   // Check if email already exists
@@ -94,9 +104,16 @@ export const createStaff = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email: email.toLowerCase(),
     password,
-    role,
-    isVerified: true, // Staff accounts are pre-verified
+    phone: phone || undefined,
+    role: role || 'user',
+    isVerified: true, // Admin-created accounts skip email verification
+    isActive: true,
   });
+
+  // If enquiryId provided, link this user account back to the enquiry
+  if (enquiryId) {
+    await Enquiry.findByIdAndUpdate(enquiryId, { user: user._id });
+  }
 
   // Remove password from response
   const userObj = user.toObject() as unknown as Record<string, unknown>;

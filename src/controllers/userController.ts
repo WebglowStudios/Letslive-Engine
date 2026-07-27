@@ -25,6 +25,24 @@ export const getAllUsers = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+// @desc    Get staff list (for reassign dropdowns — any auth user)
+// @route   GET /api/users/staff
+export const getStaffList = asyncHandler(async (_req: Request, res: Response) => {
+  const staff = await User.find({
+    role: { $in: ['admin', 'manager', 'staff'] },
+    isVerified: true,
+    isActive: true,
+  })
+    .select('_id firstName lastName email role')
+    .sort({ firstName: 1 });
+
+  res.status(200).json({
+    status: 'success',
+    data: staff,
+  });
+});
+
+
 // @desc    Get user by ID (admin)
 // @route   GET /api/users/:id
 export const getUserById = asyncHandler(async (req: Request, res: Response) => {

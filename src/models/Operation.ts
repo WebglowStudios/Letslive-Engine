@@ -4,6 +4,7 @@ export interface IOperation extends Document {
   operationId: string;
   booking: mongoose.Types.ObjectId;
   package?: mongoose.Types.ObjectId;
+  enquiry?: mongoose.Types.ObjectId;  // trace back to originating lead
   customer: {
     name: string;
     email: string;
@@ -32,6 +33,7 @@ const operationSchema = new Schema<IOperation>(
     operationId: { type: String, unique: true, index: true },
     booking: { type: Schema.Types.ObjectId, ref: 'Booking', required: true, index: true },
     package: { type: Schema.Types.ObjectId, ref: 'Package' },
+    enquiry: { type: Schema.Types.ObjectId, ref: 'Enquiry' },
     customer: {
       name: { type: String, required: true },
       email: { type: String },

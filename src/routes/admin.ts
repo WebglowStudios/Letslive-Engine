@@ -19,11 +19,12 @@ router.use(protect);
 // Dashboard stats — accessible by all staff+
 router.get('/stats', staffOnly, getDashboardStats);
 
-// Staff management — admin only
+// Staff management — admin only for sensitive roles, manager can create customers
 router.get('/staff', adminOnly, getStaff);
-router.post('/staff', adminOnly, createStaff);
+router.post('/staff', protect, staffOnly, createStaff);  // staffOnly = any authenticated staff+
 router.put('/staff/:id', adminOnly, updateStaff);
 router.delete('/staff/:id', adminOnly, deleteStaff);
+
 
 // Activity log — staff+
 router.get('/activity', staffOnly, asyncHandler(async (req: Request, res: Response) => {

@@ -12,6 +12,7 @@ export interface IUser extends Document {
   role: 'user' | 'admin' | 'manager' | 'staff' | 'guest';
   wishlist: mongoose.Types.ObjectId[];
   isVerified: boolean;
+  isActive: boolean;
   verificationToken?: string;
   verificationTokenExpires?: Date;
   resetPasswordToken?: string;
@@ -24,6 +25,7 @@ export interface IUser extends Document {
   createVerificationToken(): string;
   createResetToken(): string;
 }
+
 
 const userSchema = new Schema<IUser>(
   {
@@ -49,9 +51,11 @@ const userSchema = new Schema<IUser>(
     resetPasswordExpires: { type: Date },
     loginAttempts: { type: Number, default: 0 },
     lockUntil: { type: Date },
+    isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
+
 
 // Hash password before saving
 userSchema.pre('save', async function () {

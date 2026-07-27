@@ -8,6 +8,7 @@ import cookieParser from 'cookie-parser';
 import hpp from 'hpp';
 import compression from 'compression';
 import morgan from 'morgan';
+import cron from 'node-cron';
 
 import { env } from './config/env.js';
 import { connectDB } from './config/db.js';
@@ -29,6 +30,7 @@ import vendorRoutes from './routes/vendors.js';
 import uploadRoutes from './routes/upload.js';
 import packageTemplateRoutes from './routes/packageTemplates.js';
 import paymentRoutes from './routes/payments.js';
+import webhookRoutes from './routes/webhooks.js';
 
 const app = express();
 
@@ -75,7 +77,12 @@ app.use('/api', (req, res, next) => {
 });
 app.use('/api/enquiries', enquiryLimiter);
 
-// 4. Body parser
+// 4a. Webhook routes — must be mounted BEFORE express.json() so the body
+//     arrives as a raw Buffer for HMAC-SHA256 signature verification.
+//     express.raw() is applied per-route inside routes/webhooks.ts.
+app.use('/api/webhooks', webhookRoutes);
+
+// 4b. Body parser (all other routes)
 app.use(express.json({ limit: '5mb' }));
 
 // 5. URL encoded parser
@@ -136,6 +143,7 @@ app.use('/api/vendors', vendorRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/package-templates', packageTemplateRoutes);
 app.use('/api/payments', paymentRoutes);
+// Note: /api/webhooks is mounted earlier (before express.json) — see above
 
 // Health check endpoint
 app.get('/api/health', (_req, res) => {
@@ -159,6 +167,57 @@ app.use(globalErrorHandler);
 const PORT = env.PORT;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT} in ${env.NODE_ENV} mode`);
+});
+
+import { sendFollowUpReminder } from './services/emailService.js';
+import Enquiry from './models/Enquiry.js';
+
+// ─── Daily Follow-Up Reminder Cron ───────────────────────────────────────────
+// Runs every day at 9:00 AM IST (03:30 UTC)
+cron.schedule('30 3 * * *', async () => {
+  console.log('[CRON] Running daily follow-up reminder...');
+  try {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    const enquiries = await Enquiry.find({
+      followUpDate: { $gte: startOfDay, $lte: endOfDay },
+      status: { $nin: ['converted', 'closed', 'resolved'] },
+      assignedTo: { $exists: true },
+    }).populate('assignedTo', 'firstName lastName email');
+
+    if (enquiries.length === 0) {
+      console.log('[CRON] No follow-ups due today.');
+      return;
+    }
+
+    // Group by staff member
+    const byStaff = new Map<string, { email: string; name: string; items: { customerName: string; phone: string; notes?: string }[] }>();
+
+    for (const enq of enquiries) {
+      const staff = enq.assignedTo as unknown as { _id: string; firstName: string; lastName?: string; email: string } | null;
+      if (!staff?.email) continue;
+      const key = staff.email;
+      if (!byStaff.has(key)) {
+        byStaff.set(key, { email: staff.email, name: `${staff.firstName} ${staff.lastName || ''}`.trim(), items: [] });
+      }
+      byStaff.get(key)!.items.push({
+        customerName: `${enq.firstName} ${enq.lastName || ''}`.trim(),
+        phone: enq.phone,
+        notes: enq.followUpNotes,
+      });
+    }
+
+    // Send batched email to each staff member
+    for (const { email, name, items } of byStaff.values()) {
+      await sendFollowUpReminder(email, name, items).catch(console.error);
+    }
+
+    console.log(`[CRON] Follow-up reminders sent to ${byStaff.size} staff member(s) for ${enquiries.length} enquiry(ies).`);
+  } catch (err) {
+    console.error('[CRON] Follow-up reminder failed:', err);
+  }
 });
 
 export default app;
