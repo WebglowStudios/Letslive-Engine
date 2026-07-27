@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Operation from '../models/Operation.js';
+import Booking from '../models/Booking.js';
 import OperationTransport from '../models/OperationTransport.js';
 import OperationAccommodation from '../models/OperationAccommodation.js';
 import OperationActivity from '../models/OperationActivity.js';
@@ -52,6 +53,17 @@ export const createOperation = asyncHandler(async (req: Request, res: Response) 
 export const updateOperation = asyncHandler(async (req: Request, res: Response) => {
   const operation = await Operation.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
   if (!operation) throw new AppError('Operation not found', 404);
+
+  // Sync status to booking if it changed
+  if (req.body.status && operation.booking) {
+    let bookingStatus = 'in-progress';
+    if (req.body.status === 'completed') bookingStatus = 'completed';
+    else if (req.body.status === 'cancelled') bookingStatus = 'cancelled';
+    else if (req.body.status === 'planning') bookingStatus = 'confirmed';
+    
+    await Booking.findByIdAndUpdate(operation.booking, { bookingStatus });
+  }
+
   res.status(200).json({ status: 'success', data: operation });
 });
 
