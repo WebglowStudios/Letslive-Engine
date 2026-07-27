@@ -5,7 +5,7 @@ import { env } from '../config/env.js';
 import Booking from '../models/Booking.js';
 import Operation from '../models/Operation.js';
 import Enquiry from '../models/Enquiry.js';
-import { sendConversionCongrats } from '../services/emailService.js';
+import { sendConversionCongrats, sendBookingConfirmation, sendAdminNewBooking } from '../services/emailService.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/webhooks/razorpay
@@ -149,6 +149,10 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
       }
     } else {
       booking.paymentStatus = 'partial';
+      // Even partial (deposit) payment confirms the trip
+      if (booking.bookingStatus === 'pending') {
+        booking.bookingStatus = 'confirmed';
+      }
     }
 
     await booking.save();
@@ -176,6 +180,32 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
             const usr = populatedBooking.user as unknown as { firstName?: string; lastName?: string; email?: string; phone?: string };
             const travellers = populatedBooking.travellers as { adults?: number; children?: number; infants?: number };
             const pax = (travellers?.adults || 1) + (travellers?.children || 0);
+
+            // Send Booking Confirmations here
+            const customerName = usr ? `${usr.firstName || ''} ${usr.lastName || ''}`.trim() : 'Customer';
+            const adults = travellers?.adults || 1;
+            const children = travellers?.children || 0;
+            
+            if (usr?.email) {
+              sendBookingConfirmation(usr.email, usr.firstName || 'Customer', {
+                bookingId: populatedBooking.bookingId || String(populatedBooking._id),
+                packageName: pkg?.name || 'Package',
+                travelDate: populatedBooking.travelDate
+                  ? new Date(populatedBooking.travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+                  : 'TBD',
+                amount: populatedBooking.totalAmount,
+                travellers: `${adults} Adult${adults > 1 ? 's' : ''}${children ? `, ${children} Child${children > 1 ? 'ren' : ''}` : ''}`,
+              }).catch((err) => console.error('[WEBHOOK] Failed to send booking confirmation:', err));
+            }
+        
+            sendAdminNewBooking(
+              customerName,
+              pkg?.name || 'Package',
+              populatedBooking.totalAmount,
+              populatedBooking.travelDate
+                ? new Date(populatedBooking.travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+                : 'TBD'
+            ).catch((err) => console.error('[WEBHOOK] Failed to send admin booking notification:', err));
 
             await Operation.create({
               booking: booking._id,

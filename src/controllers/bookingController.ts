@@ -68,32 +68,8 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
     totalAmount,
   });
 
-  // Send booking confirmation email to customer (fire-and-forget)
-  if (user) {
-    sendBookingConfirmation(user.email, user.firstName, {
-      bookingId: booking.bookingId || String(booking._id),
-      packageName: pkg.name,
-      travelDate: req.body.travelDate
-        ? new Date(req.body.travelDate).toLocaleDateString('en-IN', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          })
-        : 'TBD',
-      amount: totalAmount,
-      travellers: `${adults} Adult${adults > 1 ? 's' : ''}${children ? `, ${children} Child${children > 1 ? 'ren' : ''}` : ''}`,
-    }).catch((err) => console.error('Failed to send booking confirmation:', err));
-  }
-
-  // Send admin notification email (fire-and-forget)
-  sendAdminNewBooking(
-    customerName,
-    pkg.name,
-    totalAmount,
-    req.body.travelDate
-      ? new Date(req.body.travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
-      : 'TBD'
-  ).catch((err) => console.error('Failed to send admin booking notification:', err));
+  // Emails are no longer sent here! They have been moved to payment verification
+  // and webhook processing to ensure they only send when payment succeeds.
 
   res.status(201).json({
     status: 'success',

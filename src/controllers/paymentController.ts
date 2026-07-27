@@ -6,6 +6,8 @@ import { AppError } from '../middleware/errorHandler.js';
 import { env } from '../config/env.js';
 import Booking from '../models/Booking.js';
 import Package from '../models/Package.js';
+import User from '../models/User.js';
+import { sendBookingConfirmation, sendAdminNewBooking } from '../services/emailService.js';
 
 // Lazily initialise Razorpay so the server doesn't crash on boot if keys are missing
 function getRazorpay(): Razorpay {
@@ -93,18 +95,24 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
 
   const razorpay = getRazorpay();
 
-  // Razorpay amounts are in paise (1 INR = 100 paise)
-  const order = await razorpay.orders.create({
-    amount: chargeAmount * 100,
-    currency: 'INR',
-    receipt: `${receiptLabel}-${String(booking._id).slice(-8)}`,
-    notes: {
-      bookingId: String(booking._id),
-      internalBookingId: booking.bookingId || '',
-      paymentType: receiptLabel,
-      userId: String(req.user!._id),
-    },
-  });
+  // Razorpay amounts are in paise (1 INR = 100 paise). Must be an integer.
+  let order;
+  try {
+    order = await razorpay.orders.create({
+      amount: Math.round(chargeAmount * 100),
+      currency: 'INR',
+      receipt: `${receiptLabel}-${String(booking._id).slice(-8)}`,
+      notes: {
+        bookingId: String(booking._id),
+        internalBookingId: booking.bookingId || '',
+        paymentType: receiptLabel,
+        userId: String(req.user!._id),
+      },
+    });
+  } catch (rzpErr) {
+    console.error("[Razorpay Error] orders.create failed:", rzpErr);
+    throw new AppError('Failed to initiate Razorpay order', 500);
+  }
 
   res.status(200).json({
     status: 'success',
@@ -155,10 +163,11 @@ export const verifyPayment = asyncHandler(async (req: Request, res: Response) =>
   }
 
   // 2. Find and update booking
-  const booking = await Booking.findById(bookingId);
+  const booking = await Booking.findById(bookingId).populate('package').populate('user');
   if (!booking) throw new AppError('Booking not found', 404);
 
-  if (booking.user.toString() !== String(req.user!._id)) {
+  const usr = booking.user as unknown as { _id: string; firstName?: string; lastName?: string; email?: string; phone?: string };
+  if (usr._id.toString() !== String(req.user!._id)) {
     throw new AppError('Not authorised', 403);
   }
 
@@ -174,17 +183,54 @@ export const verifyPayment = asyncHandler(async (req: Request, res: Response) =>
   // 4. Update paidAmount and derive paymentStatus
   booking.paidAmount = (booking.paidAmount || 0) + amount;
 
+  const wasConfirmed = booking.bookingStatus === 'confirmed';
+
   if (booking.paidAmount >= booking.totalAmount) {
     booking.paymentStatus = 'paid';
-    // Auto-confirm the booking when fully paid
     if (booking.bookingStatus === 'pending') {
       booking.bookingStatus = 'confirmed';
     }
   } else {
     booking.paymentStatus = 'partial';
+    // Even partial (deposit) payment confirms the trip
+    if (booking.bookingStatus === 'pending') {
+      booking.bookingStatus = 'confirmed';
+    }
   }
 
   await booking.save();
+
+  const justConfirmed = !wasConfirmed && booking.bookingStatus === 'confirmed';
+  if (justConfirmed) {
+    const pkg = booking.package as unknown as { name: string };
+    const customerName = `${usr.firstName || ''} ${usr.lastName || ''}`.trim() || 'Customer';
+    const travellers = booking.travellers as { adults?: number; children?: number };
+    const adults = travellers?.adults || 1;
+    const children = travellers?.children || 0;
+    
+    // Send to customer
+    if (usr.email) {
+      sendBookingConfirmation(usr.email, usr.firstName || 'Customer', {
+        bookingId: booking.bookingId || String(booking._id),
+        packageName: pkg?.name || 'Package',
+        travelDate: booking.travelDate
+          ? new Date(booking.travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+          : 'TBD',
+        amount: booking.totalAmount,
+        travellers: `${adults} Adult${adults > 1 ? 's' : ''}${children ? `, ${children} Child${children > 1 ? 'ren' : ''}` : ''}`,
+      }).catch((err) => console.error('Failed to send booking confirmation:', err));
+    }
+
+    // Send to admin
+    sendAdminNewBooking(
+      customerName,
+      pkg?.name || 'Package',
+      booking.totalAmount,
+      booking.travelDate
+        ? new Date(booking.travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+        : 'TBD'
+    ).catch((err) => console.error('Failed to send admin booking notification:', err));
+  }
 
   res.status(200).json({
     status: 'success',
