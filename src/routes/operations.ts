@@ -6,7 +6,7 @@ import {
   addAccommodation, updateAccommodation, deleteAccommodation,
   addActivity, updateActivity, deleteActivity,
   addVendorPayment, updateVendorPayment, deleteVendorPayment,
-  addCustomerPayment, updateCustomerPayment, deleteCustomerPayment,
+  addCustomerPayment, updateCustomerPayment, deleteCustomerPayment, notifyCustomerPayment,
   getFinanceOverview, getUrgentPayments, getSalespersonStats,
 } from '../controllers/operationController.js';
 
@@ -49,5 +49,6 @@ router.delete('/:id/vendor-payments/:paymentId', deleteVendorPayment);
 router.post('/:id/customer-payments', addCustomerPayment);
 router.put('/:id/customer-payments/:paymentId', updateCustomerPayment);
 router.delete('/:id/customer-payments/:paymentId', deleteCustomerPayment);
+router.post('/:id/customer-payments/:paymentId/notify', notifyCustomerPayment);
 
 export default router;

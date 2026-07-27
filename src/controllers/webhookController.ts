@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { env } from '../config/env.js';
 import Booking from '../models/Booking.js';
 import Operation from '../models/Operation.js';
+import CustomerPayment from '../models/CustomerPayment.js';
 import Enquiry from '../models/Enquiry.js';
 import { sendConversionCongrats, sendBookingConfirmation, sendAdminNewBooking } from '../services/emailService.js';
 
@@ -207,7 +208,7 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
                 : 'TBD'
             ).catch((err) => console.error('[WEBHOOK] Failed to send admin booking notification:', err));
 
-            await Operation.create({
+            const op = await Operation.create({
               booking: booking._id,
               package: pkg?._id || undefined,
               enquiry: populatedBooking.enquiry || undefined,
@@ -227,6 +228,47 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
             });
 
             console.log(`[WEBHOOK] Operation auto-created for booking ${bookingId}`);
+
+            // ── Auto-generate Customer Payments (Installments) ──
+            const total = populatedBooking.totalAmount || 0;
+            const paid = populatedBooking.paidAmount || 0;
+
+            if (paid >= total && total > 0) {
+              await CustomerPayment.create({
+                operation: op._id,
+                booking: booking._id,
+                milestone: 'Full Payment (Paid Online)',
+                amount: total,
+                paidAmount: paid,
+                status: 'paid',
+              });
+            } else if (paid > 0 && paid < total) {
+              await CustomerPayment.create({
+                operation: op._id,
+                booking: booking._id,
+                milestone: 'Advance Deposit (Paid Online)',
+                amount: paid,
+                paidAmount: paid,
+                status: 'paid',
+              });
+              await CustomerPayment.create({
+                operation: op._id,
+                booking: booking._id,
+                milestone: 'Balance Payment',
+                amount: total - paid,
+                paidAmount: 0,
+                status: 'upcoming',
+              });
+            } else if (total > 0) {
+              await CustomerPayment.create({
+                operation: op._id,
+                booking: booking._id,
+                milestone: 'Full Payment Pending',
+                amount: total,
+                paidAmount: 0,
+                status: 'upcoming',
+              });
+            }
 
             // ── 12. Sync linked enquiry → converted ────────────────────────
             if (populatedBooking.enquiry) {

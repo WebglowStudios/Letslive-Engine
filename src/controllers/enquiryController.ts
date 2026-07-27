@@ -734,3 +734,18 @@ export const sendBookingLinkHandler = asyncHandler(async (req: Request, res: Res
     message: `Booking link sent to ${enquiry.email}`,
   });
 });
+
+// @desc    Delete enquiry
+// @route   DELETE /api/enquiries/:id
+export const deleteEnquiry = asyncHandler(async (req: Request, res: Response) => {
+  const enquiry = await Enquiry.findByIdAndDelete(req.params.id);
+
+  if (!enquiry) {
+    throw new AppError('Enquiry not found', 404);
+  }
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Enquiry deleted successfully',
+  });
+});

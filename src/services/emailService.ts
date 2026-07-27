@@ -442,3 +442,48 @@ export async function sendBookingLink(opts: {
     html,
   });
 }
+
+// ─── Send Payment Reminder ────────────────────────────────────────────────────
+export async function sendPaymentReminder(
+  customerEmail: string,
+  customerName: string,
+  milestone: string,
+  amount: number,
+  dueDate: Date | undefined
+): Promise<void> {
+  const formattedAmount = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(amount);
+
+  const formattedDate = dueDate 
+    ? new Date(dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    : 'immediately';
+
+  const html = wrapTemplate(`
+    <p style="margin:0 0 16px;font-size:22px;font-weight:700;color:#1a1a1a;">Payment Reminder</p>
+    <p style="margin:0 0 20px;font-size:15px;color:#444;line-height:1.7;">
+      Hi <strong>${customerName}</strong>,<br/><br/>
+      This is a friendly reminder regarding your upcoming trip with LetsLive Tours. An installment is currently due.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;margin-bottom:24px;">
+      <tr>
+        <td style="padding:20px 24px;">
+          <p style="margin:0 0 6px;font-size:14px;color:#888;">Milestone: <strong style="color:#1a1a1a;">${milestone}</strong></p>
+          <p style="margin:0 0 6px;font-size:14px;color:#888;">Due Date: <strong style="color:#1a1a1a;">${formattedDate}</strong></p>
+          <p style="margin:12px 0 0;font-size:15px;color:#888;">Amount Due: <strong style="font-size:20px;color:#004d5e;">${formattedAmount}</strong></p>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin:0 0 20px;font-size:14px;color:#666;line-height:1.6;">Please contact your trip coordinator to complete this payment.</p>
+  `);
+
+  await sendEmail({
+    to: customerEmail,
+    subject: `Payment Reminder: ${milestone} — LetsLive Tours`,
+    html,
+  });
+}

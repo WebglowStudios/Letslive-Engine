@@ -7,6 +7,7 @@ import VendorPayment from '../models/VendorPayment.js';
 import CustomerPayment from '../models/CustomerPayment.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { sendPaymentReminder } from '../services/emailService.js';
 
 // ─── OPERATIONS CRUD ───
 
@@ -151,6 +152,34 @@ export const updateCustomerPayment = asyncHandler(async (req: Request, res: Resp
 export const deleteCustomerPayment = asyncHandler(async (req: Request, res: Response) => {
   await CustomerPayment.findByIdAndDelete(req.params.paymentId);
   res.status(204).json({ status: 'success', data: null });
+});
+
+export const notifyCustomerPayment = asyncHandler(async (req: Request, res: Response) => {
+  const payment = await CustomerPayment.findById(req.params.paymentId).populate('operation');
+  if (!payment) throw new AppError('Payment not found', 404);
+
+  const operation = payment.operation as unknown as { 
+    customer: { email: string; name: string };
+  };
+
+  if (!operation.customer.email) {
+    throw new AppError('No email address on file for this customer', 400);
+  }
+
+  const balance = payment.amount - payment.paidAmount;
+  if (balance <= 0) {
+    throw new AppError('This installment is already fully paid', 400);
+  }
+
+  await sendPaymentReminder(
+    operation.customer.email,
+    operation.customer.name,
+    payment.milestone || 'Installment',
+    balance,
+    payment.dueDate
+  );
+
+  res.status(200).json({ status: 'success', message: 'Payment reminder sent successfully' });
 });
 
 // ─── FINANCE ───

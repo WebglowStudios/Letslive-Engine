@@ -12,6 +12,7 @@ import {
   getFollowUpsToday,
   exportEnquiries,
   sendBookingLinkHandler,
+  deleteEnquiry,
 } from '../controllers/enquiryController.js';
 
 import { protect, managerOnly, staffOnly } from '../middleware/auth.js';
@@ -58,5 +59,8 @@ router.post('/:id/call', protect, staffOnly, logCall);
 
 // Send booking link email to customer
 router.post('/:id/send-booking-link', protect, staffOnly, sendBookingLinkHandler);
+
+// Delete enquiry (manager/admin only)
+router.delete('/:id', protect, managerOnly, deleteEnquiry);
 
 export default router;

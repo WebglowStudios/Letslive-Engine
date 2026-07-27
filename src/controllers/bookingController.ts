@@ -5,6 +5,7 @@ import Package from '../models/Package.js';
 import User from '../models/User.js';
 import Enquiry from '../models/Enquiry.js';
 import Operation from '../models/Operation.js';
+import CustomerPayment from '../models/CustomerPayment.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { sendBookingConfirmation, sendAdminNewBooking, sendConversionCongrats } from '../services/emailService.js';
@@ -228,7 +229,7 @@ export const updateBookingStatus = asyncHandler(async (req: Request, res: Respon
         const travellers = populatedBooking.travellers as { adults?: number; children?: number; infants?: number };
         const pax = (travellers?.adults || 1) + (travellers?.children || 0);
 
-        await Operation.create({
+        const op = await Operation.create({
           booking: booking._id,
           package: pkg?._id || undefined,
           enquiry: populatedBooking.enquiry || undefined,
@@ -246,6 +247,50 @@ export const updateBookingStatus = asyncHandler(async (req: Request, res: Respon
           sellingPrice: populatedBooking.totalAmount || 0,
           status: 'planning',
         });
+
+        // ── Auto-generate Customer Payments (Installments) ──
+        const total = populatedBooking.totalAmount || 0;
+        const paid = populatedBooking.paidAmount || 0;
+
+        if (paid >= total && total > 0) {
+          // Full payment
+          await CustomerPayment.create({
+            operation: op._id,
+            booking: booking._id,
+            milestone: 'Full Payment',
+            amount: total,
+            paidAmount: paid,
+            status: 'paid',
+          });
+        } else if (paid > 0 && paid < total) {
+          // Partial payment (Deposit paid, balance upcoming)
+          await CustomerPayment.create({
+            operation: op._id,
+            booking: booking._id,
+            milestone: 'Advance Deposit',
+            amount: paid,
+            paidAmount: paid,
+            status: 'paid',
+          });
+          await CustomerPayment.create({
+            operation: op._id,
+            booking: booking._id,
+            milestone: 'Balance Payment',
+            amount: total - paid,
+            paidAmount: 0,
+            status: 'upcoming',
+          });
+        } else if (total > 0) {
+          // No payment made yet
+          await CustomerPayment.create({
+            operation: op._id,
+            booking: booking._id,
+            milestone: 'Full Payment Pending',
+            amount: total,
+            paidAmount: 0,
+            status: 'upcoming',
+          });
+        }
 
         // ── Task 1: Sync enquiry → converted + conversionValue ──────────────
         if (populatedBooking.enquiry) {
