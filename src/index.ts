@@ -166,7 +166,7 @@ app.use(globalErrorHandler);
 // Start server
 const PORT = env.PORT;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT} in ${env.NODE_ENV} mode`);
+  console.log(`[🚀 LetsLive Engine v1.1.0] Server running on port ${PORT} in ${env.NODE_ENV} mode`);
 });
 
 import { sendFollowUpReminder } from './services/emailService.js';
