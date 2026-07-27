@@ -271,7 +271,20 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
 
   if (req.body.status) enquiry.status = req.body.status;
   if (req.body.priority) enquiry.priority = req.body.priority;
-  if (req.body.followUpDate !== undefined) enquiry.followUpDate = req.body.followUpDate ? new Date(req.body.followUpDate) : undefined;
+  if (req.body.followUpDate !== undefined) {
+    enquiry.followUpDate = req.body.followUpDate ? new Date(req.body.followUpDate) : undefined;
+    
+    // Automatically log this as a note on the timeline for visibility
+    if (req.body.followUpDate) {
+      const fDate = new Date(req.body.followUpDate).toLocaleDateString('en-IN');
+      const fNotes = req.body.followUpNotes ? ` (Notes: ${req.body.followUpNotes})` : '';
+      enquiry.notes.push({
+        text: `Scheduled follow-up for ${fDate}${fNotes}`,
+        by: req.user!._id,
+        date: new Date(),
+      });
+    }
+  }
   if (req.body.followUpNotes !== undefined) enquiry.followUpNotes = req.body.followUpNotes;
   if (req.body.travellerCount !== undefined) enquiry.travellerCount = req.body.travellerCount;
   if (req.body.budget !== undefined) enquiry.budget = req.body.budget;
