@@ -75,7 +75,6 @@ app.use('/api', (req, res, next) => {
   if (req.path.startsWith('/upload')) return next();
   return apiLimiter(req, res, next);
 });
-app.use('/api/enquiries', enquiryLimiter);
 
 // 4a. Webhook routes — must be mounted BEFORE express.json() so the body
 //     arrives as a raw Buffer for HMAC-SHA256 signature verification.
