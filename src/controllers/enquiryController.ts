@@ -15,6 +15,7 @@ import {
 } from '../services/emailService.js';
 
 import { logActivity } from '../utils/logActivity.js';
+import ActivityLog from '../models/ActivityLog.js';
 
 // Round-robin counter stored in memory (resets on server restart — acceptable for dev)
 let roundRobinIndex = 0;
@@ -83,6 +84,19 @@ export const createEnquiry = asyncHandler(async (req: Request, res: Response) =>
       sendStaffEnquiryAssigned(staffMember.email, staffMember.firstName, customerName, type, req.body.packageName).catch(console.error);
     }
   }
+
+  // Log public enquiry submission (no req.user — use the enquiry itself as context)
+  ActivityLog.create({
+    user: enquiry._id,                                         // use enquiry._id as a stand-in
+    userName: `${enquiry.firstName} ${enquiry.lastName || ''}`.trim(),
+    userRole: 'user',
+    action: 'create',
+    entity: 'enquiry',
+    entityId: String(enquiry._id),
+    entityName: `${enquiry.firstName} ${enquiry.lastName || ''}`.trim(),
+    description: `New enquiry from ${enquiry.firstName} (${enquiry.email}) — type: ${enquiry.type}${enquiry.packageName ? `, package: ${enquiry.packageName}` : ''}`,
+    meta: { type: enquiry.type, source: enquiry.source, packageName: enquiry.packageName, email: enquiry.email },
+  }).catch(console.error);
 
   res.status(201).json({
     status: 'success',

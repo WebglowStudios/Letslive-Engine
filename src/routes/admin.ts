@@ -37,6 +37,14 @@ router.get('/activity', staffOnly, asyncHandler(async (req: Request, res: Respon
   if (req.query.entity) filter.entity = req.query.entity;
   if (req.query.user) filter.user = req.query.user;
 
+  // userType=staff → only admin/manager/staff/guest roles
+  // userType=user  → only customer (role: 'user') entries
+  if (req.query.userType === 'user') {
+    filter.userRole = 'user';
+  } else if (req.query.userType === 'staff') {
+    filter.userRole = { $in: ['admin', 'manager', 'staff', 'guest'] };
+  }
+
   const [logs, total] = await Promise.all([
     ActivityLog.find(filter)
       .sort({ createdAt: -1 })

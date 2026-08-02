@@ -10,6 +10,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { sendBookingConfirmation, sendAdminNewBooking, sendConversionCongrats } from '../services/emailService.js';
 import { logActivity } from '../utils/logActivity.js';
+import ActivityLog from '../models/ActivityLog.js';
 
 // @desc    Create a booking
 // @route   POST /api/bookings
@@ -76,6 +77,22 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
     status: 'success',
     data: booking,
   });
+
+  // Log user booking created (fire-and-forget)
+  const booker = await User.findById(userId).select('firstName lastName email role').lean();
+  if (booker) {
+    ActivityLog.create({
+      user: userId,
+      userName: `${booker.firstName} ${booker.lastName}`,
+      userRole: booker.role,
+      action: 'create',
+      entity: 'booking',
+      entityId: String(booking._id),
+      entityName: pkg.name,
+      description: `Customer booked "${pkg.name}" — ${booking.bookingId || String(booking._id).slice(-6).toUpperCase()}`,
+      meta: { packageId: String(pkg._id), totalAmount: booking.totalAmount, travelDate: booking.travelDate },
+    }).catch(console.error);
+  }
 });
 
 // @desc    Get current user's bookings
@@ -140,6 +157,20 @@ export const cancelBooking = asyncHandler(async (req: Request, res: Response) =>
   booking.cancellationReason = req.body.cancellationReason;
   booking.cancelledAt = new Date();
   await booking.save();
+
+  // Log user booking cancellation (fire-and-forget)
+  const cancelUser = req.user!;
+  ActivityLog.create({
+    user: cancelUser._id,
+    userName: `${cancelUser.firstName} ${cancelUser.lastName}`,
+    userRole: cancelUser.role,
+    action: 'status_change',
+    entity: 'booking',
+    entityId: String(booking._id),
+    entityName: String(booking._id),
+    description: `Customer cancelled booking ${String(booking._id).slice(-6).toUpperCase()}${req.body.cancellationReason ? ` — reason: ${req.body.cancellationReason}` : ''}`,
+    meta: { reason: req.body.cancellationReason },
+  }).catch(console.error);
 
   res.status(200).json({
     status: 'success',

@@ -17,6 +17,7 @@ import {
   resetPasswordSchema,
 } from '../validations/auth.js';
 import { sendVerificationEmail, sendResetPasswordEmail } from '../services/emailService.js';
+import ActivityLog from '../models/ActivityLog.js';
 
 interface JwtPayload {
   id: string;
@@ -65,6 +66,19 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
       ...(env.NODE_ENV === 'development' && { verificationToken: rawToken }),
     },
   });
+
+  // Log user registration (fire-and-forget — after response sent)
+  ActivityLog.create({
+    user: user._id,
+    userName: `${user.firstName} ${user.lastName}`,
+    userRole: user.role,
+    action: 'create',
+    entity: 'other',
+    entityId: String(user._id),
+    entityName: `${user.firstName} ${user.lastName}`,
+    description: `New customer registered: ${user.firstName} ${user.lastName} (${user.email})`,
+    meta: { email: user.email, ip: req.ip },
+  }).catch(console.error);
 });
 
 // @desc    Login user
@@ -105,6 +119,19 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     status: 'success',
     data: { user: userObj },
   });
+
+  // Log user login (fire-and-forget — after response sent)
+  ActivityLog.create({
+    user: user._id,
+    userName: `${user.firstName} ${user.lastName}`,
+    userRole: user.role,
+    action: 'login',
+    entity: 'other',
+    entityId: String(user._id),
+    entityName: `${user.firstName} ${user.lastName}`,
+    description: `${user.role === 'user' ? 'Customer' : 'Staff'} logged in: ${user.firstName} ${user.lastName} (${user.email})`,
+    meta: { email: user.email, ip: req.ip },
+  }).catch(console.error);
 });
 
 // @desc    Logout user

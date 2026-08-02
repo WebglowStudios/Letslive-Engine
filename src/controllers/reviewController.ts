@@ -7,6 +7,7 @@ import Booking from '../models/Booking.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { sendReviewThanks } from '../services/emailService.js';
+import ActivityLog from '../models/ActivityLog.js';
 
 // Helper: Recalculate ratings for a package and its destination
 const recalculateRatings = async (packageId: unknown, destinationId?: unknown) => {
@@ -169,6 +170,19 @@ export const createReview = asyncHandler(async (req: Request, res: Response) => 
   const reviewer = await User.findById(userId);
   if (reviewer) {
     sendReviewThanks(reviewer.email, reviewer.firstName, pkg.name).catch(console.error);
+
+    // Log user review submitted
+    ActivityLog.create({
+      user: userId,
+      userName: `${reviewer.firstName} ${reviewer.lastName}`,
+      userRole: reviewer.role,
+      action: 'create',
+      entity: 'review',
+      entityId: String(review._id),
+      entityName: pkg.name,
+      description: `Customer submitted a ${review.rating}★ review for "${pkg.name}"`,
+      meta: { rating: review.rating, packageId: String(packageId), verified: review.isVerified },
+    }).catch(console.error);
   }
 
   res.status(201).json({
