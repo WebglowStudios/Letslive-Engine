@@ -10,29 +10,11 @@ import {
   sendStaffEnquiryAssigned,
   sendDNP3Alert,
   sendDNP6Alert,
-  sendConversionCongrats,
   sendBookingLink,
 } from '../services/emailService.js';
 
 import { logActivity } from '../utils/logActivity.js';
 import ActivityLog from '../models/ActivityLog.js';
-
-// Round-robin counter stored in memory (resets on server restart — acceptable for dev)
-let roundRobinIndex = 0;
-
-// Get the next staff member for assignment
-async function getNextStaffMember(): Promise<string | undefined> {
-  const staffMembers = await User.find({
-    role: { $in: ['staff', 'manager'] },
-    isVerified: true,
-  }).sort({ createdAt: 1 });
-
-  if (staffMembers.length === 0) return undefined;
-
-  const assigned = staffMembers[roundRobinIndex % staffMembers.length];
-  roundRobinIndex = (roundRobinIndex + 1) % staffMembers.length;
-  return String(assigned._id);
-}
 
 // Auto-determine priority based on enquiry type
 function determinePriority(type: string, travelDate?: Date): string {
@@ -46,19 +28,16 @@ function determinePriority(type: string, travelDate?: Date): string {
   return 'low';
 }
 
-// @desc    Create an enquiry (public — auto-assigns via round-robin)
+// @desc    Create an enquiry (public — lands as 'new', admin assigns manually)
 // @route   POST /api/enquiries
 export const createEnquiry = asyncHandler(async (req: Request, res: Response) => {
-  // Auto-assign to next staff member
-  const assignedToId = await getNextStaffMember();
-
-  // Auto-determine priority
+  // Auto-determine priority — no auto-assignment
   const priority = determinePriority(req.body.type || 'general', req.body.travelDate);
 
   const enquiry = await Enquiry.create({
     ...req.body,
-    assignedTo: assignedToId || undefined,
-    status: assignedToId ? 'assigned' : 'new',
+    assignedTo: undefined,   // always unassigned — admin will assign manually
+    status: 'new',
     priority,
   });
 
@@ -74,16 +53,8 @@ export const createEnquiry = asyncHandler(async (req: Request, res: Response) =>
     sendEnquiryReceived(customerEmail, customerName).catch(console.error);
   }
 
-  // Admin notification
+  // Admin notification — always fires so admin can see and assign
   sendAdminNewEnquiry(customerName, customerEmail, type, req.body.packageName).catch(console.error);
-
-  // Staff notification (if assigned)
-  if (assignedToId) {
-    const staffMember = await User.findById(assignedToId);
-    if (staffMember) {
-      sendStaffEnquiryAssigned(staffMember.email, staffMember.firstName, customerName, type, req.body.packageName).catch(console.error);
-    }
-  }
 
   // Log public enquiry submission (no req.user — use the enquiry itself as context)
   ActivityLog.create({
@@ -117,8 +88,8 @@ export const manualCreateEnquiry = asyncHandler(async (req: Request, res: Respon
     throw new AppError('firstName, email and phone are required', 400);
   }
 
-  // Allow manual assignedTo, otherwise round-robin
-  const assignedToId = assignedTo || await getNextStaffMember();
+  // Allow manual assignedTo — if not provided, stays 'new' and unassigned
+  const assignedToId = assignedTo || undefined;
   const priority = manualPriority || determinePriority(type || 'general', travelDate);
 
   const enquiry = await Enquiry.create({
@@ -149,6 +120,28 @@ export const manualCreateEnquiry = asyncHandler(async (req: Request, res: Respon
     description: `Manual lead created for ${firstName} via ${channel || 'phone'}`,
     meta: { channel, source: enquiry.source },
   });
+
+  // Notify admin about the new manual lead
+  sendAdminNewEnquiry(
+    `${firstName} ${lastName || ''}`.trim(),
+    email,
+    type || 'general',
+    packageName,
+  ).catch(console.error);
+
+  // If assigned at creation time, notify the staff member
+  if (assignedToId) {
+    const staffMember = await User.findById(assignedToId);
+    if (staffMember) {
+      sendStaffEnquiryAssigned(
+        staffMember.email,
+        staffMember.firstName,
+        `${firstName} ${lastName || ''}`.trim(),
+        type || 'general',
+        packageName,
+      ).catch(console.error);
+    }
+  }
 
   res.status(201).json({ status: 'success', data: enquiry });
 });
@@ -307,6 +300,19 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
   if (req.body.assignedTo) {
     enquiry.assignedTo = req.body.assignedTo;
     if (enquiry.status === 'new') enquiry.status = 'assigned';
+
+    // Notify the newly assigned staff member (fire-and-forget)
+    User.findById(req.body.assignedTo).then((staffMember) => {
+      if (staffMember) {
+        sendStaffEnquiryAssigned(
+          staffMember.email,
+          staffMember.firstName,
+          `${enquiry.firstName} ${enquiry.lastName || ''}`.trim(),
+          enquiry.type,
+          enquiry.packageName,
+        ).catch(console.error);
+      }
+    }).catch(console.error);
   }
 
   // Require lostReason when closing
