@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { protect, staffOnly, managerOnly } from '../middleware/auth.js';
 import {
-  getOperations, getOperationById, createOperation, updateOperation, recalculateOperation,
+  getOperations, getOperationById, createOperation, updateOperation, recalculateOperation, importFromItinerary,
   addTransport, updateTransport, deleteTransport,
   addAccommodation, updateAccommodation, deleteAccommodation,
   addActivity, updateActivity, deleteActivity,
@@ -24,6 +24,7 @@ router.post('/', createOperation);
 router.get('/:id', getOperationById);
 router.put('/:id', updateOperation);
 router.put('/:id/recalculate', recalculateOperation);
+router.post('/:id/import-itinerary', importFromItinerary);
 
 // Transport
 router.post('/:id/transports', addTransport);

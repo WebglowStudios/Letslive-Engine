@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Operation from '../models/Operation.js';
 import Booking from '../models/Booking.js';
+import Package from '../models/Package.js';
 import OperationTransport from '../models/OperationTransport.js';
 import OperationAccommodation from '../models/OperationAccommodation.js';
 import OperationActivity from '../models/OperationActivity.js';
@@ -84,6 +85,185 @@ export const recalculateOperation = asyncHandler(async (req: Request, res: Respo
   operation.totalVendorCost = totalVendorCost;
   await operation.save();
   res.status(200).json({ status: 'success', data: operation });
+});
+
+// ─── IMPORT FROM ITINERARY ───
+
+export const importFromItinerary = asyncHandler(async (req: Request, res: Response) => {
+  const opId = req.params.id;
+
+  const operation = await Operation.findById(opId);
+  if (!operation) throw new AppError('Operation not found', 404);
+  if (!operation.package) throw new AppError('This operation has no linked package/itinerary', 400);
+
+  // Fetch full package data
+  const pkg = await Package.findById(operation.package).lean() as any;
+  if (!pkg) throw new AppError('Linked package not found', 404);
+
+  // Check what already exists to avoid duplicates
+  const [existingTransports, existingAccommodations, existingActivities] = await Promise.all([
+    OperationTransport.countDocuments({ operation: opId }),
+    OperationAccommodation.countDocuments({ operation: opId }),
+    OperationActivity.countDocuments({ operation: opId }),
+  ]);
+
+  const skipped: string[] = [];
+  const created = { transports: 0, accommodations: 0, activities: 0 };
+
+  // Date math helper based on operation's start date
+  const startDate = operation.travelDates?.start ? new Date(operation.travelDates.start) : null;
+  const computeDate = (dayNumber: number): Date | undefined => {
+    if (!startDate || !dayNumber) return undefined;
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + (dayNumber - 1));
+    return d;
+  };
+
+  // Map vehicle/transfer type to our transport type enum
+  const mapTransferType = (type?: string): string => {
+    if (!type) return 'car';
+    const t = type.toLowerCase();
+    if (t.includes('bus') || t.includes('coach')) return 'bus';
+    if (t.includes('ferry') || t.includes('boat')) return 'ferry';
+    if (t.includes('cruise')) return 'cruise';
+    if (t.includes('train')) return 'train';
+    return 'car';
+  };
+
+  // ── TRANSPORTS: flights + transfers ──
+  if (existingTransports > 0) {
+    skipped.push('transport');
+  } else {
+    const transportDocs: object[] = [];
+
+    // From pkg.flights[]
+    for (const flight of (pkg.flights || [])) {
+      transportDocs.push({
+        operation: opId,
+        type: 'flight',
+        name: flight.airline || '',
+        bookingRef: flight.pnr || flight.flightNumber || '',
+        route: flight.from && flight.to ? `${flight.from} → ${flight.to}` : '',
+        date: computeDate(flight.day),
+        departureTime: flight.departure || '',
+        arrivalTime: flight.arrival || '',
+        tripDay: flight.day ? `Day ${flight.day}` : '',
+        remarks: [
+          flight.class ? `Class: ${flight.class}` : '',
+          flight.flightNumber && flight.pnr ? `Flight No: ${flight.flightNumber}` : '',
+          flight.notes || ''
+        ].filter(Boolean).join(' | '),
+        paymentStatus: 'pending',
+      });
+    }
+
+    // From pkg.transfers[]
+    for (const transfer of (pkg.transfers || [])) {
+      const legs = transfer.legs && transfer.legs.length > 0 ? transfer.legs : null;
+      const from = legs ? legs[0]?.from : transfer.from;
+      const to = legs ? legs[legs.length - 1]?.to : transfer.to;
+      const transferType = legs ? (legs[0]?.transferType || transfer.transferType) : transfer.transferType;
+      const vehicleType = legs ? (legs[0]?.vehicleType || transfer.vehicleType) : transfer.vehicleType;
+
+      transportDocs.push({
+        operation: opId,
+        type: mapTransferType(transferType || vehicleType),
+        name: vehicleType || transferType || transfer.title || '',
+        route: from && to ? `${from} → ${to}` : (transfer.title || ''),
+        date: computeDate(transfer.day),
+        tripDay: transfer.day ? `Day ${transfer.day}` : '',
+        remarks: [
+          transfer.description || '',
+          ...(transfer.details || [])
+        ].filter(Boolean).join('\n'),
+        paymentStatus: 'pending',
+      });
+    }
+
+    if (transportDocs.length > 0) {
+      await OperationTransport.insertMany(transportDocs);
+      created.transports = transportDocs.length;
+    }
+  }
+
+  // ── ACCOMMODATIONS: stays[] ──
+  if (existingAccommodations > 0) {
+    skipped.push('accommodation');
+  } else {
+    const accDocs: object[] = [];
+    let currentStayDay = 1;
+
+    for (const stay of (pkg.stays || [])) {
+      const nights = stay.nights || 1;
+      const checkInDate = computeDate(currentStayDay);
+      const checkOutDate = computeDate(currentStayDay + nights);
+      
+      accDocs.push({
+        operation: opId,
+        type: 'hotel',
+        name: stay.name || '',
+        area: stay.address || '',
+        roomCategory: stay.roomType || '',
+        checkIn: checkInDate,
+        checkOut: checkOutDate,
+        nights: nights,
+        confirmationNumber: stay.confirmationNo || '',
+        tripDay: `Day ${currentStayDay}-${currentStayDay + nights}`,
+        remarks: [
+          stay.rating ? `${stay.rating} property` : '',
+          stay.address || '',
+          stay.checkIn ? `Time In: ${stay.checkIn}` : '',
+          stay.checkOut ? `Time Out: ${stay.checkOut}` : ''
+        ].filter(Boolean).join(' | '),
+        paymentStatus: 'pending',
+      });
+      currentStayDay += nights;
+    }
+
+    if (accDocs.length > 0) {
+      await OperationAccommodation.insertMany(accDocs);
+      created.accommodations = accDocs.length;
+    }
+  }
+
+  // ── ACTIVITIES: itinerary[].activities[] (individual entries per activity) ──
+  if (existingActivities > 0) {
+    skipped.push('activities');
+  } else {
+    const actDocs: object[] = [];
+    const pkgActivities = pkg.activities || [];
+
+    for (const day of (pkg.itinerary || [])) {
+      if (!day.activities || day.activities.length === 0) continue;
+      
+      for (const activityTitle of day.activities) {
+        // Try to find the detailed activity object to fetch duration and details
+        const matchedActivity = pkgActivities.find((a: any) => a.title === activityTitle);
+        
+        actDocs.push({
+          operation: opId,
+          title: activityTitle,
+          description: matchedActivity?.description || day.title || '',
+          date: computeDate(day.day),
+          duration: matchedActivity?.duration || '',
+          tripDay: `Day ${day.day}`,
+          remarks: matchedActivity?.details ? matchedActivity.details.join('\n') : '',
+          paymentStatus: 'pending',
+        });
+      }
+    }
+
+    if (actDocs.length > 0) {
+      await OperationActivity.insertMany(actDocs);
+      created.activities = actDocs.length;
+    }
+  }
+
+  res.status(200).json({
+    status: 'success',
+    message: `Import complete. Created: ${created.transports} transport(s), ${created.accommodations} stay(s), ${created.activities} activity slot(s).${skipped.length > 0 ? ` Skipped (already had data): ${skipped.join(', ')}.` : ''}`,
+    data: { created, skipped },
+  });
 });
 
 // ─── TRANSPORT CRUD ───
