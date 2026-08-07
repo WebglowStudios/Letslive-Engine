@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import Package from '../models/Package.js';
 import Destination from '../models/Destination.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
@@ -285,4 +286,36 @@ export const deletePackage = asyncHandler(async (req: Request, res: Response) =>
   });
 
   res.status(204).json({ status: 'success', data: null });
+});
+
+// @desc    Delink a custom itinerary from its enquiry
+// @route   POST /api/packages/:id/delink
+export const delinkPackage = asyncHandler(async (req: Request, res: Response) => {
+  const pkg = await Package.findById(req.params.id);
+  if (!pkg) {
+    throw new AppError('Package not found', 404);
+  }
+
+  const enquiryId = pkg.enquiryId;
+  if (!enquiryId) {
+    return res.status(400).json({ status: 'fail', message: 'Package is not linked to any enquiry' });
+  }
+
+  // 1. Remove link from package
+  pkg.enquiryId = undefined;
+  await pkg.save();
+
+  // 2. Remove legacy link from Enquiry if it points to this package
+  const Enquiry = mongoose.model('Enquiry'); // Using mongoose.model to avoid circular dep if any, or we can just import it
+  const enquiry = await Enquiry.findById(enquiryId);
+  if (enquiry && String(enquiry.package) === String(pkg._id)) {
+    enquiry.package = undefined;
+    enquiry.packageName = undefined;
+    await enquiry.save();
+  }
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Package successfully delinked from enquiry'
+  });
 });

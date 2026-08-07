@@ -12,6 +12,7 @@ import {
   sendDNP6Alert,
   sendBookingLink,
 } from '../services/emailService.js';
+import Package from '../models/Package.js';
 
 import { logActivity } from '../utils/logActivity.js';
 import ActivityLog from '../models/ActivityLog.js';
@@ -253,9 +254,17 @@ export const getEnquiryById = asyncHandler(async (req: Request, res: Response) =
     throw new AppError('Access denied', 403);
   }
 
+  // Fetch all packages linked to this enquiry
+  const linkedItineraries = await Package.find({ enquiryId: enquiry._id })
+    .select('_id name slug price')
+    .lean();
+
   res.status(200).json({
     status: 'success',
-    data: enquiry,
+    data: {
+      ...enquiry.toJSON(),
+      linkedItineraries,
+    },
   });
 });
 

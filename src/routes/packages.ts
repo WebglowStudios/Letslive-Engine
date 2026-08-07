@@ -7,10 +7,12 @@ import {
   createPackage,
   updatePackage,
   deletePackage,
+  delinkPackage,
 } from '../controllers/packageController.js';
 import { protect, staffOnly, adminOnly } from '../middleware/auth.js';
 import Package from '../models/Package.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import Enquiry from '../models/Enquiry.js';
 import { Request, Response } from 'express';
 
 const router = Router();
@@ -37,6 +39,7 @@ router.get('/:slug', getPackageBySlug);
 router.post('/', protect, staffOnly, createPackage);
 router.put('/:id', protect, staffOnly, updatePackage);
 router.delete('/:id', protect, adminOnly, deletePackage);
+router.post('/:id/delink', protect, staffOnly, delinkPackage);
 
 // Duplicate a package
 router.post('/:id/duplicate', protect, staffOnly, asyncHandler(async (req: Request, res: Response) => {
@@ -54,6 +57,23 @@ router.post('/:id/duplicate', protect, staffOnly, asyncHandler(async (req: Reque
   const copyName = `${rest.name} -- copy`;
   const uniqueSlug = `${slug}-copy-${Date.now()}`;
 
+  let customerData = {};
+  let isCustom = false;
+  const enquiryId = req.body.enquiryId;
+
+  if (enquiryId) {
+    const enquiry = await Enquiry.findById(enquiryId);
+    if (enquiry) {
+      isCustom = true;
+      customerData = {
+        enquiryId,
+        clientName: `${enquiry.firstName} ${enquiry.lastName || ''}`.trim(),
+        clientEmail: enquiry.email,
+        clientPhone: enquiry.phone,
+      };
+    }
+  }
+
   const copy = await Package.create({
     ...rest,
     name: copyName,
@@ -63,7 +83,16 @@ router.post('/:id/duplicate', protect, staffOnly, asyncHandler(async (req: Reque
     rating: 0,
     reviewCount: 0,
     createdBy: req.user!._id,
+    isCustom,
+    ...customerData,
   });
+
+  if (enquiryId && isCustom) {
+    await Enquiry.findByIdAndUpdate(enquiryId, {
+      package: copy._id,
+      packageName: copy.name,
+    });
+  }
 
   res.status(201).json({ status: 'success', data: copy });
 }));
