@@ -30,8 +30,6 @@ export const getAllUsers = asyncHandler(async (req: Request, res: Response) => {
 export const getStaffList = asyncHandler(async (_req: Request, res: Response) => {
   const staff = await User.find({
     role: { $in: ['admin', 'manager', 'staff'] },
-    isVerified: true,
-    isActive: true,
   })
     .select('_id firstName lastName email role')
     .sort({ firstName: 1 });
