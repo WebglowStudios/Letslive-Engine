@@ -22,7 +22,7 @@ export interface IBooking extends Document {
   totalAmount: number;
   paidAmount: number;
   paymentStatus: 'pending' | 'partial' | 'paid' | 'refunded';
-  bookingStatus: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled';
+  bookingStatus: 'pending' | 'confirmed' | 'staff-confirmed' | 'in-progress' | 'completed' | 'cancelled';
   specialRequests?: string;
   contactPhone?: string;
   contactEmail?: string;
@@ -70,7 +70,7 @@ const bookingSchema = new Schema<IBooking>(
     },
     bookingStatus: {
       type: String,
-      enum: ['pending', 'confirmed', 'in-progress', 'completed', 'cancelled'],
+      enum: ['pending', 'confirmed', 'staff-confirmed', 'in-progress', 'completed', 'cancelled'],
       default: 'pending',
     },
     specialRequests: { type: String },

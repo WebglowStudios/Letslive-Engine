@@ -2,7 +2,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IPackageTemplate extends Document {
   name: string;
-  category: 'inclusions' | 'exclusions' | 'thingsToCarry' | 'keyPoints';
+  category: 'inclusions' | 'exclusions' | 'thingsToCarry' | 'keyPoints' | 'description';
   items: string[];
   createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
@@ -14,7 +14,7 @@ const packageTemplateSchema = new Schema<IPackageTemplate>(
     name: { type: String, required: true, trim: true },
     category: {
       type: String,
-      enum: ['inclusions', 'exclusions', 'thingsToCarry', 'keyPoints', 'knowBeforeYouGo', 'highlights'],
+      enum: ['inclusions', 'exclusions', 'thingsToCarry', 'keyPoints', 'knowBeforeYouGo', 'highlights', 'description'],
       required: true,
     },
     items: [{ type: String }],
