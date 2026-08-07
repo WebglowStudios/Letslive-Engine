@@ -110,6 +110,8 @@ export interface IPackage extends Document {
   clientPhone?: string;
   enquiryId?: mongoose.Types.ObjectId;
   createdBy?: mongoose.Types.ObjectId;
+  // Transfer summary (shown when no day-wise transfers exist)
+  transferSummary?: string;
   // Payment configuration
   paymentConfig: {
     mode: 'full' | 'partial';           // full = pay full amount; partial = pay deposit now, rest later
@@ -250,6 +252,8 @@ const packageSchema = new Schema<IPackage>(
     clientPhone: { type: String },
     enquiryId: { type: Schema.Types.ObjectId, ref: 'Enquiry' },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    // Transfer summary (shown when no day-wise transfers exist)
+    transferSummary: { type: String },
     // Payment configuration per package
     paymentConfig: {
       mode: { type: String, enum: ['full', 'partial'], default: 'full' },
