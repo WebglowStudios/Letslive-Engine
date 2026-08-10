@@ -35,8 +35,11 @@ export const createEnquiry = asyncHandler(async (req: Request, res: Response) =>
   // Auto-determine priority — no auto-assignment
   const priority = determinePriority(req.body.type || 'general', req.body.travelDate);
 
+  const existingUser = await User.findOne({ email: req.body.email?.toLowerCase().trim() });
+
   const enquiry = await Enquiry.create({
     ...req.body,
+    user: existingUser ? existingUser._id : undefined,
     assignedTo: undefined,   // always unassigned — admin will assign manually
     status: 'new',
     priority,
@@ -93,6 +96,8 @@ export const manualCreateEnquiry = asyncHandler(async (req: Request, res: Respon
   const assignedToId = assignedTo || undefined;
   const priority = manualPriority || determinePriority(type || 'general', travelDate);
 
+  const existingUser = await User.findOne({ email: email?.toLowerCase().trim() });
+
   const enquiry = await Enquiry.create({
     firstName, lastName, email, phone,
     type: type || 'general',
@@ -108,6 +113,7 @@ export const manualCreateEnquiry = asyncHandler(async (req: Request, res: Respon
       ? channel
       : 'phone',
     assignedTo: assignedToId || undefined,
+    user: existingUser ? existingUser._id : undefined,
     status: assignedToId ? 'assigned' : 'new',
     priority,
   });
@@ -799,5 +805,40 @@ export const deleteEnquiry = asyncHandler(async (req: Request, res: Response) =>
   res.status(200).json({
     status: 'success',
     message: 'Enquiry deleted successfully',
+  });
+});
+
+// @desc    Get all enquiries for the currently logged in customer
+// @route   GET /api/enquiries/customer/me
+export const getCustomerEnquiries = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!._id;
+
+  const enquiries = await Enquiry.find({ user: userId })
+    .populate('assignedTo', 'firstName lastName')
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    status: 'success',
+    results: enquiries.length,
+    data: enquiries,
+  });
+});
+
+// @desc    Get specific enquiry for the currently logged in customer
+// @route   GET /api/enquiries/customer/me/:id
+export const getCustomerEnquiryById = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!._id;
+
+  const enquiry = await Enquiry.findOne({ _id: req.params.id, user: userId })
+    .populate('package', 'name slug')
+    .populate('assignedTo', 'firstName lastName avatar');
+
+  if (!enquiry) {
+    throw new AppError('Enquiry not found', 404);
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: enquiry,
   });
 });

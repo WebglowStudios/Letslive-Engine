@@ -13,6 +13,8 @@ import {
   exportEnquiries,
   sendBookingLinkHandler,
   deleteEnquiry,
+  getCustomerEnquiries,
+  getCustomerEnquiryById,
 } from '../controllers/enquiryController.js';
 
 import { protect, managerOnly, staffOnly } from '../middleware/auth.js';
@@ -23,6 +25,10 @@ const router = Router();
 // ─── Public ──────────────────────────────────────────────────────────────────
 // Public: create enquiry from website (rate-limited, auto-assigns via round-robin)
 router.post('/', enquiryLimiter, createEnquiry);
+
+// ─── Customer (auth required) ──────────────────────────────────────────────────
+router.get('/customer/me', protect, getCustomerEnquiries);
+router.get('/customer/me/:id', protect, getCustomerEnquiryById);
 
 // ─── Staff+ (auth required) ───────────────────────────────────────────────────
 // Manually create a walk-in / phone / WhatsApp lead
