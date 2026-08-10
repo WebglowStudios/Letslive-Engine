@@ -6,10 +6,14 @@ import { env } from '../config/env.js';
 const transporter = nodemailer.createTransport({
   host: env.SMTP_HOST,
   port: env.SMTP_PORT,
-  secure: env.SMTP_PORT === 465,
+  secure: env.SMTP_PORT === 465,   // true for port 465 (SSL), false for 587 (TLS/STARTTLS)
   auth: {
     user: env.SMTP_USER,
     pass: env.SMTP_PASS,
+  },
+  tls: {
+    // GoDaddy uses a self-signed cert on smtpout.secureserver.net — allow it
+    rejectUnauthorized: false,
   },
 });
 
@@ -57,7 +61,7 @@ function wrapTemplate(body: string): string {
         <tr>
           <td style="background:#f9f6f0;padding:24px 32px;text-align:center;border-top:1px solid #e5e5e5;">
             <p style="margin:0;font-size:12px;color:#888;">LetsLive Tours Pvt. Ltd. · Bengaluru, India</p>
-            <p style="margin:6px 0 0;font-size:11px;color:#aaa;">info@letslivetours.in · +91 80 1234 5678</p>
+            <p style="margin:6px 0 0;font-size:11px;color:#aaa;">info@letslivetours.com · +91 98765 43210</p>
             <p style="margin:8px 0 0;font-size:11px;color:#bbb;">© 2026 LetsLive Tours. All rights reserved.</p>
           </td>
         </tr>
