@@ -83,7 +83,7 @@ export interface IPackage extends Document {
   category?: string;
   originalPrice?: number;
   price: number;
-  priceUnit: 'person' | 'couple' | 'family';
+  priceUnit: 'person' | 'couple' | 'family' | 'group';
   discount?: number;
   rating: number;
   reviewCount: number;
@@ -160,7 +160,7 @@ const packageSchema = new Schema<IPackage>(
     price: { type: Number, required: true },
     priceUnit: {
       type: String,
-      enum: ['person', 'couple', 'family'],
+      enum: ['person', 'couple', 'family', 'group'],
       default: 'person',
     },
     discount: { type: Number },
