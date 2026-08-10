@@ -15,6 +15,7 @@ import {
   deleteEnquiry,
   getCustomerEnquiries,
   getCustomerEnquiryById,
+  submitEnquiryFeedback,
 } from '../controllers/enquiryController.js';
 
 import { protect, managerOnly, staffOnly } from '../middleware/auth.js';
@@ -26,9 +27,13 @@ const router = Router();
 // Public: create enquiry from website (rate-limited, auto-assigns via round-robin)
 router.post('/', enquiryLimiter, createEnquiry);
 
-// ─── Customer (auth required) ──────────────────────────────────────────────────
+// ─── Customer Authenticated ──────────────────────────────────────────────────
+// Get enquiries for the currently logged in customer
 router.get('/customer/me', protect, getCustomerEnquiries);
+// Get specific enquiry details for the currently logged in customer
 router.get('/customer/me/:id', protect, getCustomerEnquiryById);
+// Submit feedback for the assigned employee
+router.post('/customer/me/:id/feedback', protect, submitEnquiryFeedback);
 
 // ─── Staff+ (auth required) ───────────────────────────────────────────────────
 // Manually create a walk-in / phone / WhatsApp lead

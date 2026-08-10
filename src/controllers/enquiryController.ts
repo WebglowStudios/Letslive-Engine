@@ -842,3 +842,39 @@ export const getCustomerEnquiryById = asyncHandler(async (req: Request, res: Res
     data: enquiry,
   });
 });
+
+// @desc    Submit feedback for the assigned employee of an enquiry
+// @route   POST /api/enquiries/customer/me/:id/feedback
+// @access  Customer
+export const submitEnquiryFeedback = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!._id;
+  const { rating, comments } = req.body;
+
+  if (!rating || rating < 1 || rating > 5) {
+    throw new AppError('Please provide a valid rating between 1 and 5', 400);
+  }
+
+  const enquiry = await Enquiry.findOne({ _id: req.params.id, user: userId });
+
+  if (!enquiry) {
+    throw new AppError('Enquiry not found', 404);
+  }
+
+  if (!enquiry.assignedTo) {
+    throw new AppError('This enquiry is not assigned to any employee yet', 400);
+  }
+
+  enquiry.feedback = {
+    rating: Number(rating),
+    comments,
+    submittedAt: new Date(),
+  };
+
+  await enquiry.save();
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Feedback submitted successfully',
+    data: enquiry.feedback,
+  });
+});

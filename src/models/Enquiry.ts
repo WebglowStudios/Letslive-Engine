@@ -44,6 +44,11 @@ export interface IEnquiry extends Document {
   channel?: string;                            // Lead acquisition channel
   callLog: ICallLog[];                         // Per-call attempt records
   lastContactedAt?: Date;                      // Last time customer actually picked up/replied
+  feedback?: {
+    rating: number;
+    comments?: string;
+    submittedAt: Date;
+  };
   // ──────────────────────────────────────────────────────────────────────────
   createdAt: Date;
   updatedAt: Date;
@@ -122,6 +127,11 @@ const enquirySchema = new Schema<IEnquiry>(
       },
     ],
     lastContactedAt: { type: Date },
+    feedback: {
+      rating: { type: Number, min: 1, max: 5 },
+      comments: { type: String },
+      submittedAt: { type: Date }
+    }
     // ────────────────────────────────────────────────────────────────────────
   },
   { timestamps: true }
