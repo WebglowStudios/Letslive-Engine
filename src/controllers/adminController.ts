@@ -128,7 +128,7 @@ export const createStaff = asyncHandler(async (req: Request, res: Response) => {
 // @desc    Update staff member (role, active status)
 // @route   PUT /api/admin/staff/:id
 export const updateStaff = asyncHandler(async (req: Request, res: Response) => {
-  const { role, isActive } = req.body;
+  const { role, isActive, avatar, description, password } = req.body;
   const updateData: Record<string, unknown> = {};
 
   if (role) {
@@ -143,18 +143,28 @@ export const updateStaff = asyncHandler(async (req: Request, res: Response) => {
     updateData.isVerified = isActive; // Using isVerified as active flag for staff
   }
 
-  const user = await User.findByIdAndUpdate(req.params.id, updateData, {
-    new: true,
-    runValidators: true,
-  });
+  if (avatar !== undefined) updateData.avatar = avatar;
+  if (description !== undefined) updateData.description = description;
 
+  const user = await User.findById(req.params.id);
   if (!user) {
     throw new AppError('Staff member not found', 404);
   }
 
+  if (password) {
+    user.password = password;
+    await user.save(); // Trigger pre-save hook for password hash
+  }
+
+  if (Object.keys(updateData).length > 0) {
+    await User.findByIdAndUpdate(req.params.id, updateData, { runValidators: true });
+  }
+
+  const updatedUser = await User.findById(req.params.id);
+
   res.status(200).json({
     status: 'success',
-    data: user,
+    data: updatedUser,
   });
 });
 

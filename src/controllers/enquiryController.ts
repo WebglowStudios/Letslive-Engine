@@ -831,7 +831,7 @@ export const getCustomerEnquiryById = asyncHandler(async (req: Request, res: Res
 
   const enquiry = await Enquiry.findOne({ _id: req.params.id, user: userId })
     .populate('package', 'name slug')
-    .populate('assignedTo', 'firstName lastName avatar');
+    .populate('assignedTo', 'firstName lastName avatar description');
 
   if (!enquiry) {
     throw new AppError('Enquiry not found', 404);
