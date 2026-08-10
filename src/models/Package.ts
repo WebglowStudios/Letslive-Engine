@@ -80,7 +80,7 @@ export interface IPackage extends Document {
   duration: { nights: number; days: number };
   travelDates?: { startDate?: Date; endDate?: Date };
   hotelRating?: string;
-  category?: 'luxury' | 'honeymoon' | 'family' | 'adventure' | 'group' | 'budget';
+  category?: string;
   originalPrice?: number;
   price: number;
   priceUnit: 'person' | 'couple' | 'family';
@@ -153,7 +153,6 @@ const packageSchema = new Schema<IPackage>(
     hotelRating: { type: String },
     category: {
       type: String,
-      enum: ['luxury', 'honeymoon', 'family', 'adventure', 'group', 'budget'],
     },
     originalPrice: { type: Number },
     price: { type: Number, required: true },

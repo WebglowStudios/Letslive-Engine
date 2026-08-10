@@ -1,0 +1,1598 @@
+[
+  {
+    "_id": "6a27b77132f453ba3ce08c11",
+    "name": "Himachal Pradesh",
+    "country": "India",
+    "region": "North India",
+    "description": "Nestled in the heart of the Western Himalayas, Himachal Pradesh is a majestic playground of snow-capped peaks, deep alpine valleys, lush pine forests, and vibrant cultural sanctuaries. From the bustling, adventure-fueled lanes of Manali and the colonial charms of Shimla to the serene, spiritual monasteries of Dharamshala and the raw, untamed landscapes of Spiti Valley, this destination offers an unparalleled escape for mountain lovers, family vacationers, and adrenaline seekers alike.",
+    "shortDescription": "A majestic Himalayan paradise of snow-capped peaks, adventure trails, spiritual monasteries, and deep alpine valleys.",
+    "images": [
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1780986186/letslivetours/zho6ban7n3kjwqclsaay.jpg"
+    ],
+    "heroImage": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1780986887/letslivetours/siimlrwehsp1dzyhgqpv.jpg",
+    "category": "mountain",
+    "rating": 0,
+    "reviewCount": 0,
+    "packageCount": 12,
+    "startingPrice": 15000,
+    "bestSeason": "Mar - Jun &  Oct - Dec",
+    "visaType": "free",
+    "highlights": [
+      "Shimla Colonial Heritage",
+      "Kullu-Manali Snow Peaks",
+      "Spiti Valley Adventure",
+      "Solang Valley Paragliding",
+      "Kalka-Shimla Toy Train",
+      "Dharamshala & Mcleodganj"
+    ],
+    "partners": [],
+    "isActive": true,
+    "isFeatured": false,
+    "approvalStatus": "approved",
+    "travelTips": [
+      {
+        "question": "What is the best time to visit Himachal Pradesh?",
+        "answer": "For pleasant weather and greenery, visit from March to June. For snow and winter sports, December to February is ideal. Avoid the monsoon months of July and August due to potential road closures.",
+        "_id": "6a2e9f30123644a0b7046783"
+      },
+      {
+        "question": "How can I reach Himachal Pradesh from Pune/Mumbai?",
+        "answer": "The most convenient way is to fly into Chandigarh or Delhi, followed by a scenic 6–8 hour road journey. Alternatively, you can take a direct flight to Kullu (Bhuntar) or Dharamshala (Gagal) for quicker access to the mountains.",
+        "_id": "6a2e9f30123644a0b7046784"
+      },
+      {
+        "question": "Is it safe to drive in the hills of Himachal?",
+        "answer": "Hill driving requires caution. Always keep to the left, avoid overtaking on bends, and avoid driving at night. If you are not experienced in mountain driving, hiring a local taxi is recommended.",
+        "_id": "6a2e9f30123644a0b7046785"
+      },
+      {
+        "question": "Is it safe to travel to Himachal during the winter?",
+        "answer": "Yes, but it requires planning. Popular hubs like Manali and Shimla are well-equipped for winter tourism. However, high-altitude passes like Rohtang or the Spiti circuit may be closed due to heavy snowfall.",
+        "_id": "6a2e9f30123644a0b7046786"
+      },
+      {
+        "question": "What should I pack for a trip to Himachal?",
+        "answer": "Layering is key. Pack light woolens for summer nights and heavy down jackets, thermals, and waterproof shoes for winter travel. Don't forget sunscreen and sunglasses for the high-altitude sun , also always carry a medical kit and your original ID proofs.",
+        "_id": "6a2e9f30123644a0b7046787"
+      },
+      {
+        "question": "Do I need special permits for any areas in Himachal?",
+        "answer": "Most areas are open to everyone. However, an Inner Line Permit is required for international tourists visiting certain border regions near Spiti, and all vehicles require a permit to cross Rohtang Pass.",
+        "_id": "6a2e9f30123644a0b7046788"
+      },
+      {
+        "question": "Are there restrictions on plastic or smoking?",
+        "answer": "Yes. Himachal has a strict ban on non-biodegradable litter and single-use plastic. Smoking is prohibited in public places, and littering can attract heavy fines.",
+        "_id": "6a2e9f30123644a0b7046789"
+      },
+      {
+        "question": "Is there good internet connectivity for workations?",
+        "answer": "Major towns like Shimla, Manali, and Dharamshala have good 4G/5G coverage. However, in remote areas like Tirthan or Jibhi, verify the internet speed with your homestay before booking.",
+        "_id": "6a2e9f30123644a0b704678a"
+      },
+      {
+        "question": "What is the local food I must try?",
+        "answer": "Don't miss local delicacies like Siddu (steamed bun), Dham (traditional meal), Madra, and fresh river trout in the Kullu-Manali region.",
+        "_id": "6a2e9f30123644a0b704678b"
+      },
+      {
+        "question": "Is Himachal Pradesh suitable for senior citizens?",
+        "answer": "Yes. Many destinations like Shimla and Dalhousie offer relaxed itineraries with minimal walking. We recommend gradual acclimatization and choosing well-connected resorts to ensure maximum comfort.",
+        "_id": "6a2e9f30123644a0b704678c"
+      },
+      {
+        "question": "Can I experience snow even in the summer?",
+        "answer": "Yes! High-altitude spots like Rohtang Pass (near Manali) or Kunzum Pass (near Spiti) often have snow patches well into June, making them favorites for summer travelers.",
+        "_id": "6a2e9f30123644a0b704678d"
+      },
+      {
+        "question": "Which valley should I choose for a short trip?",
+        "answer": "For a 4–5 day trip, stick to one valley (e.g., just Kullu-Manali or just Shimla-Kufri) to avoid spending your entire holiday in transit. Distances take longer than they appear on maps.",
+        "_id": "6a2e9f30123644a0b704678e"
+      }
+    ],
+    "whyVisit": [
+      {
+        "icon": "landscape",
+        "title": "Majestic Himalayan Peaks",
+        "description": "Witness breathtaking snow-capped peaks, lush green valleys, and pristine rivers like the Beas and Sutlej.",
+        "_id": "6a2e9f30123644a0b704677f"
+      },
+      {
+        "icon": "AC_unit",
+        "title": "Year-Round Snow Escapes",
+        "description": "From summer relief in Shimla to winter sports in Manali, Himachal offers a diverse seasonal appeal for every type of mountain lover.",
+        "_id": "6a2e9f30123644a0b7046780"
+      },
+      {
+        "icon": "temple_buddhist",
+        "title": "Spiritual & Cultural Hub",
+        "description": "Explore over 500 ancient temples and serene Tibetan monasteries, including the abode of the Dalai Lama.",
+        "_id": "6a2e9f30123644a0b7046781"
+      },
+      {
+        "icon": "paragliding",
+        "title": "The Adventure Capital\t",
+        "description": "Engage in world-class paragliding at Bir Billing, river rafting on the Beas, and iconic treks through the Great Himalayan National Park.",
+        "_id": "6a2e9f30123644a0b7046782"
+      }
+    ],
+    "photoGallery": [],
+    "slug": "himcahal",
+    "createdAt": "2026-06-09T06:49:21.524Z",
+    "updatedAt": "2026-06-14T12:31:44.929Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a27beab777515d6e38ce255",
+    "name": "Uttarakhand",
+    "country": "India",
+    "region": "North India",
+    "description": "Welcome to Uttarakhand, popularly known as 'Devbhoomi' or the Land of the Gods. Nestled in the lap of the majestic Himalayas, this stunning northern state offers a perfect blend of sublime spirituality, thrilling adventure, and serene hill stations. From the tranquil lakes of Nainital and the colonial charm of Mussoorie to the adrenaline-pumping river rafting in Rishikesh and the raw wilderness of Jim Corbett National Park, Uttarakhand caters to every type of traveler. Whether you are seeking a peaceful family vacation, a romantic honeymoon getaway, or a spiritual awakening along the sacred banks of the Ganges, our curated packages promise an unforgettable mountain escape.",
+    "shortDescription": "Explore Devbhoomi: Majestic Himalayan peaks, serene lakes, wild safaris, and spiritual river banks.",
+    "images": [
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1780989430/letslivetours/wzoydjaiuthebbgqpkbp.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1780986186/letslivetours/zho6ban7n3kjwqclsaay.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1780989471/letslivetours/l6ejsimm0hvk68tid7ev.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1780989465/letslivetours/v9txdbmpwvyepfh9xgdd.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1780989477/letslivetours/heka4gu5ntgftobs4asx.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1780989483/letslivetours/klpscxauuzobnwv7ywhn.jpg"
+    ],
+    "heroImage": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1780986255/letslivetours/ulv66akfxxl9vyjigjkn.jpg",
+    "category": "mountain",
+    "rating": 0,
+    "reviewCount": 0,
+    "packageCount": 12,
+    "startingPrice": 12000,
+    "bestSeason": "Oct-Jan ",
+    "visaType": "free",
+    "highlights": [
+      "Kedarnath & Badrinath Shrines",
+      "Rishikesh White Water Rafting",
+      "Jim Corbett Jeep Safari",
+      "Auli Scenic Cable Car Ride",
+      "Char Dham Group Tour",
+      "Jim Corbett Jungle Safari (Dhikala Zone)",
+      "Valley of Flowers UNESCO Trek"
+    ],
+    "partners": [],
+    "isActive": true,
+    "isFeatured": true,
+    "approvalStatus": "approved",
+    "travelTips": [
+      {
+        "question": "Is registration mandatory for the Char Dham Yatra in Uttarakhand?",
+        "answer": "Yes, the state government makes online registration absolutely compulsory for all pilgrims visiting Yamunotri, Gangotri, Kedarnath, and Badrinath. Lets Live Tours completely manages this process, securing your official QR-coded e-pass before your journey begins.",
+        "_id": "6a2ea5fa123644a0b704698a"
+      },
+      {
+        "question": "What documents are required for the mandatory biometric registration?",
+        "answer": "You will need a valid government-issued photo ID (preferably an Aadhaar Card, Voter ID, or Passport), a recent digital photograph, and an active mobile number to receive OTP verifications.",
+        "_id": "6a2ea5fa123644a0b704698b"
+      },
+      {
+        "question": "Are there strict night driving restrictions on hill routes?",
+        "answer": "Yes, to dramatically improve road safety along mountainous passes, the local transport department completely bans commercial passenger vehicles from driving between 10:00 PM and 4:00 AM. All our custom itineraries are designed around these legal daylight hours.",
+        "_id": "6a2ea5fa123644a0b704698c"
+      },
+      {
+        "question": "How far in advance should I book a Jim Corbett Safari package?",
+        "answer": "Because the government enforces strict daily vehicle quotas per eco-zone, premium night stays inside the core Dhikala Zone must be booked 30 to 90 days in advance through the unified official portal.",
+        "_id": "6a2ea5fa123644a0b704698d"
+      },
+      {
+        "question": "What are the health and fitness rules for the Kedarnath trek?",
+        "answer": "The foot trek from Gaurikund to Kedarnath is a demanding 16 km climb reaching an altitude of 11,750 feet. While there is no official age ban, travelers over 60 or those with respiratory/cardiac histories are strongly advised to carry a medical fitness certificate and consult a physician.",
+        "_id": "6a2ea5fa123644a0b704698e"
+      },
+      {
+        "question": "Can Lets Live Tours assist in booking Kedarnath Helicopter tickets?",
+        "answer": "Yes, we assist in securing helicopter slots operating from Guptkashi, Phata, and Sirsi heli-pads. Due to extreme demand and a strict daily cap, these must be linked directly to your confirmed Char Dham registration dates.",
+        "_id": "6a2ea5fa123644a0b704698f"
+      },
+      {
+        "question": "When is the best time to plan a holiday to Uttarakhand?",
+        "answer": "For pleasant weather and sightseeing in Mussoorie, Nainital, and Rishikesh, plan between March to June or October to November. For the pilgrimage shrines, May to June is peak season, while July and August should be avoided due to heavy monsoons.",
+        "_id": "6a2ea5fa123644a0b7046990"
+      },
+      {
+        "question": "When does the Valley of Flowers trek open to the public?",
+        "answer": "This stunning UNESCO World Heritage site is seasonal, opening exclusively from June 1st to October 31st each year. The absolute best window to witness more than 300 species of alpine wildflowers in full bloom is between July and August.",
+        "_id": "6a2ea5fa123644a0b7046991"
+      },
+      {
+        "question": "Do outside commercial vehicles have entry limits inside tourist towns?",
+        "answer": "Yes, local traffic regulations occasionally restrict outside-state commercial vehicles from entering central grid zones in Nainital and Mussoorie during peak summer weekends to prevent gridlock. Our ground transport uses locally cleared vehicles where needed to ensure a smooth journey.",
+        "_id": "6a2ea5fa123644a0b7046992"
+      },
+      {
+        "question": "Are digital payments and UPI stable across all mountain circuits?",
+        "answer": "While UPI, credit cards, and digital wallets work flawlessly in city centers like Dehradun, Haridwar, and Rishikesh, cellular signals can drop unexpectedly on high-altitude routes like Kedarnath or Badrinath. Always carry adequate physical cash for local ponies, porters, and meals.",
+        "_id": "6a2ea5fa123644a0b7046993"
+      },
+      {
+        "question": "What type of clothing layout should I pack for a hill tour?",
+        "answer": "For summer leisure tours, light cotton clothes with a light jacket for evenings are sufficient. For spiritual itineraries involving high-altitude treks or temple stays, heavy woolens, thermal innerwear, windproof down jackets, and rain ponchos are mandatory year-round.",
+        "_id": "6a2ea5fa123644a0b7046994"
+      },
+      {
+        "question": "Is an Inner Line Permit required for any area in Uttarakhand?",
+        "answer": "Standard tourist itineraries (Nainital, Mussoorie, Corbett, Char Dham) do not require any special permits. However, offbeat adventure circuits close to international borders—such as the Adi Kailash Yatra or Nelang Valley—strictly require an Inner Line Permit (ILP) issued via local administrative offices.",
+        "_id": "6a2ea5fa123644a0b7046995"
+      }
+    ],
+    "whyVisit": [
+      {
+        "icon": "scuba_diving",
+        "title": "The Yoga & Adventure Capital",
+        "description": "Challenge yourself with world-class river rafting and cliff jumping in Rishikesh, or experience deep spiritual rejuvenation at global yoga retreats on the banks of the Ganges.",
+        "_id": "6a2ea5fa123644a0b7046986"
+      },
+      {
+        "icon": "mosque",
+        "title": "The Sacred Land (Devbhoomi)",
+        "description": "Embark on India's most revered spiritual circuits, including Haridwar's grand evening Ganga Aarti and the high-altitude Char Dham shrines.",
+        "_id": "6a2ea5fa123644a0b7046987"
+      },
+      {
+        "icon": "forest",
+        "title": "Pristine Wilderness & Safaris",
+        "description": "Track the elusive Bengal tiger in the dense sal forests of Jim Corbett National Park, India's oldest protected wildlife reserve.",
+        "_id": "6a2ea5fa123644a0b7046988"
+      },
+      {
+        "icon": "snowboarding",
+        "title": "Panoramic Alpine Escapes",
+        "description": "Soak in the spectacular winter snow landscapes of Auli, walk through the pristine Valley of Flowers, or relax in colonial hill stations like Mussoorie and Nainital.",
+        "_id": "6a2ea5fa123644a0b7046989"
+      }
+    ],
+    "photoGallery": [
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781080025/letslivetours/ozwxzkvlgiiftiskuceq.jpg",
+        "label": "Kedarnath Dham",
+        "_id": "6a2ea5fa123644a0b7046996"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1780989430/letslivetours/wzoydjaiuthebbgqpkbp.jpg",
+        "label": "Valley of Flower",
+        "_id": "6a2ea5fa123644a0b7046997"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781082575/letslivetours/lfo1dz56eq6atavx7qbe.jpg",
+        "label": "White River Rafting at Rishikesh",
+        "_id": "6a2ea5fa123644a0b7046998"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781076620/letslivetours/owjl2erotpcofyazzxf8.jpg",
+        "label": "Jim Corbett Tiger Safari",
+        "_id": "6a2ea5fa123644a0b7046999"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781000476/letslivetours/z08uilwyt1sexj8mjbrh.jpg",
+        "label": "Ganga Aarti",
+        "_id": "6a2ea5fa123644a0b704699a"
+      }
+    ],
+    "slug": "uttarakhand",
+    "createdAt": "2026-06-09T07:20:11.049Z",
+    "updatedAt": "2026-06-19T07:52:00.453Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a2937318f9195d6ae1c9b75",
+    "name": "Bali",
+    "country": "Indonesia",
+    "region": "Southeast Asia",
+    "description": "Welcome to Bali, an island paradise where breathtaking natural beauty meets deep cultural heritage. At Lets Live Tours, we bring you closer to the ultimate tropical getaway. Known affectionately as the 'Island of the Gods,' Bali seamlessly blends stunning landscapes with a serene spiritual vibe.\n\nWhether you want to trek through the emerald-green Tegalalang rice terraces in Ubud, witness a dramatic sunset over the Uluwatu cliff temple, or unwind on the sun-drenched beaches of Seminyak, we have you covered. From curated luxury stays to thrilling island adventures, let Lets Live Tours design your perfect Bali holiday.",
+    "shortDescription": "Tropical beaches, vibrant culture, and serene temple retreats await in the Island of the Gods.",
+    "images": [
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781170199/letslivetours/zbzqchsvgw13jtcuzw8h.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781170201/letslivetours/yzehibxg85x5owrs6apj.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781170203/letslivetours/odxrzvg490cw5uejtv0p.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781170205/letslivetours/uda0rbjpvtm9jni0d4kq.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781170206/letslivetours/vjy0gvryjt4tdls20mf5.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781170197/letslivetours/nqgj6zkki0olh1vwafxw.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781170195/letslivetours/xgbro54bsoilj2hc0oqr.jpg"
+    ],
+    "heroImage": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781085483/letslivetours/gjvizuflppctrfdua7nq.jpg",
+    "category": "tropical",
+    "rating": 0,
+    "reviewCount": 0,
+    "packageCount": 10,
+    "startingPrice": 17990,
+    "bestSeason": "Apr - Oct",
+    "visaType": "on-arrival",
+    "highlights": [
+      "Tegalalang Emerald Terraces (Ubud)",
+      "Nusa Penida West Island Tour",
+      "Sunset Kecak Dance at Uluwatu",
+      "Tanjung Benoa Water Sports",
+      "Tanah Lot Sea Temple",
+      "Mount Batur Sunrise Trekking"
+    ],
+    "partners": [],
+    "isActive": true,
+    "isFeatured": true,
+    "approvalStatus": "approved",
+    "travelTips": [
+      {
+        "question": "Do Indian citizens need a visa for Bali ?",
+        "answer": "Yes, Indian passport holders require a Visa on Arrival (VoA), which costs approximately IDR 500,000 (~₹3,050) and is valid for 30 days. For faster entry, you can apply for an e-VOA online before departure to use the airport's automated gates.",
+        "_id": "6a2a8386dbdf6a7275fe9222"
+      },
+      {
+        "question": "Is Indian food easily available in Bali?",
+        "answer": "Absolutely. Popular hubs like Ubud, Kuta, and Seminyak have numerous highly-rated Indian restaurants offering North and South Indian cuisine. Many spots also provide Pure Veg and Jain (no onion/garlic) options upon request.",
+        "_id": "6a2a8386dbdf6a7275fe9223"
+      },
+      {
+        "question": "What is the best time for Indians to visit Bali?",
+        "answer": "The dry season (April to October) is ideal for sun-drenched beaches and outdoor sightseeing. However, many Indians also visit during the winter peak (November to February) to align with major wedding and holiday seasons, despite it being the rainy period.",
+        "_id": "6a2a8386dbdf6a7275fe9224"
+      },
+      {
+        "question": "Can I use Indian Rupees (INR) or UPI in Bali?",
+        "answer": "No, INR is not accepted for local payments, and UPI is currently not supported in Bali. It is best to use Indonesian Rupiah (IDR) cash or a Zero-Forex markup card for the best exchange rates.",
+        "_id": "6a2a8386dbdf6a7275fe9225"
+      },
+      {
+        "question": "What is the mandatory Bali Tourist Tax?",
+        "answer": "As of 2024-2026, all international tourists must pay a separate Bali Tourist Levy of IDR 150,000 (~₹800). It is highly recommended to pay this online via the Love Bali portal before you fly to avoid long queues at the airport.",
+        "_id": "6a2a8386dbdf6a7275fe9226"
+      },
+      {
+        "question": "Is Bali safe for Indian families and solo female travelers?",
+        "answer": "Yes, Bali is considered a very safe and tourist-friendly destination. Standard precautions apply: avoid drinking tap water, be mindful of \"Bali Belly\" (stomach upsets), and use trusted transport apps like Grab or Gojek.",
+        "_id": "6a2a8386dbdf6a7275fe9227"
+      },
+      {
+        "question": "How many days are enough for a complete Bali trip?",
+        "answer": "A 6-Night / 7-Day itinerary is the industry standard for Indians. This allows for a \"Split-Stay\" where you spend 3 nights in the cultural heart of Ubud and 3 nights in a beach-side resort in Seminyak or Nusa Dua.",
+        "_id": "6a2a8386dbdf6a7275fe9228"
+      },
+      {
+        "question": "Are there direct flights from India to Bali?",
+        "answer": "Yes, there are now convenient direct flights from major hubs like Delhi, Mumbai, and Bengaluru via carriers like Vistara and IndiGo, with a flight time of approximately 7 to 7.5 hours.",
+        "_id": "6a2a8386dbdf6a7275fe9229"
+      }
+    ],
+    "whyVisit": [
+      {
+        "icon": "hotel_class",
+        "title": "Best of Both Worlds",
+        "description": "Experience the ultimate Bali layout with a seamless split-stay. Spend your first few nights in a vibrant beachfront resort in Kuta or Seminyak, then retreat to a luxury jungle villa in serene Ubud.",
+        "_id": "6a2a8386dbdf6a7275fe921e"
+      },
+      {
+        "icon": "connecting_airports",
+        "title": "Visa on Arrival",
+        "description": "Planning your international getaway is completely stress-free. Indian passport holders are eligible for a quick and easy Visa on Arrival (VoA), making Bali perfect for last-minute bookings and fixed group departures.",
+        "_id": "6a2a8386dbdf6a7275fe921f"
+      },
+      {
+        "icon": "restaurant",
+        "title": "Indian Food Available",
+        "description": "Travel without compromising on your comfort. Whether you prefer authentic local Balinese delicacies or need confirmed daily Indian vegetarian/non-vegetarian meals, our curated itineraries ensure a perfect culinary experience.",
+        "_id": "6a2a8386dbdf6a7275fe9220"
+      },
+      {
+        "icon": "explore",
+        "title": "Handcrafted Sightseeing",
+        "description": "From speedboats to the dramatic cliffs of Nusa Penida, to catching unforgettable beachfront sunsets at the Uluwatu and Tanah Lot sea temples—our itineraries bundle all major entry tickets and fast-boat transfers seamlessly.",
+        "_id": "6a2a8386dbdf6a7275fe9221"
+      }
+    ],
+    "photoGallery": [],
+    "slug": "bali",
+    "createdAt": "2026-06-10T10:06:41.137Z",
+    "updatedAt": "2026-06-19T14:29:26.428Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a2a4d608f9195d6ae1cc5e3",
+    "name": "Kashmir",
+    "country": "India",
+    "region": "North India",
+    "description": "Welcome to Jammu & Kashmir, widely celebrated as 'Paradise on Earth.' This world-renowned destination offers an unparalleled travel experience that blends awe-inspiring natural beauty, deep-rooted spiritual heritage, and thrilling alpine adventures. From the bustling, warm plains of Jammu—the city of ancient temples—to the pristine, snow-crowned valleys of Kashmir, this region is a year-round haven for travelers.\n\nGuests can experience the timeless magic of staying in a luxury wooden houseboat on Srinagar's iconic Dal Lake, enjoy a gentle Shikara ride past floating markets, or witness the breathtaking flower-filled meadows of Gulmarg and Sonamarg. For adventure seekers, the region offers world-class skiing slopes, high-altitude cable car rides (Gondola), and scenic trekking paths along cascading mountain streams. Perfect for romantic honeymoons, unforgettable family vacations, and soul-stirring retreats, a trip to Jammu & Kashmir promises memories that will be cherished for a lifetime.",
+    "shortDescription": "Experience 'Paradise on Earth'—a magical realm of serene alpine lakes, floating houseboats, mist-covered valleys, and snow-capped Himalayan peaks.",
+    "images": [
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781157403/letslivetours/zbzyqbp9oexcc5my1l4l.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781157407/letslivetours/vehtubpkoyuw6niwsfyi.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781157405/letslivetours/mrwd2sfnwzm8kxukiwdf.jpg"
+    ],
+    "category": "mountain",
+    "rating": 0,
+    "reviewCount": 0,
+    "packageCount": 9,
+    "bestSeason": "March to October",
+    "visaType": "free",
+    "highlights": [
+      "Dal Lake Houseboats",
+      "Gulmarg Gondola Ride",
+      "Paradise on Earth",
+      "Sonamarg Glacier Trek",
+      "Shikara Ride Experience"
+    ],
+    "partners": [],
+    "isActive": true,
+    "isFeatured": true,
+    "approvalStatus": "approved",
+    "travelTips": [
+      {
+        "question": "Will my mobile phone network work in Jammu & Kashmir?",
+        "answer": "Please note that only postpaid mobile connections (such as Jio, Airtel, and BSNL) work seamlessly in Jammu & Kashmir due to local security regulations. Standard prepaid SIM cards from other states will experience an immediate network blackout upon arrival. We highly recommend switching to a postpaid plan before your journey begins to stay connected smoothly.",
+        "_id": "6a304346123644a0b7061c13"
+      },
+      {
+        "question": "Is Kashmir safe for families and honeymooners?",
+        "answer": "Yes, the major tourist circuits (Srinagar, Gulmarg, Pahalgam, and Sonamarg) are entirely secure, stable, and welcoming. The region sees high annual tourist footfalls, and a dedicated Tourist Police force is active across all major destinations to assist travelers.",
+        "_id": "6a304346123644a0b7061c14"
+      },
+      {
+        "question": "What is the ideal duration for a standard Kashmir tour?",
+        "answer": "A 5-Night / 6-Day or 6-Night / 7-Day itinerary is the industry standard. This perfectly covers the \"Golden Triangle\" of Kashmir: 2 nights in Srinagar (including a houseboat experience), 2 nights in Pahalgam, and 1 or 2 nights in Gulmarg.",
+        "_id": "6a304346123644a0b7061c15"
+      },
+      {
+        "question": "Do Indian tourists require any special entry permits for Kashmir?",
+        "answer": "No, domestic Indian tourists do not require any special permits or visas to visit mainstream destinations like Srinagar, Gulmarg, or Pahalgam. You only need to carry a valid government-issued photo ID like an Aadhaar Card for hotel check-ins and airport security.",
+        "_id": "6a304346123644a0b7061c16"
+      },
+      {
+        "question": "What are the strict local Taxi Union rules in Kashmir?",
+        "answer": "Highly important: Outside commercial taxis (from Delhi, Punjab, etc.) are only permitted to drop you at your hotel. For internal sightseeing inside Pahalgam, Gulmarg, and Sonamarg, local environment laws dictate that you must hire locally registered union cabs on-site, which we handle for you.",
+        "_id": "6a304346123644a0b7061c17"
+      },
+      {
+        "question": "When is the best time to see snow in Gulmarg?",
+        "answer": "To experience heavy snow and enjoy winter sports like skiing or snowboarding, plan your trip between late December and February. During this time, both Phase 1 and Phase 2 of the Gulmarg Gondola are completely covered in thick blankets of white snow.",
+        "_id": "6a304346123644a0b7061c18"
+      },
+      {
+        "question": "When does the famous Tulip Festival take place?",
+        "answer": "The Indira Gandhi Memorial Tulip Garden in Srinagar blooms exclusively in the spring, typically from late March to late April. Because this window lasts only about 4 weeks, packages for this season must be booked 3–4 months in advance.",
+        "_id": "6a304346123644a0b7061c19"
+      },
+      {
+        "question": "Are digital payments, credit cards, and UPI widely accepted?",
+        "answer": "While luxury hotels and premium restaurants in Srinagar accept UPI and cards, small local vendors, pony riders, sledge pullers, and local market shops operate strictly on cash. It is highly advisable to carry sufficient physical cash before leaving Srinagar.",
+        "_id": "6a304346123644a0b7061c1a"
+      },
+      {
+        "question": "What should I know before booking a pony ride or local activity?",
+        "answer": "To avoid overcharging by unverified touts, always verify prices against the official rate charts displayed by the Tourism Department at pony stands. Always fix and agree upon the total price before starting any pony ride, sledge ride, or local ski session.",
+        "_id": "6a304346123644a0b7061c1b"
+      },
+      {
+        "question": "What kind of clothing should I pack for a summer trip?",
+        "answer": "Even during the summer months (May to August), daytime temperatures are pleasant but evenings in Srinagar get chilly. High-altitude locations like Sonamarg and Gulmarg Phase 2 can drop down to single digits, so carrying light woolens or windproof jackets is essential.",
+        "_id": "6a304346123644a0b7061c1c"
+      },
+      {
+        "question": "What are the winter clothing and transit requirements?",
+        "answer": "For winter travel (December to March), heavy thermals, down jackets, insulated gloves, and waterproof snow boots are non-negotiable. Additionally, vehicles traversing the snowy inclines from Tangmarg to Gulmarg are legally required to use special snow-chains on tires for safety.",
+        "_id": "6a304346123644a0b7061c1d"
+      },
+      {
+        "question": "Why should I keep my first or last night in Srinagar?",
+        "answer": "Mountain weather can be unpredictable, occasionally causing temporary closures on the highways linking Pahalgam or Gulmarg to the airport. To ensure you never miss your return flight, standard industry layout routes dictate spending your final night in Srinagar close to the airport.",
+        "_id": "6a304346123644a0b7061c1e"
+      }
+    ],
+    "whyVisit": [
+      {
+        "icon": "potted_plant",
+        "title": "The Paradise on Earth",
+        "description": "Walk through vibrant Mughal terraced gardens, sprawling valleys of wildflowers, and pristine alpine rivers that have captivated travelers for centuries.",
+        "_id": "6a304346123644a0b7061c0f"
+      },
+      {
+        "icon": "downhill_skiing",
+        "title": "Asia’s Premier Snow Hub",
+        "description": "Experience world-class winter sports, snowboarding, and the legendary high-altitude Gondola cable car ride over the snow-laden pine canopies of Gulmarg.",
+        "_id": "6a304346123644a0b7061c10"
+      },
+      {
+        "icon": "houseboat",
+        "title": "Iconic Waterfront Living",
+        "description": "Stay in intricately carved luxury wooden houseboats floating on the serene waters of Dal or Nigeen Lake, offering a timeless glimpse of Kashmiri hospitality.",
+        "_id": "6a304346123644a0b7061c11"
+      },
+      {
+        "icon": "local_mall",
+        "title": "Rich Heritage & Craftsmanship",
+        "description": "Discover exquisite local treasures, from authentic hand-knotted Pashmina shawls and walnut wood carvings to world-famous Kashmiri saffron and dry fruits.",
+        "_id": "6a304346123644a0b7061c12"
+      }
+    ],
+    "photoGallery": [
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781157405/letslivetours/mrwd2sfnwzm8kxukiwdf.jpg",
+        "label": "Dal Lake - Shikara Boat",
+        "_id": "6a304346123644a0b7061c1f"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781158003/letslivetours/rcgfpsgpsqzpqvny8jbg.jpg",
+        "label": "Gulmarg Snow Peaks & Gondola",
+        "_id": "6a304346123644a0b7061c20"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781158026/letslivetours/komupi1yqaglyq0ajyyc.jpg",
+        "label": "Pahalgam Betaab Valley Stream",
+        "_id": "6a304346123644a0b7061c21"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781158058/letslivetours/djfijgjin3uqvjqmva1h.jpg",
+        "label": "Sonamarg Meadow of Gold",
+        "_id": "6a304346123644a0b7061c22"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781158079/letslivetours/guuvgqidteau5vhbvdfq.jpg",
+        "label": "Luxury Wooden Houseboat ",
+        "_id": "6a304346123644a0b7061c23"
+      }
+    ],
+    "slug": "jammu-kashmir",
+    "createdAt": "2026-06-11T05:53:36.886Z",
+    "updatedAt": "2026-06-19T07:51:55.575Z",
+    "__v": 0,
+    "heroImage": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781157408/letslivetours/lamntljj5xzcogvgnefe.jpg",
+    "startingPrice": 14999,
+    "groupDeal": {
+      "title": "Planning a Group Trip to Paradise? Get Custom Rates!",
+      "description": "Whether you are organizing a corporate retreat, an adventure getaway with friends, or a grand family reunion across the valleys of Kashmir, we have you covered! We specialize in crafting seamless, large-scale group itineraries featuring dedicated luxury coach transfers, bulk hotel room bookings at premium properties, custom meal arrangements, and private group sightseeing guides. Let our destination experts handle all the logistics while you unlock exclusive wholesale rates tailored perfectly to your group's size and requirements.",
+      "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781159875/letslivetours/uu6de5xvahro54kullmw.jpg",
+      "discountText": "Save up to 15% to 20% on groups of 8+ travelers!"
+    }
+  },
+  {
+    "_id": "6a2b9539dbdf6a7275fefade",
+    "name": "Leh Ladakh",
+    "country": "India",
+    "region": "North India",
+    "description": "Discover the mesmerizing landscapes of Leh Ladakh, often referred to as the 'Land of High Passes.' Nestled high in the Indian Himalayas, this spectacular cold desert destination is world-renowned for its dramatic stark mountain peaks, crystal-clear high-altitude alpine lakes, and vibrant Tibetan Buddhist culture. From the breathtaking, color-changing waters of Pangong Tso and the double-humped camel safaris of Nubra Valley to the thrilling mountain curves of Khardung La—one of the highest motorable roads on earth—Ladakh is an absolute paradise for adventure seekers, photography enthusiasts, and nature lovers alike. Walk through historic, serene cliffside monasteries like Thiksey and Hemis, experience the gravity-defying phenomenon at Magnetic Hill, and witness the pristine confluence of the Indus and Zanskar rivers. Whether you are planning an adrenaline-fueled bike trip or a scenic luxury family holiday, Leh Ladakh promises an unforgettable journey into raw, untamed Himalayan beauty.",
+    "shortDescription": "A breathtaking high-altitude Himalayan paradise famous for dramatic landscapes, majestic monasteries, and the stunning blue waters of Pangong Lake.",
+    "images": [
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781275363/letslivetours/a8nni9lo1aomzt6cceng.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781275390/letslivetours/mk0yhrawcvkdah4euqcd.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781275386/letslivetours/d99addb3zgiu5ibyoroi.jpg"
+    ],
+    "category": "adventure",
+    "rating": 0,
+    "reviewCount": 0,
+    "packageCount": 5,
+    "startingPrice": 17999,
+    "bestSeason": "Mar  - Sep ",
+    "visaType": "free",
+    "highlights": [
+      "Pangong Tso High-Altitude Lake",
+      "Khardung La Pass (17,582 ft)",
+      "Nubra Valley Sand Dunes & Camels",
+      "Magnetic Hill Gravity Phenomenon",
+      "Confluence of Indus & Zanskar Rivers",
+      "Thiksey Monastery Cultural Tour"
+    ],
+    "partners": [],
+    "isActive": true,
+    "isFeatured": true,
+    "approvalStatus": "approved",
+    "travelTips": [
+      {
+        "question": "What is the absolute rule for acclimatization in Ladakh?",
+        "answer": "Acclimatization is legally and medically enforced. All travelers arriving by air must undergo a mandatory 48-hour rest period in Leh town before traveling to higher passes like Khardung La or Pangong Lake. Avoid heavy physical activity on your first two days.",
+        "_id": "6a2ea163123644a0b70467f3"
+      },
+      {
+        "question": "What is the recommended medical preparation for high altitudes?",
+        "answer": "Consult your doctor about starting Diamox (Acetazolamide) two days before your arrival in Leh. Keep portable oxygen cylinders handy, drink 2–3 liters of water daily, and strictly avoid alcohol, smoking, or sleeping pills during the initial days.",
+        "_id": "6a2ea163123644a0b70467f4"
+      },
+      {
+        "question": "Do Indian tourists need permits for Ladakh in 2026-2027?",
+        "answer": "Yes. While the old Inner Line Permit has been streamlined, domestic tourists are legally required to pay a mandatory Environmental Fee, Wildlife Fee, and Red Cross contribution via the official LAHDC portal to cross into protected border circuits like Nubra Valley, Pangong Tso, and Hanle.",
+        "_id": "6a2ea163123644a0b70467f5"
+      },
+      {
+        "question": "Can I show digital copies of my permits at army checkpoints?",
+        "answer": "No. Due to strict military surveillance near international borders and frequent cellular network drops, physical paper copies are mandatory. You must carry 10 to 12 printed copies of your environment fee receipt to hand over at various check-posts.",
+        "_id": "6a2ea163123644a0b70467f6"
+      },
+      {
+        "question": "What is the exact mobile network reality in Ladakh?",
+        "answer": "Only Postpaid SIM cards (Jio, Airtel, and BSNL) work in the Union Territory of Ladakh; all outside prepaid SIM cards lose network coverage instantly upon arrival. Jio and Airtel offer great data speeds in Leh town, while BSNL is the only network that works in ultra-remote border areas.",
+        "_id": "6a2ea163123644a0b70467f7"
+      },
+      {
+        "question": "What is the cash and UPI availability in remote valleys?",
+        "answer": "Do not rely on digital payments or UPI outside Leh town. ATMs frequently run dry or lose satellite connectivity in Nubra and Pangong. It is highly recommended to withdraw at least ₹15,000–₹20,000 in cash per person while you are in Leh.",
+        "_id": "6a2ea163123644a0b70467f8"
+      },
+      {
+        "question": "What type of clothing layout is recommended?",
+        "answer": "Pack a dynamic layering system instead of a single heavy jacket. Because temperatures fluctuate heavily between direct sunlight and shade, your baggage should include thermals (base layer), fleece or light down jackets (mid-layer), and a windproof, waterproof outer shell.",
+        "_id": "6a2ea163123644a0b70467f9"
+      },
+      {
+        "question": "Are there critical skin and eye protection guidelines?",
+        "answer": "At altitudes above 11,000 feet, UV radiation is roughly 40% higher than at sea level. To avoid intense high-altitude sunburns (\"Leh-burn\") and snow blindness, it is mandatory to wear SPF 50+ sunscreen, UV-rated sunglasses, and a wide-brimmed sun hat.",
+        "_id": "6a2ea163123644a0b70467fa"
+      },
+      {
+        "question": "When is the peak tourist season to plan a Ladakh itinerary?",
+        "answer": "The optimal travel window is from late May to September. During these months, both the Srinagar-Leh and Manali-Leh highways open up, high-altitude lakes completely melt into vibrant shades of blue, and the weather remains perfectly safe for road trips.",
+        "_id": "6a2ea163123644a0b70467fb"
+      },
+      {
+        "question": "Are there any vehicle or driving restrictions for bikers/drivers?",
+        "answer": "Yes. If you are hiring a self-drive car or a bike from outside Ladakh (like Srinagar or Manali), it is only permitted to bring it as far as Leh town. For sightseeing in restricted zones like Nubra, Pangong, and Hanle, you must hire a locally registered Ladakh vehicle.",
+        "_id": "6a2ea163123644a0b70467fc"
+      },
+      {
+        "question": "What are the strict legal rules regarding drone flying?",
+        "answer": "Flying recreational drones is strictly prohibited across most parts of Ladakh due to its proximity to sensitive international military borders with China and Pakistan. Flying a drone without official written permission from the local district magistrate can lead to heavy fines and equipment confiscation.",
+        "_id": "6a2ea163123644a0b70467fd"
+      },
+      {
+        "question": "What is the ideal trip duration for a standard holiday package?",
+        "answer": "A minimum of 6-Nights/7-Days or 7-Nights/8-Days is the industry standard. This length ensures that you spend the first 2 days acclimatizing safely in Leh before completing a circuit that includes overnight stays at Nubra Valley and Pangong Tso.",
+        "_id": "6a2ea163123644a0b70467fe"
+      }
+    ],
+    "whyVisit": [
+      {
+        "icon": "terrain",
+        "title": "Surreal Cold Desert Landscapes",
+        "description": "Witness a starkly beautiful world of dramatic barren mountains, deep blue high-altitude lakes, and shifting sand dunes that look like another planet.",
+        "_id": "6a2ea163123644a0b70467ef"
+      },
+      {
+        "icon": "brightness_low",
+        "title": "Astrophotography & Clear Skies",
+        "description": "With minimal light pollution and pristine high-altitude air, Ladakh offers world-class star-gazing and night sky viewing.",
+        "_id": "6a2ea163123644a0b70467f0"
+      },
+      {
+        "icon": "motorcycle",
+        "title": "The Ultimate Road Trip",
+        "description": "Navigate some of the highest motorable passes on earth, creating a legendary journey for adventure enthusiasts and driving groups.",
+        "_id": "6a2ea163123644a0b70467f1"
+      },
+      {
+        "icon": "temple_buddhist",
+        "title": "Ancient Monastic Culture",
+        "description": "Experience a deeply spiritual atmosphere shaped by centuries-old cliffside monasteries, prayer wheels, and vibrant local festivals.",
+        "_id": "6a2ea163123644a0b70467f2"
+      }
+    ],
+    "photoGallery": [],
+    "slug": "leh-ladakh",
+    "createdAt": "2026-06-12T05:12:25.811Z",
+    "updatedAt": "2026-06-19T07:49:28.895Z",
+    "__v": 0,
+    "heroImage": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781273107/letslivetours/ewdcsql4ikhudqeidnaj.jpg"
+  },
+  {
+    "_id": "6a2f925c123644a0b70476d1",
+    "name": "Kerala",
+    "country": "India",
+    "region": "South India",
+    "description": "Welcome to Kerala, rightfully crowned as 'God's Own Country.' Tucked away along the tropical Malabar Coast of southwest India, this world-renowned destination seamlessly blends tranquil natural landscapes with deeply rooted cultural traditions, making it a dream escape for families, honeymooners, and luxury backpackers alike.\n\nFrom the emerald expanses of the Arabian Sea to the high-altitude peaks of the Western Ghats, Kerala offers an incredibly diverse travel canvas. Visitors can drift through the quiet, palm-fringed backwaters of Alleppey and Kumarakom on traditional luxury houseboats, wander through the endless, mist-draped tea plantations of Munnar, or spot wild elephants roaming the dense forests of Periyar National Park in Thekkady. Beyond its raw natural beauty, Kerala captivates travelers with its ancient heritage—from the colonial streets and historic Chinese fishing nets of Fort Kochi to the therapeutic rhythms of traditional Ayurveda and the vibrant colors of Kathakali dance performances. Complete with world-class hospitality, aromatic spice markets, and coastal seafood delicacies, Kerala stands out as India’s ultimate destination for true relaxation and rejuvenation.",
+    "shortDescription": "A breathtaking coastal paradise famed for its serene backwaters, mist-covered tea gardens, and rich cultural heritage.",
+    "images": [
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782998178/letslivetours/Kerela/c05df7a1-3b95-465a-9d18-f8bb99bca5f9-mr3j2uwe.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781502591/letslivetours/Kerela/m44lnxse57tarfqycx1p.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781502577/letslivetours/Kerela/biatkeyt9kljwrj7mtcp.jpg"
+    ],
+    "category": "tropical",
+    "rating": 0,
+    "reviewCount": 0,
+    "packageCount": 9,
+    "startingPrice": 13990,
+    "bestSeason": "Oct - Mar ",
+    "visaType": "free",
+    "highlights": [
+      "Munnar Tea Plantation Tour",
+      "Thekkady Periyar Lake Safari",
+      "Alleppey Luxury Houseboat Stay",
+      "Kovalam Beach Sunset Cruise",
+      "Authentic Ayurvedic Spa Wellness"
+    ],
+    "partners": [],
+    "isActive": true,
+    "isFeatured": false,
+    "approvalStatus": "approved",
+    "travelTips": [
+      {
+        "question": "What is the ideal airport to fly into for a Kerala holiday?",
+        "answer": "For central hill stations and backwaters (Munnar, Thekkady, Alleppey), Cochin International Airport (COK) is the most strategic entry point. For southern beaches like Kovalam and Varkala, flying into Trivandrum International Airport (TRV) is highly recommended.",
+        "_id": "6a5b8ed7ab647f5368291535"
+      },
+      {
+        "question": "What is the standard duration required to cover the highlights of Kerala?",
+        "answer": "A 5-Night / 6-Day or 6-Night / 7-Day itinerary is the industry benchmark. This perfectly balances the classic circuit: 2 nights in Munnar (Hill Station), 1 night in Thekkady (Wildlife), 1 night in Alleppey (Houseboat), and 1 or 2 nights at a beach resort in Kovalam or Marari.",
+        "_id": "6a5b8ed7ab647f5368291536"
+      },
+      {
+        "question": "What are the strict operational timings for an overnight Houseboat stay?",
+        "answer": "Standard houseboats check in around 12:00 PM and check out at 9:00 AM the next day. Crucially, by government marine decree, all houseboats must anchor by 5:30 PM until 7:30 AM the next morning to allow local fishermen to cast their nets.",
+        "_id": "6a5b8ed7ab647f5368291537"
+      },
+      {
+        "question": "Is the air conditioning (AC) operational all day on a houseboat?",
+        "answer": "On premium/luxury houseboats, AC is provided 24/7. However, on standard deluxe boats, AC operates strictly in the bedrooms from 9:00 PM to 6:00 AM. Lets Live Tours clearly specifies your AC choice in your final booking voucher to ensure transparent expectations.",
+        "_id": "6a5b8ed7ab647f5368291538"
+      },
+      {
+        "question": "Can we customize meals on a private houseboat booking?",
+        "answer": "Yes. Private boat bookings include a dedicated personal chef. Traditional Keralite meals (breakfast, lunch, evening snacks, and dinner) are prepared fresh on-board. You can explicitly request pure vegetarian, Jain, or specific seafood menus before boarding.",
+        "_id": "6a5b8ed7ab647f5368291539"
+      },
+      {
+        "question": "When is the absolute best time to plan a trip to Kerala?",
+        "answer": "The peak tourism window is from September to March when the weather is pleasantly cool and dry. Alternatively, the monsoon season from June to August is globally preferred for undergoing intensive Ayurvedic wellness therapies.",
+        "_id": "6a5b8ed7ab647f536829153a"
+      },
+      {
+        "question": "Is Kerala a suitable destination for senior citizens and young kids?",
+        "answer": "Extremely suitable. Unlike rugged high-altitude terrains, Kerala features smooth, well-paved roads, gentle slopes, and highly relaxed itineraries. It is widely considered one of India's safest and most comfortable family vacation destinations.",
+        "_id": "6a5b8ed7ab647f536829153b"
+      },
+      {
+        "question": "Are digital payments and UPI widely accepted in Kerala?",
+        "answer": "Yes, Kerala has excellent digital infrastructure. UPI payments, debit cards, and credit cards are seamlessly accepted across hotels, large restaurants, and spice emporiums. Carrying a small amount of physical cash is only necessary for small local tea stalls, tuk-tuks, or entry tickets.",
+        "_id": "6a5b8ed7ab647f536829153c"
+      },
+      {
+        "question": "What should I know about the road travel times between destinations?",
+        "answer": "While distances look short on a map, mountain routes (like Cochin to Munnar or Munnar to Thekkady) consist of winding ghat roads. A 100 km drive can easily take 3.5 to 4 hours. Our itineraries are deliberately spaced out to avoid travel fatigue.",
+        "_id": "6a5b8ed7ab647f536829153d"
+      },
+      {
+        "question": "What are the best zones to buy authentic spices and tea?",
+        "answer": "Kumily (Thekkady) is the premier hub for purchasing fresh, high-grade spices like cardamom, pepper, and cinnamon straight from the plantations. For premium tea varieties, the local estate outlets in Munnar offer the finest selections.",
+        "_id": "6a5b8ed7ab647f536829153e"
+      },
+      {
+        "question": "Are outside commercial vehicles permitted to handle internal sightseeing?",
+        "answer": "Yes, unlike some northern states, Kerala does not enforce aggressive localized taxi union switchovers for standard leisure routes. The private, air-conditioned vehicle assigned to you by Lets Live Tours at the airport will stay with you comfortably throughout your entire journey.",
+        "_id": "6a5b8ed7ab647f536829153f"
+      },
+      {
+        "question": "Do we need any special clothing or cultural etiquette for temple visits?",
+        "answer": "If you plan to visit historic temples like the Sree Padmanabhaswamy Temple in Trivandrum, a strict traditional dress code is legally enforced: men must wear a dhoti/mundu (without shirts), and women must wear a saree or set-mundu. Standard casual western wear is not permitted inside the inner sanctorum.",
+        "_id": "6a5b8ed7ab647f5368291540"
+      }
+    ],
+    "whyVisit": [
+      {
+        "icon": "sailing",
+        "title": "Iconic Emerald Backwaters",
+        "description": "Glide through a tranquil network of interconnected canals, rivers, and lakes on a traditional thatched houseboat, experiencing floating village life up close.",
+        "_id": "6a5b8ed7ab647f5368291531"
+      },
+      {
+        "icon": "spa",
+        "title": "Holistic Ayurvedic Wellness",
+        "description": "Rejuvenate your body and mind in the birthplace of Ayurveda with authentic therapies, herbal oil massages, and world-class wellness retreats.",
+        "_id": "6a5b8ed7ab647f5368291532"
+      },
+      {
+        "icon": "forest",
+        "title": "Mist-Clad Hills & Wildlife",
+        "description": "Escape to the endless rolling tea estates of Munnar and track wild elephants and rare flora deep inside the Periyar Tiger Reserve in Thekkady.",
+        "_id": "6a5b8ed7ab647f5368291533"
+      },
+      {
+        "icon": "surfing",
+        "title": "Pristine Golden Coastline",
+        "description": "Relax along famous crescent beaches like Kovalam and Varkala, featuring dramatic cliffside ocean views, seafood dining, and spectacular sunsets.",
+        "_id": "6a5b8ed7ab647f5368291534"
+      }
+    ],
+    "photoGallery": [
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782985780/letslivetours/Kerela/360_F_100222762_33DqpJR3KHwKXHXK2YDNvh9vBXDteRVX-mr3bp3qo.jpg",
+        "label": "Munnar",
+        "_id": "6a5b8ed7ab647f5368291541"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782997275/letslivetours/Kerela/638230439303406485lfGmRK-mr3ijhqu.jpg",
+        "label": "Varkala",
+        "_id": "6a5b8ed7ab647f5368291542"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782998178/letslivetours/Kerela/c05df7a1-3b95-465a-9d18-f8bb99bca5f9-mr3j2uwe.jpg",
+        "label": "Alleppey",
+        "_id": "6a5b8ed7ab647f5368291543"
+      }
+    ],
+    "slug": "kerala",
+    "createdAt": "2026-06-15T05:49:16.283Z",
+    "updatedAt": "2026-07-18T14:33:59.659Z",
+    "__v": 0,
+    "heroImage": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782985780/letslivetours/Kerela/360_F_100222762_33DqpJR3KHwKXHXK2YDNvh9vBXDteRVX-mr3bp3qo.jpg"
+  },
+  {
+    "_id": "6a304445123644a0b7061ca0",
+    "name": "Andaman & Nicobar Islands",
+    "country": "India",
+    "region": "Bay of Bengal",
+    "description": "Welcome to the Andaman & Nicobar Islands, an exotic emerald archipelago in the Bay of Bengal. Renowned for its world-class beaches, crystal-clear turquoise waters, and stunning coral reefs, Andaman is a dream destination for families, honeymooners, and adventure seekers alike.\n\nAt Lets Live Tours, we bring you the ultimate island experience. From exploring the historic depths of the Cellular Jail in Port Blair and unwinding on the legendary Radhanagar Beach in Havelock, to witnessing vibrant marine life through scuba diving and sea walking—our handcrafted itineraries handle all your private cruise transfers, hotel stays, and island excursions effortlessly. Let us design your perfect tropical getaway!",
+    "shortDescription": "Escape to India’s ultimate tropical paradise—where pristine white-sands, turquoise waters, and thrilling coral adventures await with Lets Live Tours.",
+    "images": [
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781549051/letslivetours/Andaman/trovobo3fa3bgb84jfyg.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781549053/letslivetours/Andaman/ablghfz71xoayvxsmntg.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781549054/letslivetours/Andaman/nmogncmuybkfkze7vmzl.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781549057/letslivetours/Andaman/e0xl3zesolmkr9r0lsmw.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781549067/letslivetours/Andaman/ryziujtc1jdx38lobveg.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781602269/letslivetours/Andaman/port-blair-coben-cove-mqgfznub.jpg"
+    ],
+    "category": "beach",
+    "rating": 0,
+    "reviewCount": 0,
+    "packageCount": 9,
+    "startingPrice": 16990,
+    "bestSeason": "Oct - May",
+    "visaType": "free",
+    "highlights": [
+      "Radhanagar Beach (Havelock Island)",
+      "Luxury Inter-Island Cruise Transfers",
+      "Scuba & Sea Walk Adventures",
+      "Light & Sound Show (Cellular Jail)",
+      "Baratang Island Limestone Caves",
+      "Elephanta Beach Adventure Activity",
+      "Kalapathar Beach",
+      "Neil Island (Shaheed Dweep)",
+      "Bharatpur Beach",
+      "Laxmanpur Beach"
+    ],
+    "partners": [],
+    "isActive": true,
+    "isFeatured": true,
+    "approvalStatus": "approved",
+    "travelTips": [
+      {
+        "question": "What is the most convenient way to reach Andaman from Pune/Mumbai?",
+        "answer": "The most efficient route is to fly directly into Veer Savarkar International Airport (IXZ) in Port Blair from hubs like Chennai or Kolkata, or take a convenient connecting flight from Pune/Mumbai via Delhi or Bengaluru.",
+        "_id": "6a5b669eab647f536828280b"
+      },
+      {
+        "question": "What is the ideal trip duration for an Andaman holiday package?",
+        "answer": "A 5-Night / 6-Day or 6-Night / 7-Day package is the industry standard. This perfectly covers 2 nights in Port Blair (History & Transit), 2 nights on Havelock Island (Beaches & Luxury), and 1 night on Neil Island (Serenity & Sunsets).",
+        "_id": "6a5b669eab647f536828280c"
+      },
+      {
+        "question": "When is the peak tourist season to plan an Andaman itinerary?",
+        "answer": "The best travel window is from October to May. During these months, the weather is pleasant, skies are perfectly clear, and water sports activities are completely open. Avoid monsoons (June to September) due to rough seas and ferry cancellations.",
+        "_id": "6a5b669eab647f536828280d"
+      },
+      {
+        "question": "Do domestic Indian tourists require a passport or permit to visit Andaman?",
+        "answer": "No, Indian passport holders do not require any visa or special permits to visit standard tourist circuits in Andaman. You only need a valid government-issued photo ID like an Aadhaar Card for airport and ferry checkpoints.",
+        "_id": "6a5b669eab647f536828280e"
+      },
+      {
+        "question": "How do we travel between islands like Port Blair, Havelock, and Neil?",
+        "answer": "Inter-island travel is managed via high-speed, air-conditioned private luxury cruises (like Makruzz or Nautika). Lets Live Tours pre-books all your premium cruise seats well in advance to avoid last-minute availability issues.",
+        "_id": "6a5b669eab647f536828280f"
+      },
+      {
+        "question": "What happens if a private cruise is canceled due to bad weather?",
+        "answer": "Safety is the top priority. If cruises are suspended due to sudden weather alerts, the administration issues government ferry options, or itineraries are safely re-routed in Port Blair. Our 24/7 local ground support team manages all manual re-bookings seamlessly on the ground.",
+        "_id": "6a5b669eab647f5368282810"
+      },
+      {
+        "question": "What is the reality of mobile networks and internet in Andaman?",
+        "answer": "Mobile networks have improved but remain restricted compared to the mainland. BSNL, Airtel, and Jio offer decent 4G networks in Port Blair and Havelock town, but internet connectivity drops heavily or is non-existent on remote beaches and Neil Island.",
+        "_id": "6a5b669eab647f5368282811"
+      },
+      {
+        "question": "Are digital payments, credit cards, and UPI widely functional?",
+        "answer": "While major hotels and premium dive centers in Port Blair and Havelock accept UPI and cards, networks can fail unexpectedly. Small cafes, souvenir shops, and local water sports counters operate strictly on cash. Always carry adequate physical cash with you.",
+        "_id": "6a5b669eab647f5368282812"
+      },
+      {
+        "question": "Where is the best spot to experience Scuba Diving in Andaman?",
+        "answer": "Havelock Island (Swaraj Dweep) is globally recognized as the premier destination for scuba diving due to its exceptional underwater visibility and vibrant coral drop-offs. No swimming skills are required for introductory PADI-assisted tourist dives!",
+        "_id": "6a5b669eab647f5368282813"
+      },
+      {
+        "question": "Are there any specific swimming safety rules for Andaman beaches?",
+        "answer": "Yes. Swimming is strictly regulated and restricted to designated safe zones monitored by lifeguards, particularly at Radhanagar Beach. Swimming after sunset (5:00 PM) is legally banned across all islands for tourist safety.",
+        "_id": "6a5b669eab647f5368282814"
+      },
+      {
+        "question": "What type of clothing and essentials should I pack for the islands?",
+        "answer": "Pack comfortable, breathable cotton/linen beachwear, swimwear, sunglasses, and a wide-brimmed sun hat. Waterproof footwear or flip-flops are mandatory for beach landings, and a high-SPF reef-safe sunscreen is highly recommended.",
+        "_id": "6a5b669eab647f5368282815"
+      },
+      {
+        "question": "Why should the last night of the itinerary always be kept in Port Blair?",
+        "answer": "High-speed private cruises from Havelock/Neil back to Port Blair are entirely dependent on sea conditions. To eliminate any risk of missing your early morning flight back to the mainland, all professional itineraries dictate spending your final night in Port Blair.",
+        "_id": "6a5b669eab647f5368282816"
+      }
+    ],
+    "whyVisit": [
+      {
+        "icon": "beach_access",
+        "title": "World-Class Beaches",
+        "description": "Relax on Radhanagar Beach (Havelock Island), consistently ranked among Asia's finest beaches for its powdery white sands and stunning sunsets.",
+        "_id": "6a5b669eab647f5368282807"
+      },
+      {
+        "icon": "scuba_diving",
+        "title": "Thriving Marine Ecosystems",
+        "description": "Dive into crystal-clear waters at Elephant Beach and North Bay Island, offering world-class scuba diving, snorkeling, and sea walking among pristine coral reefs.",
+        "_id": "6a5b669eab647f5368282808"
+      },
+      {
+        "icon": "history_edu",
+        "title": "Deep Historical Heritage",
+        "description": "Journey back in time at Port Blair’s historic Cellular Jail and explore the captivating, nature-reclaimed British colonial ruins on Ross Island (Netaji Subhash Chandra Bose Island).",
+        "_id": "6a5b669eab647f5368282809"
+      },
+      {
+        "icon": "directions_boat",
+        "title": "Luxury Cruise Hopping",
+        "description": "Travel between islands in ultimate comfort aboard premium, high-speed private catamarans like Nautika or Makruzz, completely arranged by our team.",
+        "_id": "6a5b669eab647f536828280a"
+      }
+    ],
+    "photoGallery": [
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781549053/letslivetours/Andaman/ablghfz71xoayvxsmntg.jpg",
+        "label": "Radhanagar Beach",
+        "_id": "6a5b669eab647f5368282817"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781549059/letslivetours/Andaman/pvzjnmjvqzfqs2bmtkhr.jpg",
+        "label": "Kalapathar Beach",
+        "_id": "6a5b669eab647f5368282818"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781549051/letslivetours/Andaman/trovobo3fa3bgb84jfyg.jpg",
+        "label": "Cellular Jail",
+        "_id": "6a5b669eab647f5368282819"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781549062/letslivetours/Andaman/lpflujxnm9on68rnexri.jpg",
+        "label": "Natural Beach Neil Island",
+        "_id": "6a5b669eab647f536828281a"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781549067/letslivetours/Andaman/ryziujtc1jdx38lobveg.jpg",
+        "label": "SQUBA Diving at Havelock Island",
+        "_id": "6a5b669eab647f536828281b"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781602269/letslivetours/Andaman/port-blair-coben-cove-mqgfznub.jpg",
+        "label": "Corbyn’s Cove Beach",
+        "_id": "6a5b669eab647f536828281c"
+      }
+    ],
+    "slug": "andaman-and-nicobar-islands",
+    "createdAt": "2026-06-15T18:28:21.143Z",
+    "updatedAt": "2026-07-18T11:42:22.711Z",
+    "__v": 0,
+    "heroImage": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781549062/letslivetours/Andaman/lpflujxnm9on68rnexri.jpg"
+  },
+  {
+    "_id": "6a3120568f9bd30476c694b8",
+    "name": "Bhutan",
+    "country": "Bhutan",
+    "region": "Southeast Asia",
+    "description": "Step into Bhutan, a magical Himalayan kingdom where ancient cultural traditions perfectly blend with modern sustainability. Globally renowned as the only carbon-negative country and the pioneer of Gross National Happiness, Bhutan offers an escape unlike any other.\n\nFrom the iconic cliffside Tiger’s Nest Monastery in Paro and the dramatic fortress dzongs of Thimphu and Punakha, to the scenic, mist-covered valleys of Phobjikha—Bhutan is a sanctuary for the soul. At Lets Live Tours, we specialize in seamless Himalayan journeys. We handle all your official government entry permits, mandatory local certified tour guides, premium hotel bookings, and private mountain transport. Travel stress-free and discover the serene magic of Bhutan with us",
+    "shortDescription": "Experience ultimate peace, majestic fortress monasteries, and pristine mountain landscapes in the world’s last remaining Buddhist Kingdom with Lets Live Tours.",
+    "images": [
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781604624/letslivetours/Bhutan/paro-1-mqghe5h2.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781604635/letslivetours/Bhutan/punakha-3-mqghee2d.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781604649/letslivetours/Bhutan/thimphu-City-mqgheojg.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781604612/letslivetours/Bhutan/-punakha-mqghdv64.jpg"
+    ],
+    "category": "mountain",
+    "rating": 0,
+    "reviewCount": 0,
+    "packageCount": 13,
+    "bestSeason": "Mar to May, Sept to Nov",
+    "visaType": "free",
+    "highlights": [
+      "Tiger's Nest Cliffside Trek (Paro)",
+      "Punakha Suspension Bridge Walk",
+      "Thimphu Buddha Dordenma Statue",
+      "Traditional Hot Stone Bath Experience",
+      "Certified Bhutanese Guides Included",
+      "Seamless Online Entry Permits Managed"
+    ],
+    "partners": [],
+    "isActive": true,
+    "isFeatured": true,
+    "approvalStatus": "approved",
+    "travelTips": [
+      {
+        "question": "Do Indian citizens require a traditional visa to visit Bhutan?",
+        "answer": "No, Indian passport holders do not require a traditional visa. Instead, they are issued an Entry Permit by the Department of Immigration. This can be pre-arranged online through Lets Live Tours to skip long border queues.",
+        "_id": "6a3127ad8f9bd30476c6ee0f"
+      },
+      {
+        "question": "What valid identity documents do Indians need to provide for the Entry Permit?",
+        "answer": "You must provide either an Original Indian Passport with at least 6 months of validity or an Original Voter ID Card (EPIC). For children under 18 traveling without a passport, an English birth certificate and a valid school ID card are mandatory. Note: Aadhaar cards, PAN cards, or driving licenses are not accepted for entry.",
+        "_id": "6a3127ad8f9bd30476c6ee10"
+      },
+      {
+        "question": "What is the Sustainable Development Fee (SDF) for Indian tourists?",
+        "answer": "Indian nationals are required to pay a mandatory government tourism tax of INR 1,200 per person, per night. Children between the ages of 6 and 12 receive a 50% concession (INR 600 per night), while children under 5 are entirely exempt.",
+        "_id": "6a3127ad8f9bd30476c6ee11"
+      },
+      {
+        "question": "Is hiring a local tour guide mandatory for traveling within Bhutan?",
+        "answer": "Yes. Under Bhutanese law, it is strictly mandatory for all international and regional tourists to be accompanied by a certified Bhutanese tour guide for any travel extending beyond the immediate town limits of Paro and Thimphu. Lets Live Tours includes a professional local guide in all packages.",
+        "_id": "6a3127ad8f9bd30476c6ee12"
+      },
+      {
+        "question": "What is a Route Permit (Special Area Permit), and when do I need it?",
+        "answer": "Your primary Entry Permit only allows access to Thimphu and Paro. If your travel itinerary takes you deeper into Bhutan to stunning valleys like Punakha, Wangdue, Phobjikha, or Bumthang, a Route Permit is legally required. Your assigned local guide will process this seamlessly in Thimphu.",
+        "_id": "6a3127ad8f9bd30476c6ee13"
+      },
+      {
+        "question": "What is the ideal trip duration to experience Bhutan comfortably?",
+        "answer": "A 5-Night / 6-Day or 6-Night / 7-Day itinerary is highly recommended. This allows you to comfortably explore the classic Western Bhutan circuit: 2 nights in Thimphu (Capital & Culture), 2 nights in Punakha (Sub-tropical Valley & Dzongs), and 2 nights in Paro (Tiger's Nest Hike & Flights).",
+        "_id": "6a3127ad8f9bd30476c6ee14"
+      },
+      {
+        "question": "When is the absolute best season to plan a holiday to Bhutan?",
+        "answer": "The peak periods are Spring (March to May), when wild rhododendrons and jacarandas bloom across valleys, and Autumn (September to November), which offers crisp, bright clear blue skies for spectacular Himalayan mountain views and major cultural festivals.",
+        "_id": "6a3127ad8f9bd30476c6ee15"
+      },
+      {
+        "question": "Can we travel to Bhutan by road from India?",
+        "answer": "Yes. You can drive or take a vehicle through the primary Indian border town of Jaigaon (West Bengal) into the Bhutanese border gateway of Phuentsholing. Entry permits are checked and processed at the Phuentsholing Pedestrian Terminal before you head up the mountains",
+        "_id": "6a3127ad8f9bd30476c6ee16"
+      },
+      {
+        "question": "Is Indian Currency (INR) widely accepted in Bhutan?",
+        "answer": "Yes, Indian Rupees are seamlessly used and accepted interchangeably with the Bhutanese Ngultrum (Nu) at a 1:1 value. However, storekeepers mostly prefer INR 100 and lower denominations. Avoid carrying INR 500 or higher notes as they can face acceptance limitations locally.",
+        "_id": "6a3127ad8f9bd30476c6ee17"
+      },
+      {
+        "question": "Are digital payment modes like UPI operational in Bhutan?",
+        "answer": "Indian UPI apps have limited direct functionality depending on local bank integrations. While select premium stores accept international cards, most local restaurants, handicraft stalls, and hot-stone bath operators prefer physical cash. Always carry adequate cash.",
+        "_id": "6a3127ad8f9bd30476c6ee18"
+      },
+      {
+        "question": "What is the local dress code and cultural etiquette for visiting Dzongs?",
+        "answer": "Dzongs and monasteries are active administrative and religious centers. Visitors must wear modest, full-coverage clothing. Sleeveless tops, shorts, skirts, or caps are strictly banned. Shirts must have collars, and shoes must be removed before stepping into inner temple shrines.",
+        "_id": "6a3127ad8f9bd30476c6ee19"
+      },
+      {
+        "question": "Is high-altitude mountain sickness a concern during a standard Bhutan tour?",
+        "answer": "Standard tourist circuits like Paro (2,200m), Thimphu (2,334m), and Punakha (1,200m) lie at safe, moderate altitudes where mountain sickness is incredibly rare. You will only cross high passes like Dochula Pass (3,100m) for short sightseeing stops, which does not cause acclimatization issues.",
+        "_id": "6a3127ad8f9bd30476c6ee1a"
+      }
+    ],
+    "whyVisit": [
+      {
+        "icon": "architecture",
+        "title": "Majestic Dzongs & Fortresses",
+        "description": "Explore breathtaking fortress monasteries like Punakha Dzong and Thimphu’s Tashichho Dzong, showcasing brilliant ancient whitewashed architecture without a single nail.",
+        "_id": "6a3127ad8f9bd30476c6ee0b"
+      },
+      {
+        "icon": "hiking",
+        "title": "Sacred High-Altitude Treks",
+        "description": "Hike the legendary cliffside trail to Taktsang Monastery (Tiger’s Nest), perched precariously 900 meters above the stunning Paro valley floor.",
+        "_id": "6a3127ad8f9bd30476c6ee0c"
+      },
+      {
+        "icon": "diversity_3",
+        "title": "Rich Living Traditions",
+        "description": "Witness vibrant local culture through traditional masked dance festivals (Tshechus), colorful prayer flags, and locals proudly wearing their national dress (Gho and Kira).",
+        "_id": "6a3127ad8f9bd30476c6ee0d"
+      },
+      {
+        "icon": "eco",
+        "title": "Pristine Carbon-Negative Nature",
+        "description": "Immerse yourself in untouched nature, glacial valleys, and pristine pine forests, protected by national laws that dictate a minimum of 60% forest cover forever.",
+        "_id": "6a3127ad8f9bd30476c6ee0e"
+      }
+    ],
+    "photoGallery": [
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781604646/letslivetours/Bhutan/thimphu-City-buddha-mqghen12.jpg",
+        "label": "Thimphu City",
+        "_id": "6a3127ad8f9bd30476c6ee1b"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781604612/letslivetours/Bhutan/-punakha-mqghdv64.jpg",
+        "label": "Punakha",
+        "_id": "6a3127ad8f9bd30476c6ee1c"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781604624/letslivetours/Bhutan/paro-1-mqghe5h2.jpg",
+        "label": "Paro",
+        "_id": "6a3127ad8f9bd30476c6ee1d"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781604618/letslivetours/Bhutan/gagntey-monastery-mqghe198.jpg",
+        "label": "Gangtey Gompa Monastery",
+        "_id": "6a3127ad8f9bd30476c6ee1e"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781604637/letslivetours/Bhutan/punakha-dzong-mqgheg5q.jpg",
+        "label": "Punakha Dzong",
+        "_id": "6a3127ad8f9bd30476c6ee1f"
+      }
+    ],
+    "slug": "bhutan",
+    "createdAt": "2026-06-16T10:07:18.918Z",
+    "updatedAt": "2026-07-04T07:51:54.587Z",
+    "__v": 0,
+    "heroImage": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1781604620/letslivetours/Bhutan/Gangtey-Gompa-Monestry-mqghe2o4.jpg",
+    "startingPrice": 18990
+  },
+  {
+    "_id": "6a36586ad892c941f6541840",
+    "name": "Singapore",
+    "country": "Singapore",
+    "region": "Southeast Asia",
+    "description": "Singapore is a highly advanced, ultra-modern island nation globally famous for its iconic skyscrapers, massive nature parks, and elite entertainment hubs. This premium destination seamlessly blends a futuristic urban lifestyle with vibrant green gardens. It features world-renowned attractions including Sentosa Island, Universal Studios, Gardens by the Bay, and the majestic Marina Bay Sands complex. It stands as a completely safe, clean, and perfect holiday spot suitable for all types of global travelers.",
+    "shortDescription": "A world-class modern destination featuring futuristic skyscrapers, elite theme parks, and stunning waterfront gardens.",
+    "images": [
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782481042/letslivetours/Singapore/the-giant-water-fall-hsbc-rain-vortex-and-beautiful-green-nature-shiseido-forest-mquz6u5f.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782472866/letslivetours/Singapore/Merlion-Park-Singapore-mquublh0.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782472858/letslivetours/Singapore/marina-bay-mquubfsb.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782472817/letslivetours/Singapore/Universal-Studios-mquuajnk.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782472811/letslivetours/Singapore/98-mquuaf5m.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782472779/letslivetours/Singapore/images-4-mquu9qy3.jpg"
+    ],
+    "category": "city",
+    "rating": 0,
+    "reviewCount": 0,
+    "packageCount": 10,
+    "startingPrice": 35000,
+    "bestSeason": "Oct - May",
+    "visaType": "required",
+    "highlights": [
+      "Marina Bay Sands Observation Deck",
+      "Universal Studios Sentosa Pass",
+      "Gardens by the Bay Flower Dome",
+      "Night Safari Tram Experience",
+      "Official Singapore e-Visa Managed"
+    ],
+    "partners": [],
+    "isActive": true,
+    "isFeatured": false,
+    "approvalStatus": "approved",
+    "travelTips": [
+      {
+        "question": "Do Indian citizens require a visa to visit Singapore?",
+        "answer": "Yes, Indian passport holders require a valid Singapore e-Visa prior to arriving in the country. You cannot apply for a visa individually; applications must be routed through an officially authorized visa agent.",
+        "_id": "6a5b65d6ab647f53682823a5"
+      },
+      {
+        "question": "What is the processing time and validity of a Singapore Tourist Visa?",
+        "answer": "Standard processing takes 3 to 5 working days. The visa is typically issued as a Multiple Entry Visa valid for up to 2 years, allowing a maximum stay of 30 days per visit.",
+        "_id": "6a5b65d6ab647f53682823a6"
+      },
+      {
+        "question": "What are the primary documents required for a successful visa application?",
+        "answer": "You need a passport valid for 6+ months, a completed Form 14A, 2 recent white-background photos (35x45mm), confirmed return flights, hotel bookings, and 3 months of stamped bank statements.",
+        "_id": "6a5b65d6ab647f53682823a7"
+      },
+      {
+        "question": "What is the mandatory SG Arrival Card (SGAC)?",
+        "answer": "The SGAC is a mandatory digital declaration form that replaces the old paper arrival cards. It includes your travel details and health declaration, and it must be submitted online within 3 days before your arrival date. It is free of charge.",
+        "_id": "6a5b65d6ab647f53682823a8"
+      },
+      {
+        "question": "Can I visit Singapore under the 96-Hour Visa-Free Transit Facility (VFTF)?",
+        "answer": "Indian nationals are eligible for the 96-Hour VFTF only if they are transiting through Singapore to/from a third country and hold a valid, unexpired visa or long-term pass issued by Australia, Canada, Germany, Japan, New Zealand, the UK, or the USA.",
+        "_id": "6a5b65d6ab647f53682823a9"
+      },
+      {
+        "question": "What is the recommended duration for a comprehensive Singapore holiday?",
+        "answer": "A 4-Night / 5-Day stay is the perfect sweet spot for a standalone trip. This allows 1 full day for Sentosa and Universal Studios, 1 day for city sights and Gardens by the Bay, 1 day for the Mandai Wildlife reserves (Zoo/Night Safari), and a dedicated day for shopping.",
+        "_id": "6a5b65d6ab647f53682823aa"
+      },
+      {
+        "question": "Can we combine Singapore with Malaysia in a single tour itinerary?",
+        "answer": "Yes, this is an extremely popular combination. You can easily opt for a 6-Night / 7-Day Singapore-Malaysia itinerary, traveling seamlessly between Singapore and Kuala Lumpur either via a short 1-hour flight or a scenic 5-hour highway drive via private cab or luxury coach.",
+        "_id": "6a5b65d6ab647f53682823ab"
+      },
+      {
+        "question": "When is the best time of the year to plan a trip to Singapore?",
+        "answer": "Singapore is a year-round destination with a warm, tropical climate. However, the most popular months are from November to January due to festive holiday light-ups and events, and June to July for pleasant outdoor weather and the Great Singapore Sale.",
+        "_id": "6a5b65d6ab647f53682823ac"
+      },
+      {
+        "question": "How efficient is public transportation, and should we use it?",
+        "answer": "Singapore's MRT (Mass Rapid Transit) subway system is world-class, extremely affordable, and spans the entire city. For families or groups, ride-hailing apps like Grab, Gojek, or Tada are highly recommended and easy to use.",
+        "_id": "6a5b65d6ab647f53682823ad"
+      },
+      {
+        "question": "Are there strict fine-based laws that tourists should be aware of?",
+        "answer": "Yes, Singapore enforces strict civic cleanliness laws. Littering, spitting, chewing gum, smoking outside designated zones, and eating or drinking on MRT trains are strictly prohibited and attract hefty, immediate financial penalties.",
+        "_id": "6a5b65d6ab647f53682823ae"
+      },
+      {
+        "question": "What is the local currency, and is digital payment widely functional?",
+        "answer": "The currency is the Singapore Dollar (SGD). Singapore is a highly cashless society; international credit cards, debit cards, and digital wallets are accepted seamlessly everywhere from high-end malls to local food centers. Carrying small cash is only needed for select hawker stalls.",
+        "_id": "6a5b65d6ab647f53682823af"
+      },
+      {
+        "question": "Is authentic Indian food easily accessible in Singapore?",
+        "answer": "Incredibly easy. The historic Little India precinct is packed with hundreds of restaurants serving authentic North Indian, South Indian, and Jain meals. Furthermore, almost all major tourist attractions and local food courts feature certified Halal and vegetarian Indian culinary counters.",
+        "_id": "6a5b65d6ab647f53682823b0"
+      }
+    ],
+    "whyVisit": [
+      {
+        "icon": "apartment",
+        "title": "Futuristic Architectural Icons",
+        "description": "Stand in awe beneath the towering Supertrees at Gardens by the Bay and look out over the world's most spectacular urban skyline from the Marina Bay Sands SkyPark.",
+        "_id": "6a5b65d6ab647f53682823a1"
+      },
+      {
+        "icon": "attractions",
+        "title": "World-Class Family Fun",
+        "description": "Create unforgettable memories at Universal Studios Singapore, dive into adventure at Adventure Cove Waterpark, and see exotic nocturnal animals on the Night Safari.",
+        "_id": "6a5b65d6ab647f53682823a2"
+      },
+      {
+        "icon": "nature_people",
+        "title": "The Pristine Garden City",
+        "description": "Walk through a city of green, featuring the UNESCO-listed Singapore Botanic Gardens, stunning indoor waterfalls at Jewel Changi, and lush canopy walkways.",
+        "_id": "6a5b65d6ab647f53682823a3"
+      },
+      {
+        "icon": "shopping_bag",
+        "title": "Premier Global Shopping Hub",
+        "description": "Indulge in premier retail therapy along the endless malls of Orchard Road, or find boutique treasures in the historic, vibrant shophouses of Haji Lane.",
+        "_id": "6a5b65d6ab647f53682823a4"
+      }
+    ],
+    "photoGallery": [
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782481042/letslivetours/Singapore/the-giant-water-fall-hsbc-rain-vortex-and-beautiful-green-nature-shiseido-forest-mquz6u5f.jpg",
+        "label": "Jewel Changi",
+        "_id": "6a5b65d6ab647f53682823b1"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782472811/letslivetours/Singapore/98-mquuaf5m.jpg",
+        "label": "Garden by the Bay",
+        "_id": "6a5b65d6ab647f53682823b2"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782472817/letslivetours/Singapore/Universal-Studios-mquuajnk.jpg",
+        "label": "Universal Studio",
+        "_id": "6a5b65d6ab647f53682823b3"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782472824/letslivetours/Singapore/CableCar-12-mquuaply.jpg",
+        "label": "Sentosa Cable Car",
+        "_id": "6a5b65d6ab647f53682823b4"
+      },
+      {
+        "image": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782469929/letslivetours/Singapore/1769683266920_3_2-mqusknz2.jpg",
+        "label": "Singapore Genting Cruise",
+        "_id": "6a5b65d6ab647f53682823b5"
+      }
+    ],
+    "slug": "singapore",
+    "createdAt": "2026-06-20T09:07:54.561Z",
+    "updatedAt": "2026-07-18T11:39:11.702Z",
+    "__v": 0,
+    "heroImage": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782472799/letslivetours/Singapore/Top-Places-to-Visit-in-Singapore-mquua5hg.jpg"
+  },
+  {
+    "_id": "6a38ce83d892c941f6569d2b",
+    "name": "Dubai",
+    "country": "United Arab Emirates",
+    "region": "Middle East",
+    "description": "Dubai is a world-famous, ultra-modern desert metropolis celebrated for its record-breaking architecture, luxury shopping, and thrilling adventure hubs. This premier global destination seamlessly blends rich traditional Arabian heritage with futuristic urban lifestyle skyscrapers. It features world-renowned landmarks including the Burj Khalifa, Palm Jumeirah, Dubai Mall, and immersive desert safari expeditions. It stands as a completely safe, clean, and top-tier family holiday spot suitable for all types of international travelers.",
+    "shortDescription": "A world-class luxury destination featuring futuristic skyscrapers, monumental shopping malls, and thrilling golden desert adventures.",
+    "images": [
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782107898/letslivetours/Dubai/Dubai-Frame-mqot1215.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782107895/letslivetours/Dubai/0328-0215_dubai-mqot0x4e.jpg"
+    ],
+    "category": "city",
+    "rating": 0,
+    "reviewCount": 0,
+    "packageCount": 10,
+    "startingPrice": 31999,
+    "bestSeason": "Nov - Mar",
+    "visaType": "required",
+    "highlights": [],
+    "partners": [],
+    "isActive": true,
+    "isFeatured": false,
+    "approvalStatus": "pending",
+    "travelTips": [],
+    "whyVisit": [],
+    "photoGallery": [],
+    "slug": "dubai",
+    "createdAt": "2026-06-22T05:56:19.814Z",
+    "updatedAt": "2026-06-22T13:53:30.924Z",
+    "__v": 0,
+    "heroImage": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782107902/letslivetours/Dubai/7c70ab1d-5b73-4916-a4a6-3cfdd2e876b7-mqot14yz.jpg"
+  },
+  {
+    "_id": "6a3a2c5ad892c941f6590602",
+    "name": "Rajasthan",
+    "country": "India ",
+    "region": "North western India ",
+    "description": "Rajasthan is India's premier heritage destination, globally renowned for its majestic forts, royal palaces, and vibrant cultural history. This massive desert state seamlessly blends luxury hospitality with deep-rooted folk traditions and historic architecture. It features world-famous imperial hubs including Jaipur, Udaipur, Jodhpur, Jaisalmer, and the scenic lakes of Pushkar. It stands as an incredible, culturally rich, and highly demanded holiday circuit perfect for both families and international group travelers.",
+    "shortDescription": "The land of kings featuring colossal hilltop forts, grand heritage palaces, and enchanting golden desert dune safaris.",
+    "images": [
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782196805/letslivetours/Rajasthan/hawa-mahal-jaipur-rajasthan-city-1-hero-mqq9yn5m.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782196801/letslivetours/Rajasthan/2-mehrangarh-fort-jodhpur-rajasthan-city-hero-mqq9yikp.jpg"
+    ],
+    "heroImage": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782196801/letslivetours/Rajasthan/2-mehrangarh-fort-jodhpur-rajasthan-city-hero-mqq9yikp.jpg",
+    "category": "cultural",
+    "rating": 0,
+    "reviewCount": 0,
+    "packageCount": 11,
+    "startingPrice": 16000,
+    "bestSeason": "Oct - Mar ",
+    "visaType": "free",
+    "highlights": [],
+    "partners": [],
+    "isActive": true,
+    "isFeatured": false,
+    "approvalStatus": "pending",
+    "travelTips": [],
+    "whyVisit": [],
+    "photoGallery": [],
+    "slug": "rajasthan",
+    "createdAt": "2026-06-23T06:48:58.762Z",
+    "updatedAt": "2026-07-14T07:11:14.046Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a3b7703d892c941f65b61cb",
+    "name": "Malaysia",
+    "country": "Malaysia",
+    "region": "Southeast Asia",
+    "description": "Malaysia is a dynamic Southeast Asian destination celebrated for its vibrant blend of ultra-modern cities, colonial architecture, and pristine rainforests. This multi-cultural hub seamlessly balances bustling cosmopolitan life with tranquil tropical island getaways like Langkawi and Penang. It features iconic world-class attractions including the colossal Petronas Twin Towers, Genting Highlands entertainment parks, and ancient cultural shrines like Batu Caves. It stands as an exceptional, highly accessible, and value-packed international circuit ideal for families, couples, and corporate groups.",
+    "shortDescription": "A tropical paradise blending futuristic cityscapes, lush rainforest highlands, and beautiful cultural heritage sites.",
+    "images": [
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782281755/letslivetours/Malaysia/shutterstock_2385682333-scaled-mqrojf8l.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782281751/letslivetours/Malaysia/1750246793100-AdobeStock_500048544-min-mqrojbkn.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782281748/letslivetours/Malaysia/Genting-Highlands-mqrojacm.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782281747/letslivetours/Malaysia/kuala-lumpur-genting-highlandsjpg-mqroj7qn.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782281753/letslivetours/Malaysia/where-is-malaysia-located-on-world-map-distance-header-mqrojdxt.jpg"
+    ],
+    "heroImage": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1782281753/letslivetours/Malaysia/where-is-malaysia-located-on-world-map-distance-header-mqrojdxt.jpg",
+    "category": "city",
+    "rating": 0,
+    "reviewCount": 0,
+    "packageCount": 10,
+    "startingPrice": 24500,
+    "bestSeason": "Year - Round ",
+    "visaType": "free",
+    "highlights": [],
+    "partners": [],
+    "isActive": true,
+    "isFeatured": false,
+    "approvalStatus": "pending",
+    "travelTips": [],
+    "whyVisit": [],
+    "photoGallery": [],
+    "slug": "malaysia",
+    "createdAt": "2026-06-24T06:19:47.457Z",
+    "updatedAt": "2026-06-24T12:57:59.652Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a50986eece16f6de99051e7",
+    "name": "Thailand",
+    "country": "Thailand",
+    "region": "Southeast Asia",
+    "description": "Welcome to Thailand, Southeast Asia's most popular travel destination that seamlessly blends rich cultural heritage with modern tropical adventures. This vibrant kingdom offers something unique for every type of traveler, whether you are planning a relaxed family holiday, a fun group getaway, or a romantic beach retreat. From the high-energy streets of Bangkok packed with historic golden temples, massive shopping malls, and chaotic night markets, to the world-famous coastlines of Phuket, Krabi, and Pattaya, Thailand delivers unforgettable tropical experiences. Visitors can enjoy thrilling shared speedboat tours across crystal-clear waters, explore exotic wildlife at family-friendly safari parks, or indulge in famous local street food tracks. Traveling from India is incredibly convenient due to massive flight connectivity and highly favorable entry rules. With excellent tourist infrastructure, pocket-friendly budget options, and a warm, welcoming local culture, it is easy to see why this beautiful coastal paradise remains the ultimate choice for an international vacation.",
+    "shortDescription": "Discover the perfect tropical escape—blending the high-energy streets of Bangkok, the stunning beaches of Phuket, and vibrant nightlife with Lets Live Tours.",
+    "images": [
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1783668930/letslivetours/Thailand/thailand-the-grand-palace-bangkok-min-mremfdc3.jpg",
+      "https://res.cloudinary.com/dlvce2nsv/image/upload/v1783668932/letslivetours/Thailand/thailand-1-1582543319profileImage2x-jpg-webp-mremffpx.jpg"
+    ],
+    "heroImage": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1783665813/letslivetours/Thailand/thailand-visitor-guide-things-to-do-4406-mrekkkt6.jpg",
+    "category": "beach",
+    "rating": 0,
+    "reviewCount": 0,
+    "packageCount": 18,
+    "startingPrice": 14999,
+    "bestSeason": "All Year Around",
+    "visaType": "on-arrival",
+    "highlights": [
+      "Bangkok City & Temple Circuit",
+      "Phi Phi Island Speedboat Tour",
+      "Coral Island Water Sports",
+      "Chao Phraya Luxury Dinner Cruise",
+      "Private Chauffeured Transfers",
+      "Walking Street Pattaya",
+      "Bangla Street Phuket"
+    ],
+    "partners": [],
+    "isActive": true,
+    "isFeatured": true,
+    "approvalStatus": "pending",
+    "travelTips": [
+      {
+        "question": "Do Indian citizens need a visa to visit Thailand?",
+        "answer": "Indian passport holders continue to enjoy Visa-Free Entry to Thailand for tourism. A pre-approved tourist visa or Visa on Arrival counter line is not required if your stay falls within the tourist exemption limits.",
+        "_id": "6a5b632dab647f53682809b4"
+      },
+      {
+        "question": "What is the maximum stay permitted under the visa-free entry rule?",
+        "answer": "Under the updated government policy, the maximum stay for visa-free Indian tourists is 30 days. This window easily covers standard holiday itineraries, though any stay exceeding 30 days requires applying for a formal visa in advance.",
+        "_id": "6a5b632dab647f53682809b5"
+      },
+      {
+        "question": "What is the mandatory Thailand Digital Arrival Card (TDAC)?",
+        "answer": "The TDAC is an official digital entry requirement that completely replaces the old paper arrival cards. Every traveler must complete this free declaration online within 72 hours before their flight departure to show at airline check-in and Thai immigration.",
+        "_id": "6a5b632dab647f53682809b6"
+      },
+      {
+        "question": "Which airport should I fly into for a standard Thailand package?",
+        "answer": "For itineraries covering Bangkok and Pattaya, fly into Suvarnabhumi Airport (BKK) or Don Mueang International Airport (DMK). For beach holiday itineraries focused on the southern islands, book direct flights into Phuket International Airport (HKT).",
+        "_id": "6a5b632dab647f53682809b7"
+      },
+      {
+        "question": "What is the standard trip duration recommended for a first-time visitor?",
+        "answer": "A 5-Night / 6-Day or 6-Night / 7-Day plan is the ideal industry standard. This allows for a perfectly balanced split, such as 3 nights in Phuket paired with 2 nights in Bangkok, or 2 nights in Pattaya paired with 3 nights in Bangkok.",
+        "_id": "6a5b632dab647f53682809b8"
+      },
+      {
+        "question": "What documents must I physically carry to clear Thai Immigration smoothly?",
+        "answer": "Even with visa-free status, you must present a passport valid for 6+ months, your TDAC confirmation QR/printout, a confirmed return flight ticket, and your hotel booking vouchers. Immigration officials frequently verify physical or digital printouts of these.",
+        "_id": "6a5b632dab647f53682809b9"
+      },
+      {
+        "question": "Do I need to show proof of funds in cash at the immigration counter?",
+        "answer": "Yes, Thai immigration laws require tourists to show financial self-sufficiency. It is strictly recommended to carry 10,000 THB per person (or 20,000 THB per family) in physical cash or its equivalent in USD/INR, as credit cards or bank apps are not accepted as proof if selected for a random check.",
+        "_id": "6a5b632dab647f53682809ba"
+      },
+      {
+        "question": "When is the best time of year to plan a holiday to Thailand?",
+        "answer": "The peak travel season runs from November to February, offering cooler, dry weather perfect for beach activities and city walks. The shoulder season from March to May is warmer but great for festival travel, while June to October brings the monsoon showers.",
+        "_id": "6a5b632dab647f53682809bb"
+      },
+      {
+        "question": "What is the local currency, and are digital payments widely used?",
+        "answer": "The currency is the Thai Baht (THB). International credit and debit cards are widely used in shopping malls, hotels, and established restaurants. However, physical cash is absolutely necessary for street food vendors, local night markets, massage shops, and traditional tuk-tuk rides.",
+        "_id": "6a5b632dab647f53682809bc"
+      },
+      {
+        "question": "Can we use our private tour vehicles for general late-night exploration?",
+        "answer": "The private vehicles provided in Lets Live Tours packages are booked for dedicated airport transfers and scheduled day-itinerary sightseeing slots. For late-night personal exploration or dinner shopping runs, local transport options like the Bangkok BTS Skytrain, MRT subway, or booking a ride via apps like Grab or Bolt are highly efficient.",
+        "_id": "6a5b632dab647f53682809bd"
+      },
+      {
+        "question": "What clothing rules apply when visiting Thai temples and royal sites?",
+        "answer": "Modest, respectful dress codes are strictly enforced at all sacred sites, including Bangkok’s Grand Palace and Wat Arun. Shoulders and knees must be completely covered; sleeveless tops, shorts, distressed jeans, and short skirts are not permitted inside the temple grounds.",
+        "_id": "6a5b632dab647f53682809be"
+      },
+      {
+        "question": "Are vegetarian and Indian food options readily available across Thailand?",
+        "answer": "Very easily. Because Thailand hosts millions of Indian visitors annually, popular tourist hubs like Bangkok, Pattaya, and Phuket feature a vast array of authentic Indian restaurants. Most major Thai restaurants and street stalls are highly accommodating and can easily prepare vegetarian or vegan options upon request.",
+        "_id": "6a5b632dab647f53682809bf"
+      }
+    ],
+    "whyVisit": [
+      {
+        "icon": "explore",
+        "title": "Vibrant Island Hopping",
+        "description": "Cruise via high-speed boats to legendary islands like Phi Phi, James Bond, and Coral Island, featuring crystal-clear snorkeling and towering limestone cliffs.",
+        "_id": "6a5b632dab647f53682809b0"
+      },
+      {
+        "icon": "dinner_dining",
+        "title": "World-Class Street Food",
+        "description": "Indulge in an incredible culinary scene, from MICHELIN-rated street food stalls in Bangkok to premium beachside seafood dining at sunset.",
+        "_id": "6a5b632dab647f53682809b1"
+      },
+      {
+        "icon": "nightlife",
+        "title": "Electrifying Entertainment",
+        "description": "Experience world-famous entertainment and nightlife, ranging from the high-energy streets of Pattaya to family-friendly spectaculars like the Siam Niramit show.",
+        "_id": "6a5b632dab647f53682809b2"
+      },
+      {
+        "icon": "temple_buddhist",
+        "title": "Rich Spiritual Heritage",
+        "description": "Walk through stunning, golden architectural wonders including Bangkok’s Grand Palace, Wat Pho (Reclining Buddha), and the historic temples of Chiang Mai.",
+        "_id": "6a5b632dab647f53682809b3"
+      }
+    ],
+    "photoGallery": [],
+    "slug": "thailand",
+    "createdAt": "2026-07-10T06:59:58.534Z",
+    "updatedAt": "2026-07-18T11:27:41.084Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a54db5dece16f6de993e0ed",
+    "name": "Azerbaijan",
+    "country": "Azerbaijan",
+    "region": "Caucasus / Central Asia",
+    "description": "Welcome to Azerbaijan, the spectacular \"Land of Fire,\" where Eastern Europe dynamically intersects with Western Asia along the scenic, sun-soaked coastlines of the Caspian Sea. This extraordinary destination offers a magnificent blend of ultra-modern architectural landmarks—such as the iconic glowing Flame Towers and the beautifully fluid white curves of the Heydar Aliyev Center—alongside centuries-old history preserved inside the stone-walled lanes of Icherisheher (Baku's Old City). Beyond the bustling urban luxury and elite shopping tracks of Nizami Street, Azerbaijan treats travelers to rare natural marvels found nowhere else on earth, including the bubbling, active mud volcanoes of Gobustan and the mythical, eternally burning hillsides of Yanar Dag fueled by subterranean natural gas lines. From the alpine cable car rides and pristine lakes of Caucasus-surrounded Gabala to the historic caravan hubs of Sheki, this destination is safe, incredibly hospitable, and exceptionally affordable, making it the ultimate new premium international holiday layout for elite family vacations, large group departures, and romantic honeymoon tracks.",
+    "shortDescription": "Discover the captivating Land of Fire—a premium Caucasus gateway where futuristic architectural marvels, ancient UNESCO World Heritage sites, active mud volcanoes, and scenic alpine mountain tracks seamlessly come together for an unforgettable international family holiday.",
+    "images": [],
+    "heroImage": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1783946052/letslivetours/Azerbaijan/pexels-zulfugarkarimov-33329106-mrj7f31l.jpg",
+    "category": "cultural",
+    "rating": 0,
+    "reviewCount": 0,
+    "packageCount": 8,
+    "startingPrice": 34999,
+    "bestSeason": "Jun (Spring) & Sep - Oct (Autumn)",
+    "visaType": "required",
+    "highlights": [],
+    "partners": [],
+    "isActive": true,
+    "isFeatured": false,
+    "approvalStatus": "pending",
+    "travelTips": [],
+    "whyVisit": [],
+    "photoGallery": [],
+    "slug": "azerbaijan",
+    "createdAt": "2026-07-13T12:34:37.826Z",
+    "updatedAt": "2026-07-14T12:44:36.633Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a571cb6ece16f6de997a78b",
+    "name": "Vietnam",
+    "country": "Vietnam ",
+    "region": "Southeast Asia",
+    "description": "Positioned as one of Southeast Asia's most captivating and diverse destinations, Vietnam offers an unparalleled travel track that masterfully balances rich ancient heritage with breathtaking natural wonders. This master destination framework is perfectly structured to cater to premium family vacations, high-margin honeymoon couples, and corporate incentive groups alike. From the northern cultural hub of Hanoi and the iconic towering limestone karsts of Ha Long Bay, to the lantern-lit heritage streets of Hoi An and the vibrant, high-energy economic pulse of Ho Chi Minh City in the south, Vietnam delivers an incredibly high client satisfaction rate. The destination boasts exceptional infrastructure, world-class luxury boutique resorts, extremely affordable and diverse culinary experiences, and remarkably smooth electronic visa processing for international arrivals. Deploy this master framework to launch a highly competitive, scalable, and visually stunning suite of itineraries that guarantee frictionless ground operations and excellent profit margins.",
+    "shortDescription": "A mesmerizing blend of emerald bays, ancient colonial towns, bustling street food cultures, and dramatic limestone landscapes stretching from Hanoi to Ho Chi Minh City.",
+    "images": [],
+    "heroImage": "https://res.cloudinary.com/dlvce2nsv/image/upload/v1784093811/letslivetours/Vietnam/pexels-quang-nguyen-vinh-222549-14022214-mrlndww2.jpg",
+    "category": "cultural",
+    "rating": 0,
+    "reviewCount": 0,
+    "packageCount": 19,
+    "startingPrice": 25000,
+    "bestSeason": "October to April",
+    "visaType": "required",
+    "highlights": [],
+    "partners": [],
+    "isActive": true,
+    "isFeatured": false,
+    "approvalStatus": "pending",
+    "travelTips": [],
+    "whyVisit": [],
+    "photoGallery": [],
+    "slug": "vietnam",
+    "createdAt": "2026-07-15T05:37:58.412Z",
+    "updatedAt": "2026-07-16T12:53:18.119Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a59d5e5ece16f6de99cc102",
+    "name": "Mauritius",
+    "country": "Mauritius ",
+    "region": "East Africa / Indian Ocean",
+    "description": "Nestled quietly in the warm waters of the Indian Ocean, Mauritius is a world-class luxury island destination renowned for its breathtaking reef-protected coastlines and elite hospitality. The island seamlessly splits into two distinct operational holiday circuits: the lively North Island, famous for its historic capital Port Louis, bustling shopping waterfronts, and active beach clubs, and the serene South Island, celebrated for its dramatic volcanic craters, cascading waterfalls, and the surreal Seven Coloured Earths at Chamarel. Whether you are planning an intimate, ultra-premium honeymoon special or a high-end family vacation, the destination caters to all with its exceptional collection of top-tier 5-star resorts and private beachfront villas. Boasting convenient visa-on-arrival facilities for Indian travelers and year-round pleasant weather, Mauritius is a high-conversion addition to any premium travel portfolio.",
+    "shortDescription": "Nestled quietly in the warm waters of the Indian Ocean, Mauritius is a world-class luxury island destination renowned for its breathtaking reef-protected coastlines and elite hospitality. The island seamlessly splits into two distinct operational holiday circuits: the lively North Island, famous for its historic capital Port Louis, bustling shopping waterfronts, and active beach clubs, and the serene South Island, celebrated for its dramatic volcanic craters, cascading waterfalls, and the surreal Seven Coloured Earths at Chamarel. Whether you are planning an intimate, ultra-premium honeymoon special or a high-end family vacation, the destination caters to all with its exceptional collection of top-tier 5-star resorts and private beachfront villas. Boasting convenient visa-on-arrival facilities for Indian travelers and year-round pleasant weather, Mauritius is a high-conversion addition to any premium travel portfolio.Nestled quietly in the warm waters of the Indian Ocean, Mauritius is a world-class luxury island destination renowned for its breathtaking reef-protected coastlines and elite hospitality. The island seamlessly splits into two distinct operational holiday circuits: the lively North Island, famous for its historic capital Port Louis, bustling shopping waterfronts, and active beach clubs, and the serene South Island, celebrated for its dramatic volcanic craters, cascading waterfalls, and the surreal Seven Coloured Earths at Chamarel. Whether you are planning an intimate, ultra-premium honeymoon special or a high-end family vacation, the destination caters to all with its exceptional collection of top-tier 5-star resorts and private beachfront villas. Boasting convenient visa-on-arrival facilities for Indian travelers and year-round pleasant weather, Mauritius is a high-conversion addition to any premium travel portfolio.",
+    "images": [],
+    "category": "beach",
+    "rating": 0,
+    "reviewCount": 0,
+    "packageCount": 4,
+    "startingPrice": 40000,
+    "bestSeason": "October to April",
+    "visaType": "free",
+    "highlights": [],
+    "partners": [],
+    "isActive": true,
+    "isFeatured": false,
+    "approvalStatus": "pending",
+    "travelTips": [],
+    "whyVisit": [],
+    "photoGallery": [],
+    "slug": "mauritius-the-sapphire-of-the-indian-ocean",
+    "createdAt": "2026-07-17T07:12:37.705Z",
+    "updatedAt": "2026-07-18T07:00:43.952Z",
+    "__v": 0
+  }
+]
