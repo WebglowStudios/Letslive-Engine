@@ -104,6 +104,8 @@ export interface IPackage extends Document {
   approvalStatus: 'pending' | 'approved' | 'rejected';
   flightsIncluded: boolean;
   travellerCount?: string;
+  adultCount?: number;
+  childCount?: number;
   isCustom: boolean;
   showOnDestination: boolean;
   clientName?: string;
@@ -242,6 +244,8 @@ const packageSchema = new Schema<IPackage>(
     badge: { type: String },
     flightsIncluded: { type: Boolean, default: false },
     travellerCount: { type: String },
+    adultCount: { type: Number },
+    childCount: { type: Number },
     isActive: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
     approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
