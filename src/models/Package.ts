@@ -69,6 +69,7 @@ export interface IPackage extends Document {
   name: string;
   slug: string;
   destination?: mongoose.Types.ObjectId;
+  customDestinationText?: string;
   description?: string;
   shortDescription?: string;
   images: string[];
@@ -133,6 +134,7 @@ const packageSchema = new Schema<IPackage>(
       ref: 'Destination',
       index: true,
     },
+    customDestinationText: { type: String, trim: true },
     description: { type: String },
     shortDescription: { type: String },
     images: [{ type: String }],
