@@ -10,6 +10,8 @@ export interface IOperation extends Document {
     email: string;
     phone?: string;
     pax: number;
+    adults?: number;
+    children?: number;
   };
   destination: string;
   travelDates: {
@@ -39,6 +41,8 @@ const operationSchema = new Schema<IOperation>(
       email: { type: String },
       phone: { type: String },
       pax: { type: Number, default: 1 },
+      adults: { type: Number },
+      children: { type: Number },
     },
     destination: { type: String, required: true },
     travelDates: {

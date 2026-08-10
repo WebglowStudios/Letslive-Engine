@@ -269,6 +269,8 @@ export const updateBookingStatus = asyncHandler(async (req: Request, res: Respon
             email: usr?.email || '',
             phone: usr?.phone || '',
             pax,
+            adults: travellers?.adults || 0,
+            children: travellers?.children || 0,
           },
           destination: dest?.name || 'TBD',
           travelDates: {

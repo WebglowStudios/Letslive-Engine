@@ -217,6 +217,8 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
                 email: usr?.email || '',
                 phone: usr?.phone || '',
                 pax,
+                adults: travellers?.adults || 0,
+                children: travellers?.children || 0,
               },
               destination: dest?.name || 'TBD',
               travelDates: {
