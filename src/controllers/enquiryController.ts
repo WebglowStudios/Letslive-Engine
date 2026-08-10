@@ -285,6 +285,29 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
 
   const prevStatus = enquiry.status;
 
+  // ── Contact / identity fields ──────────────────────────────────────────────
+  if (req.body.firstName !== undefined) enquiry.firstName = req.body.firstName;
+  if (req.body.lastName  !== undefined) enquiry.lastName  = req.body.lastName;
+  if (req.body.email     !== undefined) enquiry.email     = req.body.email;
+  if (req.body.phone     !== undefined) enquiry.phone     = req.body.phone;
+  if (req.body.destination   !== undefined) enquiry.destination   = req.body.destination;
+  if (req.body.travelDate    !== undefined) enquiry.travelDate    = req.body.travelDate ? new Date(req.body.travelDate) : undefined;
+  if (req.body.packageName   !== undefined) enquiry.packageName   = req.body.packageName;
+  if (req.body.source        !== undefined) enquiry.source        = req.body.source;
+
+  // ── Sync contact changes to linked User account (if one exists) ────────────
+  const hasContactChange = ['firstName', 'lastName', 'email', 'phone'].some(
+    (f) => req.body[f] !== undefined
+  );
+  if (hasContactChange && enquiry.user) {
+    const userUpdate: Record<string, string> = {};
+    if (req.body.firstName !== undefined) userUpdate.firstName = req.body.firstName;
+    if (req.body.lastName  !== undefined) userUpdate.lastName  = req.body.lastName || '';
+    if (req.body.email     !== undefined) userUpdate.email     = req.body.email.toLowerCase().trim();
+    if (req.body.phone     !== undefined) userUpdate.phone     = req.body.phone;
+    await User.findByIdAndUpdate(enquiry.user, userUpdate).catch(console.error);
+  }
+
   if (req.body.status) enquiry.status = req.body.status;
   if (req.body.priority) enquiry.priority = req.body.priority;
   if (req.body.followUpDate !== undefined) {
