@@ -31,7 +31,12 @@ export const getOperations = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const getOperationById = asyncHandler(async (req: Request, res: Response) => {
-  const operation = await Operation.findById(req.params.id).populate('booking').populate('package', 'name slug').populate('assignedTo', 'firstName lastName email');
+  const operation = await Operation.findById(req.params.id).populate({
+    path: 'booking',
+    populate: [
+      { path: 'package', select: 'name slug isCustom' }
+    ]
+  }).populate('package', 'name slug').populate('assignedTo', 'firstName lastName email');
   if (!operation) throw new AppError('Operation not found', 404);
   if (req.user!.role === 'staff' && operation.assignedTo?.toString() !== req.user!._id.toString()) throw new AppError('Access denied', 403);
 
