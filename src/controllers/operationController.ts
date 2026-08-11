@@ -34,9 +34,9 @@ export const getOperationById = asyncHandler(async (req: Request, res: Response)
   const operation = await Operation.findById(req.params.id).populate({
     path: 'booking',
     populate: [
-      { path: 'package', select: 'name slug isCustom' }
+      { path: 'package', select: 'name slug isCustom description itinerary' }
     ]
-  }).populate('package', 'name slug').populate('assignedTo', 'firstName lastName email');
+  }).populate('package', 'name slug description itinerary').populate('assignedTo', 'firstName lastName email');
   if (!operation) throw new AppError('Operation not found', 404);
   if (req.user!.role === 'staff' && operation.assignedTo?.toString() !== req.user!._id.toString()) throw new AppError('Access denied', 403);
 
@@ -231,31 +231,21 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
     }
   }
 
-  // ── ACTIVITIES: itinerary[].activities[] (individual entries per activity) ──
+  // ── ACTIVITIES: itinerary[] (day-wise entries for expenses) ──
   if (existingActivities > 0) {
     skipped.push('activities');
   } else {
     const actDocs: object[] = [];
-    const pkgActivities = pkg.activities || [];
 
     for (const day of (pkg.itinerary || [])) {
-      if (!day.activities || day.activities.length === 0) continue;
-      
-      for (const activityTitle of day.activities) {
-        // Try to find the detailed activity object to fetch duration and details
-        const matchedActivity = pkgActivities.find((a: any) => a.title === activityTitle);
-        
-        actDocs.push({
-          operation: opId,
-          title: activityTitle,
-          description: matchedActivity?.description || day.title || '',
-          date: computeDate(day.day),
-          duration: matchedActivity?.duration || '',
-          tripDay: `Day ${day.day}`,
-          remarks: matchedActivity?.details ? matchedActivity.details.join('\n') : '',
-          paymentStatus: 'pending',
-        });
-      }
+      actDocs.push({
+        operation: opId,
+        title: day.title || `Day ${day.day}`,
+        description: day.activities && day.activities.length > 0 ? day.activities.join(' | ') : day.description || '',
+        date: computeDate(day.day),
+        tripDay: `Day ${day.day}`,
+        paymentStatus: 'pending',
+      });
     }
 
     if (actDocs.length > 0) {
@@ -266,7 +256,7 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
 
   res.status(200).json({
     status: 'success',
-    message: `Import complete. Created: ${created.transports} transport(s), ${created.accommodations} stay(s), ${created.activities} activity slot(s).${skipped.length > 0 ? ` Skipped (already had data): ${skipped.join(', ')}.` : ''}`,
+    message: `Import complete. Created: ${created.transports} transport(s), ${created.accommodations} stay(s), ${created.activities} itinerary day(s).${skipped.length > 0 ? ` Skipped (already had data): ${skipped.join(', ')}.` : ''}`,
     data: { created, skipped },
   });
 });
