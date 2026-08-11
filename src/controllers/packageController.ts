@@ -20,6 +20,9 @@ export const getPackages = asyncHandler(async (req: Request, res: Response) => {
     page = '1',
     limit = '12',
     admin,
+    approvalStatus,
+    isActive,
+    isFeatured,
   } = req.query;
 
   const query: Record<string, unknown> = {};
@@ -33,6 +36,9 @@ export const getPackages = asyncHandler(async (req: Request, res: Response) => {
   } else {
     // Admin still excludes custom itineraries (they have their own page)
     query.isCustom = { $ne: true };
+    if (approvalStatus) query.approvalStatus = approvalStatus;
+    if (isActive !== undefined) query.isActive = isActive === 'true';
+    if (isFeatured !== undefined) query.isFeatured = isFeatured === 'true';
   }
 
   if (destination) {
