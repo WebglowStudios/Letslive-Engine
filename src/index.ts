@@ -33,6 +33,8 @@ import paymentRoutes from './routes/payments.js';
 import webhookRoutes from './routes/webhooks.js';
 import couponRoutes from './routes/coupons.js';
 import financeRoutes from './routes/finance.js';
+import aboutRoutes from './routes/about.js';
+import galleryRoutes from './routes/gallery.js';
 
 const app = express();
 
@@ -146,6 +148,8 @@ app.use('/api/package-templates', packageTemplateRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/finance', financeRoutes);
+app.use('/api/about', aboutRoutes);
+app.use('/api/gallery', galleryRoutes);
 // Note: /api/webhooks is mounted earlier (before express.json) — see above
 
 // Health check endpoint
