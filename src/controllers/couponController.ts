@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import asyncHandler from '../utils/asyncHandler';
-import AppError from '../utils/AppError';
-import Coupon from '../models/Coupon';
-import Package from '../models/Package';
+import { asyncHandler } from '../middleware/asyncHandler.js';
+import { AppError } from '../middleware/errorHandler.js';
+import Coupon from '../models/Coupon.js';
+import Package from '../models/Package.js';
 
 // @desc    Create a new coupon
 // @route   POST /api/coupons

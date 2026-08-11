@@ -85,6 +85,7 @@ export interface IPackage extends Document {
   price: number;
   priceUnit: 'person' | 'couple' | 'family' | 'group';
   discount?: number;
+  discountType?: 'percent' | 'amount';
   rating: number;
   reviewCount: number;
   highlights: string[];
@@ -164,6 +165,7 @@ const packageSchema = new Schema<IPackage>(
       default: 'person',
     },
     discount: { type: Number },
+    discountType: { type: String, enum: ['percent', 'amount'], default: 'percent' },
     rating: { type: Number, default: 0, min: 0, max: 5 },
     reviewCount: { type: Number, default: 0 },
     highlights: [{ type: String }],
