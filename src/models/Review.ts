@@ -1,7 +1,8 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IReview extends Document {
-  user: mongoose.Types.ObjectId;
+  user?: mongoose.Types.ObjectId;
+  reviewerName?: string;
   package: mongoose.Types.ObjectId;
   destination?: mongoose.Types.ObjectId;
   booking?: mongoose.Types.ObjectId;
@@ -20,7 +21,8 @@ export interface IReview extends Document {
 
 const reviewSchema = new Schema<IReview>(
   {
-    user: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    user: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+    reviewerName: { type: String },
     package: { type: Schema.Types.ObjectId, ref: 'Package', required: true, index: true },
     destination: { type: Schema.Types.ObjectId, ref: 'Destination', index: true },
     booking: { type: Schema.Types.ObjectId, ref: 'Booking' },
@@ -40,8 +42,11 @@ const reviewSchema = new Schema<IReview>(
   { timestamps: true }
 );
 
-// One review per user per package
-reviewSchema.index({ package: 1, user: 1 }, { unique: true });
+// One review per user per package (only applies when user exists)
+reviewSchema.index(
+  { package: 1, user: 1 },
+  { unique: true, partialFilterExpression: { user: { $exists: true, $type: 'objectId' } } }
+);
 
 const Review: Model<IReview> = mongoose.model<IReview>('Review', reviewSchema);
 

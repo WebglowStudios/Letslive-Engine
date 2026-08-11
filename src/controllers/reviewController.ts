@@ -112,6 +112,20 @@ export const getReviewsByPackage = asyncHandler(async (req: Request, res: Respon
   });
 });
 
+// @desc    Get all reviews for a package (Admin)
+// @route   GET /api/reviews/admin/package/:packageId
+export const getAdminReviewsByPackage = asyncHandler(async (req: Request, res: Response) => {
+  const reviews = await Review.find({ package: req.params.packageId })
+    .populate('user', 'firstName lastName avatar')
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    status: 'success',
+    results: reviews.length,
+    data: reviews,
+  });
+});
+
 // @desc    Get reviews by destination
 // @route   GET /api/reviews/destination/:destId
 export const getReviewsByDestination = asyncHandler(async (req: Request, res: Response) => {
@@ -184,6 +198,38 @@ export const createReview = asyncHandler(async (req: Request, res: Response) => 
       meta: { rating: review.rating, packageId: String(packageId), verified: review.isVerified },
     }).catch(console.error);
   }
+
+  res.status(201).json({
+    status: 'success',
+    data: review,
+  });
+});
+
+// @desc    Create a manual review (Admin)
+// @route   POST /api/reviews/manual
+export const createManualReview = asyncHandler(async (req: Request, res: Response) => {
+  const { package: packageId, reviewerName, rating, title, text, tripType, travelDate } = req.body;
+
+  const pkg = await Package.findById(packageId);
+  if (!pkg) {
+    throw new AppError('Package not found', 404);
+  }
+
+  const review = await Review.create({
+    package: packageId,
+    destination: pkg.destination,
+    reviewerName: reviewerName || 'Anonymous',
+    rating,
+    title,
+    text,
+    tripType,
+    travelDate: travelDate || undefined,
+    isVerified: true, // Manual reviews by staff are considered verified
+    isApproved: true, // Manual reviews by staff are pre-approved
+  });
+
+  // Recalculate ratings
+  await recalculateRatings(packageId, pkg.destination);
 
   res.status(201).json({
     status: 'success',
