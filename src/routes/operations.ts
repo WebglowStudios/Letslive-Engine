@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { protect, staffOnly, managerOnly } from '../middleware/auth.js';
+import { protect, requirePermission } from '../middleware/auth.js';
 import {
   getOperations, getOperationById, createOperation, updateOperation, recalculateOperation, importFromItinerary,
   addTransport, updateTransport, deleteTransport,
@@ -11,12 +11,12 @@ import {
 } from '../controllers/operationController.js';
 
 const router = Router();
-router.use(protect, staffOnly);
+router.use(protect, requirePermission('dashboard.view'));
 
 // Finance (before /:id)
-router.get('/finance/overview', managerOnly, getFinanceOverview);
+router.get('/finance/overview', requirePermission('dashboard.view'), getFinanceOverview);
 router.get('/finance/urgent', getUrgentPayments);
-router.get('/salesperson/stats', managerOnly, getSalespersonStats);
+router.get('/salesperson/stats', requirePermission('dashboard.view'), getSalespersonStats);
 
 // Operations
 router.get('/', getOperations);

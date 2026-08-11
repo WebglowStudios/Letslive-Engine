@@ -22,6 +22,10 @@ export interface IUser extends Document {
   lockUntil?: Date;
   createdAt: Date;
   updatedAt: Date;
+  customPermissions?: {
+    permission: string;
+    expiresAt?: Date;
+  }[];
   comparePassword(candidatePassword: string): Promise<boolean>;
   createVerificationToken(): string;
   createResetToken(): string;
@@ -54,6 +58,12 @@ const userSchema = new Schema<IUser>(
     loginAttempts: { type: Number, default: 0 },
     lockUntil: { type: Date },
     isActive: { type: Boolean, default: true },
+    customPermissions: [
+      {
+        permission: { type: String, required: true },
+        expiresAt: { type: Date },
+      },
+    ],
   },
   { timestamps: true }
 );

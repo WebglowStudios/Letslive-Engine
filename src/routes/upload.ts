@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { v2 as cloudinary } from 'cloudinary';
 import multer from 'multer';
-import { protect, staffOnly } from '../middleware/auth.js';
+import { protect, requirePermission } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
 
@@ -34,7 +34,7 @@ const upload = multer({
 router.get(
   '/folders',
   protect,
-  staffOnly,
+  requirePermission('packages.create'),
   asyncHandler(async (req: Request, res: Response) => {
     if (!process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME === 'your-cloud') {
       return res.status(200).json({ status: 'success', data: [] });
@@ -62,7 +62,7 @@ router.get(
 router.post(
   '/folders',
   protect,
-  staffOnly,
+  requirePermission('packages.create'),
   asyncHandler(async (req: Request, res: Response) => {
     const { folderName, parent } = req.body;
 
@@ -95,7 +95,7 @@ router.post(
 router.delete(
   '/folders',
   protect,
-  staffOnly,
+  requirePermission('packages.create'),
   asyncHandler(async (req: Request, res: Response) => {
     const folderPath = req.query.path as string;
 
@@ -127,7 +127,7 @@ router.delete(
 router.post(
   '/move',
   protect,
-  staffOnly,
+  requirePermission('packages.create'),
   asyncHandler(async (req: Request, res: Response) => {
     const { publicId, targetFolder } = req.body;
 
@@ -160,7 +160,7 @@ router.post(
 router.get(
   '/library',
   protect,
-  staffOnly,
+  requirePermission('packages.create'),
   asyncHandler(async (req: Request, res: Response) => {
     if (!process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME === 'your-cloud') {
       return res.status(200).json({ status: 'success', data: [] });
@@ -219,7 +219,7 @@ router.get(
 router.post(
   '/',
   protect,
-  staffOnly,
+  requirePermission('packages.create'),
   upload.single('image'),
   asyncHandler(async (req: Request, res: Response) => {
     if (!req.file) {
@@ -287,7 +287,7 @@ router.post(
 router.post(
   '/multiple',
   protect,
-  staffOnly,
+  requirePermission('packages.create'),
   upload.array('images', 10),
   asyncHandler(async (req: Request, res: Response) => {
     const files = req.files as Express.Multer.File[];
@@ -346,7 +346,7 @@ router.post(
 router.delete(
   '/:publicId',
   protect,
-  staffOnly,
+  requirePermission('packages.create'),
   asyncHandler(async (req: Request, res: Response) => {
     const publicId = decodeURIComponent(req.params.publicId as string);
     if (!publicId) {

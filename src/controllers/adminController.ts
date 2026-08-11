@@ -128,7 +128,7 @@ export const createStaff = asyncHandler(async (req: Request, res: Response) => {
 // @desc    Update staff member (role, active status)
 // @route   PUT /api/admin/staff/:id
 export const updateStaff = asyncHandler(async (req: Request, res: Response) => {
-  const { role, isActive, avatar, description, password } = req.body;
+  const { role, isActive, avatar, description, password, customPermissions } = req.body;
   const updateData: Record<string, unknown> = {};
 
   if (role) {
@@ -145,6 +145,9 @@ export const updateStaff = asyncHandler(async (req: Request, res: Response) => {
 
   if (avatar !== undefined) updateData.avatar = avatar;
   if (description !== undefined) updateData.description = description;
+  if (customPermissions !== undefined && Array.isArray(customPermissions)) {
+    updateData.customPermissions = customPermissions;
+  }
 
   const user = await User.findById(req.params.id);
   if (!user) {

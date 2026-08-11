@@ -18,7 +18,7 @@ import {
   submitEnquiryFeedback,
 } from '../controllers/enquiryController.js';
 
-import { protect, managerOnly, staffOnly } from '../middleware/auth.js';
+import { protect, requirePermission } from '../middleware/auth.js';
 import { enquiryLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
@@ -37,41 +37,41 @@ router.post('/customer/me/:id/feedback', protect, submitEnquiryFeedback);
 
 // ─── Staff+ (auth required) ───────────────────────────────────────────────────
 // Manually create a walk-in / phone / WhatsApp lead
-router.post('/manual', protect, staffOnly, manualCreateEnquiry);
+router.post('/manual', protect, requirePermission('enquiries.respond'), manualCreateEnquiry);
 
 // Get my assigned enquiries (staff sees only their own)
-router.get('/mine', protect, staffOnly, getMyEnquiries);
+router.get('/mine', protect, requirePermission('enquiries.view'), getMyEnquiries);
 
 // Get follow-ups due today
-router.get('/follow-ups/today', protect, staffOnly, getFollowUpsToday);
+router.get('/follow-ups/today', protect, requirePermission('enquiries.view'), getFollowUpsToday);
 
 // ─── Manager+ ────────────────────────────────────────────────────────────────
 // Get ALL enquiries with search/filter support
-router.get('/', protect, managerOnly, getAllEnquiries);
+router.get('/', protect, requirePermission('enquiries.view'), getAllEnquiries);
 
 // CRM pipeline stats / funnel metrics
-router.get('/stats', protect, managerOnly, getEnquiryStats);
+router.get('/stats', protect, requirePermission('enquiries.view'), getEnquiryStats);
 
 // Export to CSV
-router.get('/export', protect, managerOnly, exportEnquiries);
+router.get('/export', protect, requirePermission('enquiries.view'), exportEnquiries);
 
 // Bulk actions (reassign / close / mark follow-up)
-router.post('/bulk', protect, managerOnly, bulkUpdateEnquiries);
+router.post('/bulk', protect, requirePermission('enquiries.respond'), bulkUpdateEnquiries);
 
 // ─── Staff+ by ID ─────────────────────────────────────────────────────────────
 // Get single enquiry detail (staff can only access their own)
-router.get('/:id', protect, staffOnly, getEnquiryById);
+router.get('/:id', protect, requirePermission('enquiries.view'), getEnquiryById);
 
 // Update enquiry (status, notes, follow-up date, tags, etc.)
-router.put('/:id', protect, staffOnly, updateEnquiry);
+router.put('/:id', protect, requirePermission('enquiries.respond'), updateEnquiry);
 
 // Log a call attempt (DNP / answered / WhatsApp sent / etc.)
-router.post('/:id/call', protect, staffOnly, logCall);
+router.post('/:id/call', protect, requirePermission('enquiries.respond'), logCall);
 
 // Send booking link email to customer
-router.post('/:id/send-booking-link', protect, staffOnly, sendBookingLinkHandler);
+router.post('/:id/send-booking-link', protect, requirePermission('enquiries.respond'), sendBookingLinkHandler);
 
 // Delete enquiry (manager/admin only)
-router.delete('/:id', protect, managerOnly, deleteEnquiry);
+router.delete('/:id', protect, requirePermission('enquiries.delete'), deleteEnquiry);
 
 export default router;

@@ -10,7 +10,7 @@ import {
   approveReview,
   canReviewPackage,
 } from '../controllers/reviewController.js';
-import { protect, adminOnly } from '../middleware/auth.js';
+import { protect, requirePermission } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -22,6 +22,6 @@ router.get('/destination/:destId', getReviewsByDestination);
 router.post('/', protect, createReview);
 router.put('/:id', protect, updateReview);
 router.delete('/:id', protect, deleteReview);
-router.put('/:id/approve', protect, adminOnly, approveReview);
+router.put('/:id/approve', protect, requirePermission('reviews.delete'), approveReview);
 
 export default router;

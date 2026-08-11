@@ -1,11 +1,11 @@
 import { Router, Request, Response } from 'express';
-import { protect, staffOnly } from '../middleware/auth.js';
+import { protect, requirePermission } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
 import Vendor from '../models/Vendor.js';
 
 const router = Router();
-router.use(protect, staffOnly);
+router.use(protect, requirePermission('dashboard.view'));
 
 // GET all vendors (with optional type filter)
 router.get('/', asyncHandler(async (req: Request, res: Response) => {

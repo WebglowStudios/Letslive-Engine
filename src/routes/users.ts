@@ -10,19 +10,19 @@ import {
   deleteUser,
   getStaffList,
 } from '../controllers/userController.js';
-import { protect, adminOnly, staffOnly } from '../middleware/auth.js';
+import { protect, requirePermission } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/', protect, adminOnly, getAllUsers);
+router.get('/', protect, requirePermission('users.view'), getAllUsers);
 // Staff list for reassign dropdowns — any logged-in staff can access
-router.get('/staff', protect, staffOnly, getStaffList);
+router.get('/staff', protect, requirePermission('staff.view'), getStaffList);
 router.get('/wishlist', protect, getWishlist);
 router.post('/wishlist/:packageId', protect, addToWishlist);
 router.delete('/wishlist/:packageId', protect, removeFromWishlist);
 router.put('/profile', protect, updateProfile);
 router.put('/password', protect, changePassword);
-router.get('/:id', protect, adminOnly, getUserById);
-router.delete('/:id', protect, adminOnly, deleteUser);
+router.get('/:id', protect, requirePermission('users.view'), getUserById);
+router.delete('/:id', protect, requirePermission('users.delete'), deleteUser);
 
 export default router;

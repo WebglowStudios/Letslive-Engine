@@ -8,16 +8,16 @@ import {
   deleteCareer,
   getCareerApplications,
 } from '../controllers/careerController.js';
-import { protect, adminOnly, staffOnly, managerOnly } from '../middleware/auth.js';
+import { protect, requirePermission } from '../middleware/auth.js';
 
 const router = Router();
 
 router.get('/', getCareers);
-router.post('/', protect, staffOnly, createCareer);
+router.post('/', protect, requirePermission('careers.edit'), createCareer);
 router.get('/:slug', getCareerBySlug);
 router.post('/:id/apply', applyToCareer);
-router.put('/:id', protect, staffOnly, updateCareer);
-router.delete('/:id', protect, adminOnly, deleteCareer);
-router.get('/:id/applications', protect, managerOnly, getCareerApplications);
+router.put('/:id', protect, requirePermission('careers.edit'), updateCareer);
+router.delete('/:id', protect, requirePermission('careers.delete'), deleteCareer);
+router.get('/:id/applications', protect, requirePermission('careers.edit'), getCareerApplications);
 
 export default router;

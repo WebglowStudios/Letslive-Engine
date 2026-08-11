@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import Article from '../models/Article.js';
-import { protect, staffOnly } from '../middleware/auth.js';
+import { protect, requirePermission } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { logActivity } from '../utils/logActivity.js';
@@ -27,7 +27,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 // GET /api/articles/all — admin list (all including drafts)
-router.get('/all', protect, staffOnly, asyncHandler(async (_req: Request, res: Response) => {
+router.get('/all', protect, requirePermission('dashboard.view'), asyncHandler(async (_req: Request, res: Response) => {
   const articles = await Article.find().populate('author', 'firstName lastName').sort({ createdAt: -1 });
   res.status(200).json({ status: 'success', results: articles.length, data: articles });
 }));
@@ -44,7 +44,7 @@ router.get('/:slug', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 // POST /api/articles — create (staff+)
-router.post('/', protect, staffOnly, asyncHandler(async (req: Request, res: Response) => {
+router.post('/', protect, requirePermission('dashboard.view'), asyncHandler(async (req: Request, res: Response) => {
   req.body.author = req.user!._id;
   const article = await Article.create(req.body);
   await logActivity({ req, action: 'create', entity: 'article', entityId: String(article._id), entityName: article.title, description: `Created article "${article.title}"` });
@@ -52,7 +52,7 @@ router.post('/', protect, staffOnly, asyncHandler(async (req: Request, res: Resp
 }));
 
 // PUT /api/articles/:id — update (staff+)
-router.put('/:id', protect, staffOnly, asyncHandler(async (req: Request, res: Response) => {
+router.put('/:id', protect, requirePermission('dashboard.view'), asyncHandler(async (req: Request, res: Response) => {
   const article = await Article.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
   if (!article) throw new AppError('Article not found', 404);
   await logActivity({ req, action: 'update', entity: 'article', entityId: String(article._id), entityName: article.title, description: `Updated article "${article.title}"` });
@@ -60,7 +60,7 @@ router.put('/:id', protect, staffOnly, asyncHandler(async (req: Request, res: Re
 }));
 
 // DELETE /api/articles/:id — delete (staff+)
-router.delete('/:id', protect, staffOnly, asyncHandler(async (req: Request, res: Response) => {
+router.delete('/:id', protect, requirePermission('dashboard.view'), asyncHandler(async (req: Request, res: Response) => {
   const article = await Article.findByIdAndDelete(req.params.id);
   if (!article) throw new AppError('Article not found', 404);
   await logActivity({ req, action: 'delete', entity: 'article', entityId: String(article._id), entityName: article.title, description: `Deleted article "${article.title}"` });

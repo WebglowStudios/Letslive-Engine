@@ -6,7 +6,7 @@ import {
   updateStaff,
   deleteStaff,
 } from '../controllers/adminController.js';
-import { protect, adminOnly, staffOnly } from '../middleware/auth.js';
+import { protect, requirePermission } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { Request, Response } from 'express';
 import ActivityLog from '../models/ActivityLog.js';
@@ -17,17 +17,17 @@ const router = Router();
 router.use(protect);
 
 // Dashboard stats — accessible by all staff+
-router.get('/stats', staffOnly, getDashboardStats);
+router.get('/stats', requirePermission('dashboard.view'), getDashboardStats);
 
 // Staff management — admin only for sensitive roles, manager can create customers
-router.get('/staff', adminOnly, getStaff);
-router.post('/staff', protect, staffOnly, createStaff);  // staffOnly = any authenticated staff+
-router.put('/staff/:id', adminOnly, updateStaff);
-router.delete('/staff/:id', adminOnly, deleteStaff);
+router.get('/staff', requirePermission('staff.view'), getStaff);
+router.post('/staff', protect, requirePermission('staff.create'), createStaff);
+router.put('/staff/:id', requirePermission('staff.edit'), updateStaff);
+router.delete('/staff/:id', requirePermission('staff.delete'), deleteStaff);
 
 
 // Activity log — staff+
-router.get('/activity', staffOnly, asyncHandler(async (req: Request, res: Response) => {
+router.get('/activity', requirePermission('activity.view'), asyncHandler(async (req: Request, res: Response) => {
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 50;
   const skip = (page - 1) * limit;

@@ -1,11 +1,11 @@
 import { Router, Request, Response } from 'express';
 import PackageTemplate from '../models/PackageTemplate.js';
-import { protect, staffOnly } from '../middleware/auth.js';
+import { protect, requirePermission } from '../middleware/auth.js';
 
 const router = Router();
 
 // GET /api/package-templates?category=inclusions
-router.get('/', protect, staffOnly, async (req: Request, res: Response) => {
+router.get('/', protect, requirePermission('packages.create'), async (req: Request, res: Response) => {
   const { category } = req.query;
   const filter: Record<string, unknown> = {};
   if (category && typeof category === 'string') {
@@ -16,7 +16,7 @@ router.get('/', protect, staffOnly, async (req: Request, res: Response) => {
 });
 
 // POST /api/package-templates
-router.post('/', protect, staffOnly, async (req: Request, res: Response) => {
+router.post('/', protect, requirePermission('packages.create'), async (req: Request, res: Response) => {
   const { name, category, items } = req.body;
   if (!name || !category || !items || !Array.isArray(items)) {
     res.status(400).json({ status: 'error', message: 'name, category, and items[] are required' });
@@ -32,7 +32,7 @@ router.post('/', protect, staffOnly, async (req: Request, res: Response) => {
 });
 
 // PUT /api/package-templates/:id
-router.put('/:id', protect, staffOnly, async (req: Request, res: Response) => {
+router.put('/:id', protect, requirePermission('packages.create'), async (req: Request, res: Response) => {
   const { name, items } = req.body;
   const template = await PackageTemplate.findByIdAndUpdate(
     req.params.id,
@@ -47,7 +47,7 @@ router.put('/:id', protect, staffOnly, async (req: Request, res: Response) => {
 });
 
 // DELETE /api/package-templates/:id
-router.delete('/:id', protect, staffOnly, async (req: Request, res: Response) => {
+router.delete('/:id', protect, requirePermission('packages.create'), async (req: Request, res: Response) => {
   await PackageTemplate.findByIdAndDelete(req.params.id);
   res.status(204).send();
 });

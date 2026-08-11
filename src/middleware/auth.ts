@@ -4,6 +4,7 @@ import { env } from '../config/env.js';
 import User from '../models/User.js';
 import { AppError } from './errorHandler.js';
 import { asyncHandler } from './asyncHandler.js';
+import { hasPermission, Permission } from '../utils/permissions.js';
 
 interface JwtPayload {
   id: string;
@@ -55,3 +56,14 @@ export const staffOnly = roleCheck('admin', 'manager', 'staff');
 
 // Manager+ access (admin, manager)
 export const managerOnly = roleCheck('admin', 'manager');
+
+// Granular permission check
+export const requirePermission = (permission: Permission) => {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    if (!req.user || !hasPermission(req.user, permission)) {
+      next(new AppError(`Access denied. Missing permission: ${permission}.`, 403));
+      return;
+    }
+    next();
+  };
+};

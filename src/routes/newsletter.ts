@@ -4,12 +4,12 @@ import {
   unsubscribe,
   getSubscribers,
 } from '../controllers/newsletterController.js';
-import { protect, staffOnly } from '../middleware/auth.js';
+import { protect, requirePermission } from '../middleware/auth.js';
 
 const router = Router();
 
 router.post('/subscribe', subscribe);
 router.post('/unsubscribe', unsubscribe);
-router.get('/subscribers', protect, staffOnly, getSubscribers);
+router.get('/subscribers', protect, requirePermission('newsletter.view'), getSubscribers);
 
 export default router;
