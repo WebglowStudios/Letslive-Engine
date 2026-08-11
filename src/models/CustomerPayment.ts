@@ -11,6 +11,9 @@ export interface ICustomerPayment extends Document {
   paymentMode: string;
   transactionId: string;
   status: 'upcoming' | 'paid' | 'overdue' | 'partial';
+  financeStatus: 'none' | 'pending_approval' | 'approved' | 'rejected';
+  financeDetails?: { paidAmount: number; mode: string; transactionId: string; remarks: string; requestedBy?: mongoose.Types.ObjectId };
+  requestedBy?: mongoose.Types.ObjectId;
   paymentLinkEnabled: boolean;
   paymentLink: string;
   remarks: string;
@@ -34,6 +37,19 @@ const customerPaymentSchema = new Schema<ICustomerPayment>(
       enum: ['upcoming', 'paid', 'overdue', 'partial'],
       default: 'upcoming',
     },
+    financeStatus: {
+      type: String,
+      enum: ['none', 'pending_approval', 'approved', 'rejected'],
+      default: 'none',
+    },
+    financeDetails: {
+      paidAmount: { type: Number },
+      mode: { type: String },
+      transactionId: { type: String },
+      remarks: { type: String },
+      requestedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    },
+    requestedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     paymentLinkEnabled: { type: Boolean, default: false },
     paymentLink: { type: String, default: '' },
     remarks: { type: String, default: '' },

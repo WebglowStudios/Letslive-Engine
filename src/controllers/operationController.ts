@@ -337,7 +337,25 @@ export const addCustomerPayment = asyncHandler(async (req: Request, res: Respons
   res.status(201).json({ status: 'success', data: payment });
 });
 export const updateCustomerPayment = asyncHandler(async (req: Request, res: Response) => {
-  const payment = await CustomerPayment.findByIdAndUpdate(req.params.paymentId, req.body, { new: true });
+  const { financeDetails, status, paidAmount, ...rest } = req.body;
+  let updateData: any = { status, paidAmount, ...rest };
+
+  if (financeDetails && (status === 'paid' || status === 'partial' || paidAmount > 0)) {
+    updateData.financeStatus = 'pending_approval';
+    updateData.requestedBy = req.user!._id;
+    updateData.financeDetails = {
+      paidAmount: paidAmount || financeDetails.paidAmount,
+      mode: financeDetails.mode,
+      transactionId: financeDetails.transactionId,
+      remarks: financeDetails.remarks,
+      requestedBy: req.user!._id,
+    };
+    // Don't update the actual paidAmount or status until approved
+    delete updateData.paidAmount;
+    delete updateData.status;
+  }
+
+  const payment = await CustomerPayment.findByIdAndUpdate(req.params.paymentId, updateData, { new: true });
   if (!payment) throw new AppError('Payment not found', 404);
   res.status(200).json({ status: 'success', data: payment });
 });

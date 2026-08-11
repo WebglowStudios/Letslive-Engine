@@ -250,7 +250,7 @@ export const getAllBookings = asyncHandler(async (req: Request, res: Response) =
 // @desc    Update booking status (admin)
 // @route   PUT /api/bookings/:id/status
 export const updateBookingStatus = asyncHandler(async (req: Request, res: Response) => {
-  const { bookingStatus, paymentStatus } = req.body;
+  const { bookingStatus, paymentStatus, financeDetails } = req.body;
 
   const booking = await Booking.findById(req.params.id);
   if (!booking) {
@@ -267,7 +267,20 @@ export const updateBookingStatus = asyncHandler(async (req: Request, res: Respon
       booking.paymentStatus = 'refunded';
     }
   }
-  if (paymentStatus) booking.paymentStatus = paymentStatus;
+  if (financeDetails && (paymentStatus === 'paid' || paymentStatus === 'partial')) {
+    // Intercept standard payment update and push to approval queue
+    booking.paymentFinanceStatus = 'pending_approval';
+    booking.financeDetails = {
+      mode: financeDetails.mode,
+      transactionId: financeDetails.transactionId,
+      remarks: financeDetails.remarks,
+      requestedBy: req.user!._id,
+    };
+    // Do NOT update booking.paymentStatus here; it will be updated when approved
+  } else if (paymentStatus) {
+    booking.paymentStatus = paymentStatus;
+  }
+  
   await booking.save();
 
   await logActivity({
