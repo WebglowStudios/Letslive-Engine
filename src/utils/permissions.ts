@@ -23,6 +23,7 @@ export type Permission =
   | "staff.edit"
   | "staff.delete"
   | "reviews.view"
+  | "reviews.edit"
   | "reviews.approve"
   | "reviews.delete"
   | "enquiries.view"
@@ -46,7 +47,7 @@ export const rolePermissions: Record<Role, Permission[]> = {
     "packages.view", "packages.create", "packages.edit", "packages.delete",
     "users.view", "users.edit", "users.delete",
     "staff.view", "staff.create", "staff.edit", "staff.delete",
-    "reviews.view", "reviews.approve", "reviews.delete",
+    "reviews.view", "reviews.edit", "reviews.approve", "reviews.delete",
     "enquiries.view", "enquiries.respond", "enquiries.delete",
     "careers.view", "careers.create", "careers.edit", "careers.delete",
     "newsletter.view", "newsletter.export",
@@ -59,7 +60,7 @@ export const rolePermissions: Record<Role, Permission[]> = {
     "destinations.view", "destinations.create", "destinations.edit", "destinations.delete",
     "packages.view", "packages.create", "packages.edit", "packages.delete",
     "users.view", "users.edit",
-    "reviews.view", "reviews.approve", "reviews.delete",
+    "reviews.view", "reviews.edit", "reviews.approve", "reviews.delete",
     "enquiries.view", "enquiries.respond",
     "careers.view", "careers.create", "careers.edit", "careers.delete",
     "newsletter.view",

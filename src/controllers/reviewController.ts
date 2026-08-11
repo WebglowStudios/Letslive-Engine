@@ -247,7 +247,7 @@ export const updateReview = asyncHandler(async (req: Request, res: Response) => 
   }
 
   // Check ownership
-  if (review.user.toString() !== req.user!._id.toString()) {
+  if (!review.user || review.user.toString() !== req.user!._id.toString()) {
     throw new AppError('You can only update your own reviews', 403);
   }
 
@@ -275,7 +275,7 @@ export const deleteReview = asyncHandler(async (req: Request, res: Response) => 
   }
 
   // Check ownership or admin
-  const isOwner = review.user.toString() === req.user!._id.toString();
+  const isOwner = review.user && review.user.toString() === req.user!._id.toString();
   const isAdmin = req.user!.role === 'admin';
 
   if (!isOwner && !isAdmin) {

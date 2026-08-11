@@ -1,10 +1,10 @@
 import express from 'express';
 import { getAboutContent, updateAboutContent } from '../controllers/aboutController.js';
-import { protect, authorize } from '../middleware/auth.js';
+import { protect, adminOnly } from '../middleware/auth.js';
 
 const router = express.Router();
 
 router.get('/', getAboutContent);
-router.put('/', protect, authorize(['admin']), updateAboutContent);
+router.put('/', protect, adminOnly, updateAboutContent);
 
 export default router;
