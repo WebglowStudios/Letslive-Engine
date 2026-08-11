@@ -12,6 +12,7 @@ import { AppError } from '../middleware/errorHandler.js';
 import { sendBookingConfirmation, sendAdminNewBooking, sendConversionCongrats } from '../services/emailService.js';
 import { logActivity } from '../utils/logActivity.js';
 import ActivityLog from '../models/ActivityLog.js';
+import { autoCreateOperationFromBooking } from '../utils/operationBuilder.js';
 
 // @desc    Create a booking
 // @route   POST /api/bookings
@@ -295,112 +296,7 @@ export const updateBookingStatus = asyncHandler(async (req: Request, res: Respon
 
   // Auto-create Operation when booking is confirmed for the first time
   if (bookingStatus === 'confirmed') {
-    const existingOp = await Operation.findOne({ booking: booking._id });
-    if (!existingOp) {
-      // Populate needed fields
-      const populatedBooking = await Booking.findById(booking._id)
-        .populate('package', 'name price')
-        .populate('destination', 'name')
-        .populate('user', 'firstName lastName email phone');
-
-      if (populatedBooking) {
-        const pkg = populatedBooking.package as unknown as { name?: string; price?: number; _id?: string };
-        const dest = populatedBooking.destination as unknown as { name?: string };
-        const usr = populatedBooking.user as unknown as { firstName?: string; lastName?: string; email?: string; phone?: string };
-        const travellers = populatedBooking.travellers as { adults?: number; children?: number; infants?: number };
-        const pax = (travellers?.adults || 1) + (travellers?.children || 0);
-
-        const op = await Operation.create({
-          booking: booking._id,
-          package: pkg?._id || undefined,
-          enquiry: populatedBooking.enquiry || undefined,
-          customer: {
-            name: usr ? `${usr.firstName || ''} ${usr.lastName || ''}`.trim() : 'Customer',
-            email: usr?.email || '',
-            phone: usr?.phone || '',
-            pax,
-            adults: travellers?.adults || 0,
-            children: travellers?.children || 0,
-          },
-          destination: dest?.name || 'TBD',
-          travelDates: {
-            start: populatedBooking.travelDate,
-            end: populatedBooking.returnDate || populatedBooking.travelDate,
-          },
-          sellingPrice: populatedBooking.totalAmount || 0,
-          status: 'planning',
-        });
-
-        // ── Auto-generate Customer Payments (Installments) ──
-        const total = populatedBooking.totalAmount || 0;
-        const paid = populatedBooking.paidAmount || 0;
-
-        if (paid >= total && total > 0) {
-          // Full payment
-          await CustomerPayment.create({
-            operation: op._id,
-            booking: booking._id,
-            milestone: 'Full Payment',
-            amount: total,
-            paidAmount: paid,
-            status: 'paid',
-          });
-        } else if (paid > 0 && paid < total) {
-          // Partial payment (Deposit paid, balance upcoming)
-          await CustomerPayment.create({
-            operation: op._id,
-            booking: booking._id,
-            milestone: 'Advance Deposit',
-            amount: paid,
-            paidAmount: paid,
-            status: 'paid',
-          });
-          await CustomerPayment.create({
-            operation: op._id,
-            booking: booking._id,
-            milestone: 'Balance Payment',
-            amount: total - paid,
-            paidAmount: 0,
-            status: 'upcoming',
-          });
-        } else if (total > 0) {
-          // No payment made yet
-          await CustomerPayment.create({
-            operation: op._id,
-            booking: booking._id,
-            milestone: 'Full Payment Pending',
-            amount: total,
-            paidAmount: 0,
-            status: 'upcoming',
-          });
-        }
-
-        // ── Task 1: Sync enquiry → converted + conversionValue ──────────────
-        if (populatedBooking.enquiry) {
-          const linkedEnquiry = await Enquiry.findById(populatedBooking.enquiry).populate('assignedTo', 'firstName lastName email');
-          if (linkedEnquiry && linkedEnquiry.status !== 'converted') {
-            const prevStatus = linkedEnquiry.status;
-            linkedEnquiry.status = 'converted';
-            linkedEnquiry.conversionValue = populatedBooking.totalAmount || 0;
-            linkedEnquiry.bookingRef = booking._id as unknown as mongoose.Types.ObjectId;
-            await linkedEnquiry.save();
-
-            // Congrats email to the staff who owned this enquiry (fire-and-forget)
-            const assignedStaff = linkedEnquiry.assignedTo as unknown as { firstName: string; lastName?: string; email: string } | null;
-            if (assignedStaff?.email) {
-              const customerName = `${linkedEnquiry.firstName} ${linkedEnquiry.lastName || ''}`.trim();
-              sendConversionCongrats(
-                assignedStaff.email,
-                `${assignedStaff.firstName} ${assignedStaff.lastName || ''}`.trim(),
-                customerName,
-                populatedBooking.totalAmount || 0
-              ).catch(console.error);
-            }
-          }
-        }
-        // ───────────────────────────────────────────────────────────────────
-      }
-    }
+    await autoCreateOperationFromBooking(booking._id);
   }
 
   res.status(200).json({
