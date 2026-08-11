@@ -21,6 +21,8 @@ export interface IBooking extends Document {
   primaryTraveller: { firstName: string; lastName: string; email: string; phone?: string };
   totalAmount: number;
   paidAmount: number;
+  couponCode?: string;
+  discountAmount?: number;
   paymentStatus: 'pending' | 'partial' | 'paid' | 'refunded';
   bookingStatus: 'pending' | 'confirmed' | 'staff-confirmed' | 'in-progress' | 'completed' | 'cancelled';
   specialRequests?: string;
@@ -63,6 +65,8 @@ const bookingSchema = new Schema<IBooking>(
     },
     totalAmount: { type: Number, required: true },
     paidAmount: { type: Number, default: 0 },
+    couponCode: { type: String },
+    discountAmount: { type: Number, default: 0 },
     paymentStatus: {
       type: String,
       enum: ['pending', 'partial', 'paid', 'refunded'],

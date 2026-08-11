@@ -5,6 +5,7 @@ import Package from '../models/Package.js';
 import User from '../models/User.js';
 import Enquiry from '../models/Enquiry.js';
 import Operation from '../models/Operation.js';
+import Coupon from '../models/Coupon.js';
 import CustomerPayment from '../models/CustomerPayment.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
@@ -26,7 +27,41 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
   const adults = travellers?.adults || 1;
   const children = travellers?.children || 0;
 
-  const totalAmount = pkg.price * adults + pkg.price * 0.7 * children;
+  let totalAmount = pkg.price * adults + pkg.price * 0.7 * children;
+  
+  let discountAmount = 0;
+  let appliedCouponCode = undefined;
+
+  if (req.body.couponCode) {
+    const coupon = await Coupon.findOne({ code: req.body.couponCode.toUpperCase(), isActive: true });
+    if (coupon) {
+      const now = new Date();
+      if (now >= coupon.validFrom && now <= coupon.validUntil) {
+        let isValid = true;
+        if (coupon.validPackages && coupon.validPackages.length > 0) {
+          if (!coupon.validPackages.some(id => id.toString() === String(pkg._id))) isValid = false;
+        }
+        if (coupon.minOrderValue && totalAmount < coupon.minOrderValue) isValid = false;
+        if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) isValid = false;
+        
+        if (isValid) {
+          if (coupon.type === 'percentage') {
+            discountAmount = (totalAmount * coupon.value) / 100;
+            if (coupon.maxDiscount && discountAmount > coupon.maxDiscount) discountAmount = coupon.maxDiscount;
+          } else {
+            discountAmount = coupon.value;
+          }
+          if (discountAmount > totalAmount) discountAmount = totalAmount;
+          
+          totalAmount -= discountAmount;
+          appliedCouponCode = coupon.code;
+          
+          coupon.usedCount += 1;
+          await coupon.save();
+        }
+      }
+    }
+  }
 
   // Get user details for enquiry creation
   const user = await User.findById(userId);
@@ -68,6 +103,8 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
     destination: pkg.destination,
     enquiry: enquiryId,
     totalAmount,
+    couponCode: appliedCouponCode,
+    discountAmount,
   });
 
   // Emails are no longer sent here! They have been moved to payment verification
