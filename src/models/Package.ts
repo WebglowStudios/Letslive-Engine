@@ -92,6 +92,9 @@ export interface IPackage extends Document {
   itinerary: IItineraryDay[];
   inclusions: string[];
   exclusions: string[];
+  paymentPolicy: string[];
+  cancellationPolicy: string[];
+  flightCancellationPolicy: string[];
   stays: IStay[];
   transfers: ITransfer[];
   activities: IActivity[];
@@ -182,6 +185,9 @@ const packageSchema = new Schema<IPackage>(
     ],
     inclusions: [{ type: String }],
     exclusions: [{ type: String }],
+    paymentPolicy: [{ type: String }],
+    cancellationPolicy: [{ type: String }],
+    flightCancellationPolicy: [{ type: String }],
     stays: [
       {
         name: { type: String },
