@@ -14,6 +14,7 @@ export interface IBooking extends Document {
   package: mongoose.Types.ObjectId;
   destination?: mongoose.Types.ObjectId;
   enquiry?: mongoose.Types.ObjectId;
+  departureId?: mongoose.Types.ObjectId;
   travelDate: Date;
   returnDate?: Date;
   travellers: { adults: number; children: number; infants: number };
@@ -44,6 +45,7 @@ const bookingSchema = new Schema<IBooking>(
     package: { type: Schema.Types.ObjectId, ref: 'Package', required: true, index: true },
     destination: { type: Schema.Types.ObjectId, ref: 'Destination' },
     enquiry: { type: Schema.Types.ObjectId, ref: 'Enquiry' },
+    departureId: { type: Schema.Types.ObjectId },
     travelDate: { type: Date, required: true },
     returnDate: { type: Date },
     travellers: {

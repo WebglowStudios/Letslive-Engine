@@ -284,6 +284,30 @@ export const updateBookingStatus = asyncHandler(async (req: Request, res: Respon
   
   await booking.save();
 
+  // Handle Group Tour Slots Update
+  if ((bookingStatus === 'confirmed' || bookingStatus === 'cancelled') && booking.departureId) {
+    const pkg = await Package.findById(booking.package);
+    if (pkg && pkg.isGroupTour && pkg.departures) {
+      const departure = pkg.departures.find(d => String(d._id) === String(booking.departureId));
+      if (departure) {
+        const pax = (booking.travellers?.adults || 1) + (booking.travellers?.children || 0);
+        
+        if (bookingStatus === 'confirmed') {
+          departure.bookedSlots = (departure.bookedSlots || 0) + pax;
+          if (departure.totalSlots > 0 && departure.bookedSlots >= departure.totalSlots) {
+            departure.status = 'sold-out';
+          }
+        } else if (bookingStatus === 'cancelled') {
+          departure.bookedSlots = Math.max(0, (departure.bookedSlots || 0) - pax);
+          if (departure.status === 'sold-out' && (departure.totalSlots === 0 || departure.bookedSlots < departure.totalSlots)) {
+            departure.status = 'available';
+          }
+        }
+        await pkg.save();
+      }
+    }
+  }
+
   await logActivity({
     req,
     action: 'status_change',

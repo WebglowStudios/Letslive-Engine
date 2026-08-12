@@ -23,6 +23,7 @@ export const getPackages = asyncHandler(async (req: Request, res: Response) => {
     approvalStatus,
     isActive,
     isFeatured,
+    isGroupTour,
   } = req.query;
 
   const query: Record<string, unknown> = {};
@@ -39,6 +40,7 @@ export const getPackages = asyncHandler(async (req: Request, res: Response) => {
     if (approvalStatus) query.approvalStatus = approvalStatus;
     if (isActive !== undefined) query.isActive = isActive === 'true';
     if (isFeatured !== undefined) query.isFeatured = isFeatured === 'true';
+    if (isGroupTour !== undefined) query.isGroupTour = isGroupTour === 'true';
   }
 
   if (destination) {

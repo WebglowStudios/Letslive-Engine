@@ -85,7 +85,7 @@ export const manualCreateEnquiry = asyncHandler(async (req: Request, res: Respon
   const {
     firstName, lastName, email, phone, type, message,
     packageName, destination, travelDate, travellerCount, budget,
-    tags, channel, assignedTo, priority: manualPriority,
+    tags, channel, assignedTo, priority: manualPriority, departureId,
   } = req.body;
 
   if (!firstName || !email || !phone) {
@@ -107,6 +107,7 @@ export const manualCreateEnquiry = asyncHandler(async (req: Request, res: Respon
     travelDate,
     travellerCount,
     budget,
+    departureId,
     tags: tags || [],
     channel: channel || 'phone',
     source: (['whatsapp', 'website', 'instagram', 'google', 'referral', 'walk-in', 'other'].includes(channel))
@@ -300,6 +301,7 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
   if (req.body.travelDate    !== undefined) enquiry.travelDate    = req.body.travelDate ? new Date(req.body.travelDate) : undefined;
   if (req.body.packageName   !== undefined) enquiry.packageName   = req.body.packageName;
   if (req.body.source        !== undefined) enquiry.source        = req.body.source;
+  if (req.body.departureId   !== undefined) enquiry.departureId   = req.body.departureId;
 
   // ── Sync contact changes to linked User account (if one exists) ────────────
   const hasContactChange = ['firstName', 'lastName', 'email', 'phone'].some(

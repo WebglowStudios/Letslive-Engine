@@ -15,7 +15,7 @@ export interface ICallLog {
 }
 
 export interface IEnquiry extends Document {
-  type: 'general' | 'booking' | 'support' | 'callback' | 'group-quote';
+  type: 'general' | 'booking' | 'support' | 'callback' | 'group-quote' | 'group-tour';
   firstName: string;
   lastName?: string;
   email: string;
@@ -25,6 +25,7 @@ export interface IEnquiry extends Document {
   message?: string;
   packageName?: string;
   package?: mongoose.Types.ObjectId;
+  departureId?: mongoose.Types.ObjectId;   // Links to a specific group tour departure
   user?: mongoose.Types.ObjectId;          // Linked customer account (if created)
   status: 'new' | 'assigned' | 'in-progress' | 'follow-up' | 'converted' | 'resolved' | 'closed';
   priority: 'low' | 'medium' | 'high' | 'urgent';
@@ -58,7 +59,7 @@ const enquirySchema = new Schema<IEnquiry>(
   {
     type: {
       type: String,
-      enum: ['general', 'booking', 'support', 'callback', 'group-quote'],
+      enum: ['general', 'booking', 'support', 'callback', 'group-quote', 'group-tour'],
       default: 'general',
     },
     firstName: { type: String, required: true },
@@ -70,6 +71,7 @@ const enquirySchema = new Schema<IEnquiry>(
     message: { type: String },
     packageName: { type: String },
     package: { type: Schema.Types.ObjectId, ref: 'Package' },
+    departureId: { type: Schema.Types.ObjectId }, // Internal ref to package.departures._id
     user: { type: Schema.Types.ObjectId, ref: 'User' },   // linked customer account
     status: {
 

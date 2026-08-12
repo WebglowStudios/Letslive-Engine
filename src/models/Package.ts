@@ -111,6 +111,7 @@ export interface IPackage extends Document {
   travellerCount?: string;
   adultCount?: number;
   childCount?: number;
+  // Custom itinerary fields
   isCustom: boolean;
   showOnDestination: boolean;
   clientName?: string;
@@ -118,6 +119,18 @@ export interface IPackage extends Document {
   clientPhone?: string;
   enquiryId?: mongoose.Types.ObjectId;
   createdBy?: mongoose.Types.ObjectId;
+  // Group Tour fields
+  isGroupTour: boolean;
+  departures: {
+    _id?: mongoose.Types.ObjectId;
+    startDate: Date;
+    endDate: Date;
+    price: number;
+    discount?: number;
+    totalSlots: number;
+    bookedSlots: number;
+    status: 'available' | 'sold-out' | 'cancelled';
+  }[];
   // Transfer summary (shown when no day-wise transfers exist)
   transferSummary?: string;
   // Payment configuration
@@ -261,12 +274,25 @@ const packageSchema = new Schema<IPackage>(
     approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
     // Custom itinerary fields
     isCustom: { type: Boolean, default: false },
-  showOnDestination: { type: Boolean, default: false },
+    showOnDestination: { type: Boolean, default: false },
     clientName: { type: String },
     clientEmail: { type: String },
     clientPhone: { type: String },
     enquiryId: { type: Schema.Types.ObjectId, ref: 'Enquiry' },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    // Group Tour fields
+    isGroupTour: { type: Boolean, default: false },
+    departures: [
+      {
+        startDate: { type: Date, required: true },
+        endDate: { type: Date, required: true },
+        price: { type: Number, required: true },
+        discount: { type: Number },
+        totalSlots: { type: Number, default: 0 },
+        bookedSlots: { type: Number, default: 0 },
+        status: { type: String, enum: ['available', 'sold-out', 'cancelled'], default: 'available' },
+      }
+    ],
     // Transfer summary (shown when no day-wise transfers exist)
     transferSummary: { type: String },
     // Payment configuration per package
