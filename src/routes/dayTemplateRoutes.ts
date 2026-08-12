@@ -1,6 +1,6 @@
 import express from 'express';
-import { getFolders, getTemplates, createTemplate, updateTemplate, deleteTemplate } from '../controllers/dayTemplateController';
-import { protect } from '../middleware/auth';
+import { getFolders, getTemplates, createTemplate, updateTemplate, deleteTemplate } from '../controllers/dayTemplateController.js';
+import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
 

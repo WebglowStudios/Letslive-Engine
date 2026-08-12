@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import DayTemplate from '../models/DayTemplate';
+import DayTemplate from '../models/DayTemplate.js';
 
 // 1. Get all folders
 export const getFolders = async (req: Request, res: Response) => {
