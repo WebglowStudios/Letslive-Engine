@@ -203,7 +203,29 @@ export const verifyPayment = asyncHandler(async (req: Request, res: Response) =>
 
   // Auto-create operation if newly confirmed or already confirmed
   if (booking.bookingStatus === 'confirmed') {
-    await autoCreateOperationFromBooking(booking._id);
+    const op = await autoCreateOperationFromBooking(booking._id);
+    if (op && (paymentType === 'balance' || paymentType === 'full')) {
+      const CustomerPayment = (await import('../models/CustomerPayment.js')).default;
+      
+      // Find the relevant upcoming payment and update it
+      const query: any = { operation: op._id, status: { $in: ['upcoming', 'overdue', 'partial'] } };
+      if (paymentType === 'balance') query.milestone = /Balance/i;
+      
+      const upcomingPayment = await CustomerPayment.findOne(query);
+      if (upcomingPayment) {
+        upcomingPayment.paidAmount = (upcomingPayment.paidAmount || 0) + amount;
+        upcomingPayment.paidDate = new Date();
+        upcomingPayment.paymentMode = 'razorpay';
+        upcomingPayment.transactionId = razorpay_payment_id;
+        
+        if (upcomingPayment.paidAmount >= upcomingPayment.amount) {
+          upcomingPayment.status = 'paid';
+        } else {
+          upcomingPayment.status = 'partial';
+        }
+        await upcomingPayment.save();
+      }
+    }
   }
 
   const justConfirmed = !wasConfirmed && booking.bookingStatus === 'confirmed';
