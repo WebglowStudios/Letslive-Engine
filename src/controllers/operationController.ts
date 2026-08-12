@@ -212,6 +212,7 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
         checkIn: checkInDate,
         checkOut: checkOutDate,
         nights: nights,
+        rooms: stay.rooms || 1,
         confirmationNumber: stay.confirmationNo || '',
         tripDay: `Day ${currentStayDay}-${currentStayDay + nights}`,
         remarks: [

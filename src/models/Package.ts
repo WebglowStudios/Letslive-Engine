@@ -16,6 +16,7 @@ export interface IStay {
   rating: string;
   nights: number;
   roomType: string;
+  rooms?: number;
   checkIn?: string;
   checkOut?: string;
   address?: string;
@@ -194,6 +195,7 @@ const packageSchema = new Schema<IPackage>(
         rating: { type: String },
         nights: { type: Number },
         roomType: { type: String },
+        rooms: { type: Number },
         checkIn: { type: String },
         checkOut: { type: String },
         address: { type: String },

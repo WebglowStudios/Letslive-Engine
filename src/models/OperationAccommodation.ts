@@ -10,6 +10,7 @@ export interface IOperationAccommodation extends Document {
   checkIn?: Date;
   checkOut?: Date;
   nights: number;
+  rooms: number;
   confirmationNumber: string;
   tripDay: string;
   vendorName: string;
@@ -33,6 +34,7 @@ const schema = new Schema<IOperationAccommodation>(
     checkIn: { type: Date },
     checkOut: { type: Date },
     nights: { type: Number, default: 1 },
+    rooms: { type: Number, default: 1 },
     confirmationNumber: { type: String, default: '' },
     tripDay: { type: String, default: '' }, // e.g. "Day 1-3", "Day 4-7"
     vendorName: { type: String, default: '' },
