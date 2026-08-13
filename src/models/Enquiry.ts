@@ -37,6 +37,7 @@ export interface IEnquiry extends Document {
   followUpDate?: Date;                         // Scheduled next contact date
   followUpNotes?: string;                      // Quick note for the follow-up
   lostReason?: string;                         // Why the lead was closed
+  lostReasonOtherText?: string;                // Specific reason when 'Other' is chosen
   conversionValue?: number;                    // ₹ value when status → converted
   bookingRef?: mongoose.Types.ObjectId;        // Linked booking once converted
   travellerCount?: number;                     // Pax count
@@ -106,6 +107,7 @@ const enquirySchema = new Schema<IEnquiry>(
       type: String,
       enum: ['no-budget', 'went-elsewhere', 'not-responding', 'not-interested', 'timing', 'other'],
     },
+    lostReasonOtherText: { type: String },
     conversionValue: { type: Number },
     bookingRef: { type: Schema.Types.ObjectId, ref: 'Booking' },
     travellerCount: { type: Number },
