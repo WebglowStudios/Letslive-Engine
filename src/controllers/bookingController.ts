@@ -71,14 +71,13 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
   const customerPhone = user?.phone || req.body.contactPhone || '';
 
   // Auto-create enquiry for this booking (so every booking has an enquiry trail)
-  let enquiryId: string | undefined;
+  let enquiryId = req.body.enquiryId;
 
-  // Check if package already has a linked enquiry (custom itinerary case)
-  if (pkg.enquiryId) {
-    // Update existing enquiry status to "converted"
-    await Enquiry.findByIdAndUpdate(pkg.enquiryId, { status: 'converted' });
+  if (!enquiryId && pkg.enquiryId) {
     enquiryId = String(pkg.enquiryId);
-  } else {
+  }
+
+  if (!enquiryId) {
     // Create a new enquiry for this booking
     const newEnquiry = await Enquiry.create({
       type: 'booking',
@@ -107,6 +106,19 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
     couponCode: appliedCouponCode,
     discountAmount,
   });
+
+  // Automatically update the enquiry status and push a clear note to the staff
+  if (enquiryId) {
+    await Enquiry.findByIdAndUpdate(enquiryId, {
+      status: 'converted',
+      $push: {
+        notes: {
+          text: `Customer successfully booked this package via the website! Booking Ref: ${booking.bookingId || String(booking._id).slice(-6).toUpperCase()}`,
+          date: new Date()
+        }
+      }
+    });
+  }
 
   // Emails are no longer sent here! They have been moved to payment verification
   // and webhook processing to ensure they only send when payment succeeds.
@@ -191,10 +203,31 @@ export const cancelBooking = asyncHandler(async (req: Request, res: Response) =>
     throw new AppError('This booking cannot be cancelled', 400);
   }
 
+  const wasConfirmed = booking.bookingStatus === 'confirmed';
   booking.bookingStatus = 'cancelled';
   booking.cancellationReason = req.body.cancellationReason;
   booking.cancelledAt = new Date();
   await booking.save();
+
+  // Free up group tour slots if it was a confirmed booking
+  if (wasConfirmed && booking.departureId && booking.package) {
+    const Package = (await import('../models/Package.js')).default;
+    const travellers = booking.travellers as { adults?: number; children?: number };
+    const adults = travellers?.adults || 1;
+    const children = travellers?.children || 0;
+    
+    await Package.updateOne(
+      { _id: booking.package, 'departures._id': booking.departureId },
+      { $inc: { 'departures.$.bookedSlots': -(adults + children) } }
+    ).catch(console.error);
+  }
+
+  // Cancel ghost receivables (CustomerPayments)
+  const CustomerPayment = (await import('../models/CustomerPayment.js')).default;
+  await CustomerPayment.updateMany(
+    { booking: booking._id, status: { $in: ['upcoming', 'overdue'] } },
+    { $set: { status: 'cancelled' } }
+  ).catch(console.error);
 
   // Log user booking cancellation (fire-and-forget)
   const cancelUser = req.user!;
@@ -306,6 +339,15 @@ export const updateBookingStatus = asyncHandler(async (req: Request, res: Respon
         await pkg.save();
       }
     }
+  }
+
+  // Cancel ghost receivables (CustomerPayments) when cancelled
+  if (bookingStatus === 'cancelled') {
+    const CustomerPayment = (await import('../models/CustomerPayment.js')).default;
+    await CustomerPayment.updateMany(
+      { booking: booking._id, status: { $in: ['upcoming', 'overdue'] } },
+      { $set: { status: 'cancelled' } }
+    ).catch(console.error);
   }
 
   await logActivity({

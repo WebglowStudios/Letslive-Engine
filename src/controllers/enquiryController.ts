@@ -245,7 +245,7 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
 // @route   GET /api/enquiries/:id
 export const getEnquiryById = asyncHandler(async (req: Request, res: Response) => {
   const enquiry = await Enquiry.findById(req.params.id)
-    .populate('package', 'name')
+    .populate('package', 'name slug')
     .populate('assignedTo', 'firstName lastName email')
     .populate('notes.by', 'firstName lastName')
     .populate('callLog.by', 'firstName lastName')
@@ -787,6 +787,9 @@ export const sendBookingLinkHandler = asyncHandler(async (req: Request, res: Res
     packageSlug: slug,
     staffName,
     price: req.body.price || pkg?.price,
+    departureId: enquiry.departureId?.toString(),
+    travelDate: enquiry.travelDate,
+    enquiryId: enquiry._id.toString(),
   });
 
   res.status(200).json({

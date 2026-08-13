@@ -230,11 +230,20 @@ export const verifyPayment = asyncHandler(async (req: Request, res: Response) =>
 
   const justConfirmed = !wasConfirmed && booking.bookingStatus === 'confirmed';
   if (justConfirmed) {
-    const pkg = booking.package as unknown as { name: string };
+    const pkg = booking.package as unknown as { _id: string; name: string };
     const customerName = `${usr.firstName || ''} ${usr.lastName || ''}`.trim() || 'Customer';
     const travellers = booking.travellers as { adults?: number; children?: number };
     const adults = travellers?.adults || 1;
     const children = travellers?.children || 0;
+    
+    // Update booked slots for group tours
+    if (booking.departureId && pkg._id) {
+      const Package = (await import('../models/Package.js')).default;
+      await Package.updateOne(
+        { _id: pkg._id, 'departures._id': booking.departureId },
+        { $inc: { 'departures.$.bookedSlots': adults + children } }
+      ).catch(console.error);
+    }
     
     // Send to customer
     if (usr.email) {

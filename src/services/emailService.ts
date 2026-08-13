@@ -402,9 +402,19 @@ export async function sendBookingLink(opts: {
   packageSlug: string;
   staffName: string;
   price?: number;
+  departureId?: string;
+  travelDate?: Date;
+  enquiryId?: string;
 }): Promise<void> {
-  const { customerEmail, customerName, packageName, packageSlug, staffName, price } = opts;
-  const bookingUrl = `${process.env.FRONTEND_URL || 'https://www.letslivetours.com'}/book/${packageSlug}`;
+  const { customerEmail, customerName, packageName, packageSlug, staffName, price, departureId, travelDate, enquiryId } = opts;
+  
+  const params = new URLSearchParams();
+  if (departureId) params.append("departureId", departureId.toString());
+  if (travelDate) params.append("travelDate", new Date(travelDate).toISOString().split('T')[0]);
+  if (enquiryId) params.append("enquiryId", enquiryId.toString());
+  
+  const queryStr = params.toString() ? `?${params.toString()}` : '';
+  const bookingUrl = `${process.env.FRONTEND_URL || 'https://www.letslivetours.com'}/book/${packageSlug}${queryStr}`;
   const priceText = price
     ? `<p style="margin:0 0 4px;font-size:13px;color:#888;">Starting from <strong style="color:#004d5e;">₹${price.toLocaleString('en-IN')}</strong></p>`
     : '';
