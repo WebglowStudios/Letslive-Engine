@@ -104,6 +104,11 @@ export const globalErrorHandler = (
     if (err.name === 'CastError') error = handleCastError(err as unknown as MongooseCastError) as typeof err;
     if (err.code === 11000) error = handleDuplicateKeyError(err as unknown as MongoDuplicateKeyError) as typeof err;
     if (err.name === 'ValidationError') error = handleValidationError(err as unknown as MongooseValidationError) as typeof err;
+    if (err.name === 'MulterError') {
+      let msg = err.message;
+      if ((err as any).code === 'LIMIT_FILE_SIZE') msg = 'File size exceeds the 5MB limit. Please upload a smaller image.';
+      error = new AppError(msg, 400) as typeof err;
+    }
     res.status(error.statusCode || err.statusCode || 500).json({
       status: error.status || err.status || 'error',
       message: error.message || err.message,
@@ -128,6 +133,11 @@ export const globalErrorHandler = (
   }
   if (err.name === 'TokenExpiredError') {
     error = handleJWTExpiredError() as typeof err;
+  }
+  if (err.name === 'MulterError') {
+    let msg = err.message;
+    if ((err as any).code === 'LIMIT_FILE_SIZE') msg = 'File size exceeds the 5MB limit. Please upload a smaller image.';
+    error = new AppError(msg, 400) as typeof err;
   }
 
   if (error.isOperational) {

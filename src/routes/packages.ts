@@ -58,7 +58,7 @@ router.post('/:id/duplicate', protect, requirePermission('packages.create'), asy
   const uniqueSlug = `${slug}-copy-${Date.now()}`;
 
   let customerData = {};
-  let isCustom = false;
+  let isCustom = (rest as any).isCustom || false;
   const enquiryId = req.body.enquiryId;
 
   if (enquiryId) {
