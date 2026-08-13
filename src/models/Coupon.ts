@@ -34,7 +34,6 @@ const couponSchema = new Schema<ICoupon>(
 );
 
 // Index for efficient lookups during validation
-couponSchema.index({ code: 1 });
 couponSchema.index({ validUntil: 1, isActive: 1 });
 
 const Coupon: Model<ICoupon> = mongoose.model<ICoupon>('Coupon', couponSchema);
