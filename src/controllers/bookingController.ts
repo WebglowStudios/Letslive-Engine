@@ -28,7 +28,15 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
   const adults = travellers?.adults || 1;
   const children = travellers?.children || 0;
 
-  let totalAmount = pkg.price * adults + pkg.price * 0.7 * children;
+  let basePrice = pkg.price;
+  if (req.body.departureId && pkg.isGroupTour && pkg.departures) {
+    const dep = pkg.departures.find((d: any) => String(d._id) === String(req.body.departureId));
+    if (dep && dep.price > 0) {
+      basePrice = dep.price;
+    }
+  }
+
+  let totalAmount = basePrice * adults + basePrice * 0.7 * children;
   
   let discountAmount = 0;
   let appliedCouponCode = undefined;
