@@ -176,6 +176,7 @@ export const getUserBookings = asyncHandler(async (req: Request, res: Response) 
 // @route   GET /api/bookings/:id
 export const getBookingById = asyncHandler(async (req: Request, res: Response) => {
   const booking = await Booking.findById(req.params.id)
+    .populate('user', 'firstName lastName email phone')
     .populate('package')
     .populate('destination')
     .populate({
