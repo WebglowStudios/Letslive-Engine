@@ -36,7 +36,16 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
     }
   }
 
-  let totalAmount = basePrice * adults + basePrice * 0.7 * children;
+  let totalAmount = basePrice * adults + basePrice * children;
+  if (pkg.priceUnit === 'group') {
+    const includedPax = (pkg.adultCount || 0) + (pkg.childCount || 0) || 1;
+    const totalPax = adults + children;
+    if (totalPax > includedPax && pkg.extraPersonPrice) {
+      totalAmount = basePrice + ((totalPax - includedPax) * pkg.extraPersonPrice);
+    } else {
+      totalAmount = basePrice;
+    }
+  }
   
   let discountAmount = 0;
   let appliedCouponCode = undefined;

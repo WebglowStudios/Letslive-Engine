@@ -111,6 +111,7 @@ export interface IPackage extends Document {
   travellerCount?: string;
   adultCount?: number;
   childCount?: number;
+  extraPersonPrice?: number;
   // Custom itinerary fields
   isCustom: boolean;
   showOnDestination: boolean;
@@ -269,6 +270,7 @@ const packageSchema = new Schema<IPackage>(
     travellerCount: { type: String },
     adultCount: { type: Number },
     childCount: { type: Number },
+    extraPersonPrice: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
     approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
