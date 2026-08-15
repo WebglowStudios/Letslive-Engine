@@ -32,6 +32,25 @@ export const protect = asyncHandler(
   }
 );
 
+// Like protect but never throws — sets req.user if a valid token cookie exists,
+// otherwise just calls next() without req.user. Use on public routes that need
+// to behave differently when a logged-in user is present.
+export const optionalProtect = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const token = req.cookies?.accessToken;
+    if (token) {
+      const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+      const user = await User.findById(decoded.id);
+      if (user) {
+        req.user = user;
+      }
+    }
+  } catch {
+    // Silently ignore expired / invalid tokens — treat as guest
+  }
+  next();
+};
+
 export const adminOnly = (req: Request, _res: Response, next: NextFunction): void => {
   if (!req.user || req.user.role !== 'admin') {
     next(new AppError('Access denied. Admin only.', 403));

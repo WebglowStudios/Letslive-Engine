@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import Enquiry from '../models/Enquiry.js';
 import User from '../models/User.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
@@ -35,11 +36,22 @@ export const createEnquiry = asyncHandler(async (req: Request, res: Response) =>
   // Auto-determine priority — no auto-assignment
   const priority = determinePriority(req.body.type || 'general', req.body.travelDate);
 
-  const existingUser = await User.findOne({ email: req.body.email?.toLowerCase().trim() });
+  // Resolve linked user:
+  // 1. If optionalProtect set req.user (logged-in user), use them directly.
+  // 2. Otherwise fall back to email lookup (anonymous/guest submitting with an existing email).
+  let linkedUserId: mongoose.Types.ObjectId | undefined = undefined;
+  if (req.user) {
+    linkedUserId = req.user._id;
+  } else {
+    const existingUser = await User.findOne({ email: req.body.email?.toLowerCase().trim() });
+    if (existingUser) {
+      linkedUserId = existingUser._id;
+    }
+  }
 
   const enquiry = await Enquiry.create({
     ...req.body,
-    user: existingUser ? existingUser._id : undefined,
+    user: linkedUserId,
     assignedTo: undefined,   // always unassigned — admin will assign manually
     status: 'new',
     priority,
@@ -78,6 +90,7 @@ export const createEnquiry = asyncHandler(async (req: Request, res: Response) =>
     data: enquiry,
   });
 });
+
 
 // @desc    Manually create an enquiry (staff+ — for walk-in / phone / WhatsApp leads)
 // @route   POST /api/enquiries/manual
@@ -836,7 +849,8 @@ export const getCustomerEnquiryById = asyncHandler(async (req: Request, res: Res
 
   const enquiry = await Enquiry.findOne({ _id: req.params.id, user: userId })
     .populate('package', 'name slug')
-    .populate('assignedTo', 'firstName lastName avatar description');
+    .populate('bookingRef', 'bookingId status paymentFinanceStatus totalAmount')
+    .populate('assignedTo', 'firstName lastName avatar description phone');
 
   if (!enquiry) {
     throw new AppError('Enquiry not found', 404);

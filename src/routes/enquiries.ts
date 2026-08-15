@@ -18,14 +18,16 @@ import {
   submitEnquiryFeedback,
 } from '../controllers/enquiryController.js';
 
-import { protect, requirePermission } from '../middleware/auth.js';
+import { protect, optionalProtect, requirePermission } from '../middleware/auth.js';
 import { enquiryLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
 // ─── Public ──────────────────────────────────────────────────────────────────
-// Public: create enquiry from website (rate-limited, auto-assigns via round-robin)
-router.post('/', enquiryLimiter, createEnquiry);
+// Public: create enquiry from website (rate-limited)
+// optionalProtect silently reads the logged-in user's ID from their cookie (if any)
+// so the enquiry gets linked to the user account and appears in their dashboard.
+router.post('/', enquiryLimiter, optionalProtect, createEnquiry);
 
 // ─── Customer Authenticated ──────────────────────────────────────────────────
 // Get enquiries for the currently logged in customer

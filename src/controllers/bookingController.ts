@@ -86,7 +86,7 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
   }
 
   if (!enquiryId) {
-    // Create a new enquiry for this booking
+    // Create a new enquiry for this booking — always link to the booking user
     const newEnquiry = await Enquiry.create({
       type: 'booking',
       firstName: user?.firstName || req.body.primaryTraveller?.firstName || 'Customer',
@@ -101,6 +101,7 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
       status: 'converted',
       priority: 'high',
       source: 'website',
+      user: userId,  // ← link to the customer so it appears in their dashboard
     });
     enquiryId = String(newEnquiry._id);
   }
@@ -115,10 +116,13 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
     discountAmount,
   });
 
-  // Automatically update the enquiry status and push a clear note to the staff
+  // Automatically update the enquiry: mark converted, link to user account (so it
+  // appears in their dashboard), and push a booking-confirmed note for staff.
   if (enquiryId) {
     await Enquiry.findByIdAndUpdate(enquiryId, {
       status: 'converted',
+      user: userId,   // ← backfill the user link in case enquiry was submitted anonymously
+      bookingRef: booking._id,
       $push: {
         notes: {
           text: `Customer successfully booked this package via the website! Booking Ref: ${booking.bookingId || String(booking._id).slice(-6).toUpperCase()}`,
@@ -173,7 +177,14 @@ export const getUserBookings = asyncHandler(async (req: Request, res: Response) 
 export const getBookingById = asyncHandler(async (req: Request, res: Response) => {
   const booking = await Booking.findById(req.params.id)
     .populate('package')
-    .populate('destination');
+    .populate('destination')
+    .populate({
+      path: 'enquiry',
+      populate: {
+        path: 'assignedTo',
+        select: 'firstName lastName avatar description phone'
+      }
+    });
 
   if (!booking) {
     throw new AppError('Booking not found', 404);
