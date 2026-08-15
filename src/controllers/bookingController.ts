@@ -201,7 +201,7 @@ export const getBookingById = asyncHandler(async (req: Request, res: Response) =
   }
 
   // Check ownership or staff+
-  const isOwner = booking.user.toString() === req.user!._id.toString();
+  const isOwner = booking.user && booking.user._id ? booking.user._id.toString() === req.user!._id.toString() : false;
   const isStaffOrAbove = ["admin", "manager", "staff"].includes(req.user!.role);
 
   if (!isOwner && !isStaffOrAbove) {
