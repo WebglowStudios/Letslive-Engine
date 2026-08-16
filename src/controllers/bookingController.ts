@@ -9,7 +9,7 @@ import Coupon from '../models/Coupon.js';
 import CustomerPayment from '../models/CustomerPayment.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
-import { sendBookingConfirmation, sendAdminNewBooking, sendConversionCongrats } from '../services/emailService.js';
+import { sendBookingConfirmation, sendAdminNewBooking, sendConversionCongrats, sendBookingCancelledUserEmail, sendBookingCancelledStaffEmail } from '../services/emailService.js';
 import { logActivity } from '../utils/logActivity.js';
 import ActivityLog from '../models/ActivityLog.js';
 import { autoCreateOperationFromBooking } from '../utils/operationBuilder.js';
@@ -217,14 +217,20 @@ export const getBookingById = asyncHandler(async (req: Request, res: Response) =
 // @desc    Cancel a booking
 // @route   PUT /api/bookings/:id/cancel
 export const cancelBooking = asyncHandler(async (req: Request, res: Response) => {
-  const booking = await Booking.findById(req.params.id);
+  const booking = await Booking.findById(req.params.id)
+    .populate('user', 'firstName lastName email')
+    .populate({
+      path: 'enquiry',
+      populate: { path: 'assignedTo', select: 'firstName lastName email' }
+    });
 
   if (!booking) {
     throw new AppError('Booking not found', 404);
   }
 
   // Check ownership
-  if (booking.user.toString() !== req.user!._id.toString()) {
+  const userIdStr = (booking.user as any)._id ? (booking.user as any)._id.toString() : booking.user.toString();
+  if (userIdStr !== req.user!._id.toString()) {
     throw new AppError('Not authorized to cancel this booking', 403);
   }
 
@@ -271,6 +277,31 @@ export const cancelBooking = asyncHandler(async (req: Request, res: Response) =>
     description: `Customer cancelled booking ${String(booking._id).slice(-6).toUpperCase()}${req.body.cancellationReason ? ` — reason: ${req.body.cancellationReason}` : ''}`,
     meta: { reason: req.body.cancellationReason },
   }).catch(console.error);
+
+  // Send emails
+  const customer = booking.user as any;
+  const reason = req.body.cancellationReason || "No reason provided";
+  const bookingDisplayId = booking.bookingId || String(booking._id).slice(-6).toUpperCase();
+
+  if (customer.email) {
+    sendBookingCancelledUserEmail(
+      customer.email,
+      `${customer.firstName} ${customer.lastName}`,
+      bookingDisplayId,
+      reason
+    ).catch(console.error);
+  }
+
+  const enquiry = booking.enquiry as any;
+  if (enquiry?.assignedTo?.email) {
+    sendBookingCancelledStaffEmail(
+      enquiry.assignedTo.email,
+      `${enquiry.assignedTo.firstName} ${enquiry.assignedTo.lastName}`,
+      `${customer.firstName} ${customer.lastName}`,
+      bookingDisplayId,
+      reason
+    ).catch(console.error);
+  }
 
   res.status(200).json({
     status: 'success',

@@ -501,3 +501,62 @@ export async function sendPaymentReminder(
     html,
   });
 }
+
+// ─── Send Booking Cancellation (Customer) ────────────────────────────────────
+export async function sendBookingCancelledUserEmail(
+  customerEmail: string,
+  customerName: string,
+  bookingId: string,
+  reason: string
+): Promise<void> {
+  const html = wrapTemplate(`
+    <p style="margin:0 0 16px;font-size:22px;font-weight:700;color:#1a1a1a;">Cancellation Request Received</p>
+    <p style="margin:0 0 20px;font-size:15px;color:#444;line-height:1.7;">
+      Hi <strong>${customerName}</strong>,<br/><br/>
+      We have received your request to cancel your booking (<strong>${bookingId}</strong>). Our team is currently processing the cancellation on our end.
+    </p>
+
+    <div style="background:#f8fafc;padding:16px 20px;border-left:4px solid #dc3545;margin-bottom:24px;border-radius:4px;">
+      <p style="margin:0;font-size:14px;color:#444;"><strong>Reason provided:</strong></p>
+      <p style="margin:8px 0 0;font-size:14px;color:#666;font-style:italic;">"${reason}"</p>
+    </div>
+
+    <p style="margin:0 0 20px;font-size:14px;color:#666;line-height:1.6;">If you have any questions or if this was a mistake, please reach out to us at <strong>info@letslivetours.com</strong> or call us at <strong>+91 77700 88466</strong>.</p>
+  `);
+
+  await sendEmail({
+    to: customerEmail,
+    subject: `Cancellation Request Received — ${bookingId}`,
+    html,
+  });
+}
+
+// ─── Send Booking Cancellation (Staff) ───────────────────────────────────────
+export async function sendBookingCancelledStaffEmail(
+  staffEmail: string,
+  staffName: string,
+  customerName: string,
+  bookingId: string,
+  reason: string
+): Promise<void> {
+  const html = wrapTemplate(`
+    <p style="margin:0 0 16px;font-size:22px;font-weight:700;color:#dc3545;">🚨 Booking Cancelled</p>
+    <p style="margin:0 0 20px;font-size:15px;color:#444;line-height:1.7;">
+      Hi <strong>${staffName}</strong>,<br/><br/>
+      Customer <strong>${customerName}</strong> has just cancelled their booking (<strong>${bookingId}</strong>) from the dashboard.
+    </p>
+
+    <div style="background:#fef2f2;border:1px solid #fee2e2;padding:16px 20px;border-radius:8px;margin-bottom:24px;">
+      <p style="margin:0 0 6px;font-size:14px;color:#dc2626;font-weight:600;">Cancellation Reason:</p>
+      <p style="margin:0;font-size:15px;color:#991b1b;font-style:italic;">"${reason}"</p>
+    </div>
+
+    <p style="margin:0;font-size:14px;color:#666;">Please follow up with the customer if necessary and process any required refunds.</p>
+  `);
+
+  await sendEmail({
+    to: staffEmail,
+    subject: `🚨 Booking Cancelled: ${customerName} — ${bookingId}`,
+    html,
+  });
+}
