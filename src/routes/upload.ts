@@ -4,6 +4,11 @@ import multer from 'multer';
 import { protect, requirePermission } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
+import Package from '../models/Package.js';
+import Destination from '../models/Destination.js';
+import Article from '../models/Article.js';
+import DayTemplate from '../models/DayTemplate.js';
+import AboutContent from '../models/AboutContent.js';
 
 const router = Router();
 
@@ -18,7 +23,7 @@ cloudinary.config({
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
@@ -136,14 +141,42 @@ router.post(
     }
 
     try {
+      // First get the old URL before renaming
+      let oldUrl = '';
+      try {
+        const oldResource = await cloudinary.api.resource(publicId);
+        oldUrl = oldResource.secure_url;
+      } catch (e) {
+        // Fallback if we can't fetch it
+      }
+
       // Cloudinary rename = move to different folder
       const fileName = publicId.split('/').pop();
       const newPublicId = `${targetFolder}/${fileName}`;
       const result = await cloudinary.uploader.rename(publicId, newPublicId, { overwrite: true });
+      const newUrl = result.secure_url;
+
+      // Update all documents in the database that reference this image
+      if (oldUrl && newUrl && oldUrl !== newUrl) {
+        const models = [Package, Destination, Article, DayTemplate, AboutContent];
+        for (const M of models) {
+          const Model = M as any;
+          const docs = await Model.find({}).lean();
+          for (const doc of docs) {
+            const docStr = JSON.stringify(doc);
+            if (docStr.includes(oldUrl)) {
+              const updatedDoc = JSON.parse(docStr.split(oldUrl).join(newUrl));
+              const { _id, ...updateData } = updatedDoc;
+              await Model.findByIdAndUpdate(_id, updateData);
+            }
+          }
+        }
+      }
+
       res.status(200).json({
         status: 'success',
         data: {
-          url: result.secure_url,
+          url: newUrl,
           publicId: result.public_id,
         },
       });
