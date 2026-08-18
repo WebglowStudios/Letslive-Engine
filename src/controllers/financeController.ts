@@ -46,19 +46,20 @@ export const processApproval = asyncHandler(async (req: Request, res: Response) 
     }
 
     if (action === 'approve') {
+      const approvedAmount = booking.financeDetails?.paidAmount || (booking.totalAmount - booking.paidAmount);
+
       booking.paymentFinanceStatus = 'approved';
-      booking.paymentStatus = 'paid';
+      booking.paidAmount += approvedAmount;
+      booking.paymentStatus = booking.paidAmount >= booking.totalAmount ? 'paid' : 'partial';
       
       // Update payment history
       booking.paymentHistory.push({
-        amount: booking.totalAmount - booking.paidAmount,
+        amount: approvedAmount,
         method: booking.financeDetails?.mode || 'Unknown',
         transactionId: booking.financeDetails?.transactionId || '',
         date: new Date(),
         status: 'paid',
       });
-      
-      booking.paidAmount = booking.totalAmount;
       
       // Clear finance details payload after successful approval
       booking.financeDetails = undefined;
@@ -77,9 +78,14 @@ export const processApproval = asyncHandler(async (req: Request, res: Response) 
       throw new AppError('Operation payment is not pending approval', 400);
     }
 
+    let difference = 0;
+
     if (action === 'approve') {
       payment.financeStatus = 'approved';
-      payment.paidAmount = payment.financeDetails?.paidAmount || payment.amount;
+      const newlyPaid = payment.financeDetails?.paidAmount || payment.amount;
+      difference = newlyPaid - (payment.paidAmount || 0);
+
+      payment.paidAmount = newlyPaid;
       payment.paymentMode = payment.financeDetails?.mode || payment.paymentMode;
       payment.transactionId = payment.financeDetails?.transactionId || payment.transactionId;
       payment.paidDate = new Date();
@@ -95,7 +101,30 @@ export const processApproval = asyncHandler(async (req: Request, res: Response) 
 
     // Trigger operation save to recalculate if needed
     const op = await Operation.findById(payment.operation);
-    if (op) await op.save();
+    if (op) {
+      if (action === 'approve' && difference !== 0) {
+        const booking = await Booking.findById(op.booking);
+        if (booking) {
+          booking.paidAmount += difference;
+          if (booking.paidAmount >= booking.totalAmount) {
+            booking.paymentStatus = 'paid';
+          } else if (booking.paidAmount > 0) {
+            booking.paymentStatus = 'partial';
+          } else {
+            booking.paymentStatus = 'pending';
+          }
+          booking.paymentHistory.push({
+            amount: difference,
+            method: payment.paymentMode || 'Unknown',
+            transactionId: payment.transactionId || '',
+            date: new Date(),
+            status: 'paid'
+          });
+          await booking.save();
+        }
+      }
+      await op.save();
+    }
 
     return res.status(200).json({ status: 'success', data: payment });
   }

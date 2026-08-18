@@ -365,6 +365,7 @@ export const updateBookingStatus = asyncHandler(async (req: Request, res: Respon
     // Intercept standard payment update and push to approval queue
     booking.paymentFinanceStatus = 'pending_approval';
     booking.financeDetails = {
+      paidAmount: financeDetails.paidAmount,
       mode: financeDetails.mode,
       transactionId: financeDetails.transactionId,
       remarks: financeDetails.remarks,
