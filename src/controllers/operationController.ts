@@ -175,7 +175,7 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
           date:        computeDate(transfer.day),
           tripDay:     transfer.day ? `Day ${transfer.day}` : '',
           vehicleType: leg.vehicleType || leg.transferType || '',
-          notes:       leg.notes || '',
+          notes:       leg.stops && leg.stops.length > 0 ? `Stops: ${leg.stops.join(', ')}` : '',
         }));
       } else {
         // Simple single-point transfer
@@ -185,7 +185,7 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
           date:        computeDate(transfer.day),
           tripDay:     transfer.day ? `Day ${transfer.day}` : '',
           vehicleType: transfer.vehicleType || transfer.transferType || '',
-          notes:       [transfer.description || '', ...(transfer.details || [])].filter(Boolean).join(' · '),
+          notes:       [transfer.description || '', ...(transfer.details || []), transfer.stops?.length ? `Stops: ${transfer.stops.join(', ')}` : ''].filter(Boolean).join(' · '),
         }];
       }
 

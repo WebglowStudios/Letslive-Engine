@@ -327,3 +327,59 @@ export const getPaymentConfig = asyncHandler(async (req: Request, res: Response)
     },
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/payments/create-link
+// Body: { amount, description, customerName, customerEmail, customerPhone, bookingId, customerPaymentId }
+// ─────────────────────────────────────────────────────────────────────────────
+export const generatePaymentLink = asyncHandler(async (req: Request, res: Response) => {
+  const { amount, description, customerName, customerEmail, customerPhone, bookingId, customerPaymentId } = req.body;
+
+  if (!amount || amount <= 0) {
+    throw new AppError('A valid amount is required', 400);
+  }
+  if (!bookingId && !customerPaymentId) {
+    throw new AppError('Either bookingId or customerPaymentId is required', 400);
+  }
+
+  const razorpay = getRazorpay();
+
+  const notes: Record<string, string> = {};
+  if (bookingId) notes.bookingId = bookingId;
+  if (customerPaymentId) notes.customerPaymentId = customerPaymentId;
+
+  // Razorpay amounts are in paise
+  const amountPaise = Math.round(Number(amount) * 100);
+
+  try {
+    const paymentLink = await razorpay.paymentLink.create({
+      amount: amountPaise,
+      currency: 'INR',
+      accept_partial: false,
+      description: description || 'Payment for Letslivetours',
+      customer: {
+        name: customerName || 'Customer',
+        email: customerEmail || 'info@letslivetours.com',
+        contact: customerPhone || '+919999999999',
+      },
+      notify: {
+        sms: true,
+        email: true,
+      },
+      reminder_enable: true,
+      notes: notes,
+    });
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        id: paymentLink.id,
+        short_url: paymentLink.short_url,
+        status: paymentLink.status,
+      },
+    });
+  } catch (error) {
+    console.error('[Razorpay Error] paymentLink.create failed:', error);
+    throw new AppError('Failed to generate Razorpay Payment Link', 500);
+  }
+});

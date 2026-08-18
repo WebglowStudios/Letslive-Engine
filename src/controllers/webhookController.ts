@@ -94,120 +94,167 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
   const amountPaise = entity.amount as number;
   const amountINR = Math.round(amountPaise / 100);
 
-  // bookingId is stored in the order notes when we create the Razorpay order
+  // bookingId is stored in the order notes when we create the Razorpay order or payment link
   const notes = entity.notes as Record<string, string> | undefined;
   const bookingId = notes?.bookingId;
+  const customerPaymentId = notes?.customerPaymentId;
 
-  if (!bookingId) {
-    console.warn(`[WEBHOOK] payment.captured for order ${razorpayOrderId} — no bookingId in notes. Possibly a non-booking payment. Skipping.`);
-    res.status(200).json({ status: 'ok', message: 'No bookingId — skipped' });
+  if (!bookingId && !customerPaymentId) {
+    console.warn(`[WEBHOOK] payment.captured for order ${razorpayOrderId} — no bookingId or customerPaymentId in notes. Possibly a non-booking payment. Skipping.`);
+    res.status(200).json({ status: 'ok', message: 'No target ID in notes — skipped' });
     return;
   }
 
-  console.log(`[WEBHOOK] payment.captured — paymentId: ${razorpayPaymentId}, bookingId: ${bookingId}, amount: ₹${amountINR}`);
+  console.log(`[WEBHOOK] payment.captured — paymentId: ${razorpayPaymentId}, bookingId: ${bookingId}, customerPaymentId: ${customerPaymentId}, amount: ₹${amountINR}`);
 
   try {
-    // ── 6. Find the booking ────────────────────────────────────────────────
-    const booking = await Booking.findById(bookingId);
-
-    if (!booking) {
-      console.error(`[WEBHOOK] Booking ${bookingId} not found`);
-      // Still return 200 so Razorpay doesn't keep retrying
-      res.status(200).json({ status: 'ok', message: 'Booking not found' });
-      return;
-    }
-
-    // ── 7. Idempotency check ───────────────────────────────────────────────
-    // If this payment ID is already in the history (browser verify ran first),
-    // do nothing — prevents double-counting paidAmount.
-    const alreadyRecorded = booking.paymentHistory.some(
-      (p) => p.transactionId === razorpayPaymentId
-    );
-
-    if (alreadyRecorded) {
-      console.log(`[WEBHOOK] Payment ${razorpayPaymentId} already recorded for booking ${bookingId} — skipping (idempotent)`);
-      res.status(200).json({ status: 'ok', message: 'Already processed' });
-      return;
-    }
-
-    // ── 8. Record payment ──────────────────────────────────────────────────
-    booking.paymentHistory.push({
-      amount: amountINR,
-      method: 'razorpay',
-      transactionId: razorpayPaymentId,
-      date: new Date(),
-      status: 'success',
-    });
-
-    // ── 9. Update paidAmount and derive paymentStatus ──────────────────────
-    booking.paidAmount = (booking.paidAmount || 0) + amountINR;
-
-    const wasConfirmed = booking.bookingStatus === 'confirmed';
-
-    if (booking.paidAmount >= booking.totalAmount) {
-      booking.paymentStatus = 'paid';
-      if (booking.bookingStatus === 'pending') {
-        booking.bookingStatus = 'confirmed';
+    // ── 6. Handle Operation Installment Payment ────────────────────────────────
+    if (customerPaymentId) {
+      const cp = await CustomerPayment.findById(customerPaymentId);
+      if (!cp) {
+        console.error(`[WEBHOOK] CustomerPayment ${customerPaymentId} not found`);
+        res.status(200).json({ status: 'ok', message: 'CustomerPayment not found' });
+        return;
       }
-    } else {
-      booking.paymentStatus = 'partial';
-      // Even partial (deposit) payment confirms the trip
-      if (booking.bookingStatus === 'pending') {
-        booking.bookingStatus = 'confirmed';
-      }
-    }
-
-    await booking.save();
-
-    console.log(`[WEBHOOK] Booking ${bookingId} updated — paidAmount: ₹${booking.paidAmount}, paymentStatus: ${booking.paymentStatus}, bookingStatus: ${booking.bookingStatus}`);
-
-    // ── 10. Respond to Razorpay immediately (before heavy async work) ──────
-    res.status(200).json({ status: 'ok' });
-
-    // ── 11. Auto-create Operation if booking just became confirmed ─────────
-    const justConfirmed = !wasConfirmed && booking.bookingStatus === 'confirmed';
-
-    if (justConfirmed) {
-      try {
-        const populatedBooking = await Booking.findById(booking._id)
-          .populate('package', 'name price')
-          .populate('user', 'firstName lastName email phone');
-          
-        if (populatedBooking) {
-          const pkg = populatedBooking.package as unknown as { name?: string };
-          const usr = populatedBooking.user as unknown as { firstName?: string; lastName?: string; email?: string };
-          const travellers = populatedBooking.travellers as { adults?: number; children?: number };
-          const customerName = usr ? `${usr.firstName || ''} ${usr.lastName || ''}`.trim() : 'Customer';
-          const adults = travellers?.adults || 1;
-          const children = travellers?.children || 0;
-          
-          if (usr?.email) {
-            sendBookingConfirmation(usr.email, usr.firstName || 'Customer', {
-              bookingId: populatedBooking.bookingId || String(populatedBooking._id),
-              packageName: pkg?.name || 'Package',
-              travelDate: populatedBooking.travelDate
-                ? new Date(populatedBooking.travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
-                : 'TBD',
-              amount: populatedBooking.totalAmount,
-              travellers: `${adults} Adult${adults > 1 ? 's' : ''}${children ? `, ${children} Child${children > 1 ? 'ren' : ''}` : ''}`,
-            }).catch((err) => console.error('[WEBHOOK] Failed to send booking confirmation:', err));
-          }
       
-          sendAdminNewBooking(
-            customerName,
-            pkg?.name || 'Package',
-            populatedBooking.totalAmount,
-            populatedBooking.travelDate
-              ? new Date(populatedBooking.travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
-              : 'TBD'
-          ).catch((err) => console.error('[WEBHOOK] Failed to send admin booking notification:', err));
-        }
+      // Idempotency check for CustomerPayment
+      if (cp.status === 'paid') {
+        console.log(`[WEBHOOK] CustomerPayment ${customerPaymentId} already paid — skipping (idempotent)`);
+        res.status(200).json({ status: 'ok', message: 'Already processed' });
+        return;
+      }
 
-        await autoCreateOperationFromBooking(booking._id);
-        console.log(`[WEBHOOK] Operation auto-creation check passed for booking ${bookingId}`);
-      } catch (opErr) {
-        // Log but don't throw — payment is already recorded, Operation creation is secondary
-        console.error('[WEBHOOK] Error creating Operation:', opErr);
+      // Mark CP as paid
+      cp.status = 'paid';
+      cp.transactionId = razorpayPaymentId;
+      cp.paymentMode = 'razorpay';
+      // We don't save cp yet, we update Booking first to keep sync
+
+      if (bookingId) {
+        const booking = await Booking.findById(bookingId);
+        if (booking) {
+          booking.paymentHistory.push({
+            amount: amountINR,
+            method: 'razorpay',
+            transactionId: razorpayPaymentId,
+            date: new Date(),
+            status: 'success',
+          });
+          booking.paidAmount = (booking.paidAmount || 0) + amountINR;
+          
+          if (booking.paidAmount >= booking.totalAmount) {
+            booking.paymentStatus = 'paid';
+          } else {
+            booking.paymentStatus = 'partial';
+          }
+          await booking.save();
+        }
+      }
+
+      await cp.save();
+      console.log(`[WEBHOOK] CustomerPayment ${customerPaymentId} marked as paid`);
+      res.status(200).json({ status: 'ok' });
+      return;
+    }
+
+    // ── 7. Handle Direct Booking Payment ───────────────────────────────────────
+    if (bookingId) {
+      const booking = await Booking.findById(bookingId);
+
+      if (!booking) {
+        console.error(`[WEBHOOK] Booking ${bookingId} not found`);
+        res.status(200).json({ status: 'ok', message: 'Booking not found' });
+        return;
+      }
+
+      // Idempotency check
+      const alreadyRecorded = booking.paymentHistory.some(
+        (p) => p.transactionId === razorpayPaymentId
+      );
+
+      if (alreadyRecorded) {
+        console.log(`[WEBHOOK] Payment ${razorpayPaymentId} already recorded for booking ${bookingId} — skipping (idempotent)`);
+        res.status(200).json({ status: 'ok', message: 'Already processed' });
+        return;
+      }
+
+      // Record payment
+      booking.paymentHistory.push({
+        amount: amountINR,
+        method: 'razorpay',
+        transactionId: razorpayPaymentId,
+        date: new Date(),
+        status: 'success',
+      });
+
+      // Update paidAmount and derive paymentStatus
+      booking.paidAmount = (booking.paidAmount || 0) + amountINR;
+
+      const wasConfirmed = booking.bookingStatus === 'confirmed';
+
+      if (booking.paidAmount >= booking.totalAmount) {
+        booking.paymentStatus = 'paid';
+        if (booking.bookingStatus === 'pending') {
+          booking.bookingStatus = 'confirmed';
+        }
+      } else {
+        booking.paymentStatus = 'partial';
+        if (booking.bookingStatus === 'pending') {
+          booking.bookingStatus = 'confirmed';
+        }
+      }
+
+      await booking.save();
+      console.log(`[WEBHOOK] Booking ${bookingId} updated — paidAmount: ₹${booking.paidAmount}, paymentStatus: ${booking.paymentStatus}, bookingStatus: ${booking.bookingStatus}`);
+
+      // Respond to Razorpay immediately
+      res.status(200).json({ status: 'ok' });
+
+      // ── 11. Auto-create Operation if booking just became confirmed ─────────
+      const justConfirmed = !wasConfirmed && booking.bookingStatus === 'confirmed';
+
+      if (justConfirmed) {
+        try {
+          const populatedBooking = await Booking.findById(booking._id)
+            .populate('package', 'name price')
+            .populate('user', 'firstName lastName email phone');
+            
+          if (populatedBooking) {
+            const pkg = populatedBooking.package as unknown as { name?: string };
+            const usr = populatedBooking.user as unknown as { firstName?: string; lastName?: string; email?: string };
+            const travellers = populatedBooking.travellers as { adults?: number; children?: number };
+            const customerName = usr ? `${usr.firstName || ''} ${usr.lastName || ''}`.trim() : 'Customer';
+            const adults = travellers?.adults || 1;
+            const children = travellers?.children || 0;
+            
+            if (usr?.email) {
+              sendBookingConfirmation(usr.email, usr.firstName || 'Customer', {
+                bookingId: populatedBooking.bookingId || String(populatedBooking._id),
+                packageName: pkg?.name || 'Package',
+                travelDate: populatedBooking.travelDate
+                  ? new Date(populatedBooking.travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+                  : 'TBD',
+                amount: populatedBooking.totalAmount,
+                travellers: `${adults} Adult${adults > 1 ? 's' : ''}${children ? `, ${children} Child${children > 1 ? 'ren' : ''}` : ''}`,
+              }).catch((err) => console.error('[WEBHOOK] Failed to send booking confirmation:', err));
+            }
+        
+            sendAdminNewBooking(
+              customerName,
+              pkg?.name || 'Package',
+              populatedBooking.totalAmount,
+              populatedBooking.travelDate
+                ? new Date(populatedBooking.travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+                : 'TBD'
+            ).catch((err) => console.error('[WEBHOOK] Failed to send admin booking notification:', err));
+          }
+
+          await autoCreateOperationFromBooking(booking._id);
+          console.log(`[WEBHOOK] Operation auto-creation check passed for booking ${bookingId}`);
+        } catch (opErr) {
+          // Log but don't throw — payment is already recorded, Operation creation is secondary
+          console.error('[WEBHOOK] Error creating Operation:', opErr);
+        }
       }
     }
   } catch (err) {
