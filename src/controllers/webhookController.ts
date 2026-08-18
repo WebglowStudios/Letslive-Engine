@@ -125,11 +125,13 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
         return;
       }
 
-      // Mark CP as paid
+      // Mark CP as paid — Razorpay payment is auto-verified, no finance approval needed
       cp.status = 'paid';
       cp.transactionId = razorpayPaymentId;
       cp.paymentMode = 'razorpay';
-      cp.paidAmount = (cp.paidAmount || 0) + amountINR;
+      cp.paidAmount = amountINR;
+      cp.paidDate = new Date();
+      cp.financeStatus = 'approved'; // Online payment — auto-approved, skip finance queue
       // We don't save cp yet, we update Booking first to keep sync
 
       if (bookingId) {

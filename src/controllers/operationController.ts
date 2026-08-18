@@ -34,14 +34,30 @@ export const getOperations = asyncHandler(async (req: Request, res: Response) =>
     Operation.countDocuments(filter),
   ]);
 
-  // Attach pending payment to each operation
-  const opsWithPending = await Promise.all(operations.map(async (op) => {
+  // Attach live payment totals from actual CustomerPayments (not stale stored fields)
+  const opsWithLiveData = await Promise.all(operations.map(async (op) => {
     const cps = await CustomerPayment.find({ operation: op._id });
-    const pendingAmount = cps.reduce((sum, cp) => sum + (Math.max(0, cp.amount - (cp.paidAmount || 0))), 0);
-    return { ...op.toObject(), pendingPayment: pendingAmount };
+    const totalBilled = cps.reduce((sum, cp) => sum + (cp.amount || 0), 0);
+    const totalReceived = cps.reduce((sum, cp) => sum + (cp.paidAmount || 0), 0);
+    const pendingAmount = Math.max(0, totalBilled - totalReceived);
+
+    // Use stored sellingPrice if no CPs exist (new ops), otherwise use live CP total as billing
+    const effectiveSelling = totalBilled > 0 ? totalBilled : (op.sellingPrice || 0);
+    const vendorCost = op.totalVendorCost || 0;
+    const grossProfit = effectiveSelling - vendorCost;
+    const profitPercentage = effectiveSelling > 0 ? Math.round((grossProfit / effectiveSelling) * 100) : 0;
+
+    return {
+      ...op.toObject(),
+      pendingPayment: pendingAmount,
+      totalReceived,
+      effectiveSelling,   // live total billed to customer
+      grossProfit,
+      profitPercentage,
+    };
   }));
 
-  res.status(200).json({ status: 'success', results: opsWithPending.length, total, page, pages: Math.ceil(total / limit), data: opsWithPending });
+  res.status(200).json({ status: 'success', results: opsWithLiveData.length, total, page, pages: Math.ceil(total / limit), data: opsWithLiveData });
 });
 
 export const getOperationById = asyncHandler(async (req: Request, res: Response) => {
@@ -364,31 +380,30 @@ export const addCustomerPayment = asyncHandler(async (req: Request, res: Respons
   res.status(201).json({ status: 'success', data: payment });
 });
 export const updateCustomerPayment = asyncHandler(async (req: Request, res: Response) => {
-  const { financeDetails, status, paidAmount, ...rest } = req.body;
-  
   const payment = await CustomerPayment.findById(req.params.paymentId);
   if (!payment) throw new AppError('Payment not found', 404);
 
-  // Apply basic updates
+  const { financeDetails, ...rest } = req.body;
+
+  // Apply direct updates (milestone, amount, paidAmount, dueDate, paymentMode, transactionId, paymentLink, etc.)
   Object.assign(payment, rest);
 
-  if (financeDetails && (status === 'paid' || status === 'partial' || paidAmount > 0)) {
+  // Only route through finance approval if explicitly requested (e.g., from a finance form)
+  if (financeDetails && financeDetails.mode) {
     payment.financeStatus = 'pending_approval';
     payment.requestedBy = req.user!._id;
     payment.financeDetails = {
-      paidAmount: paidAmount || financeDetails.paidAmount,
+      paidAmount: rest.paidAmount || financeDetails.paidAmount,
       mode: financeDetails.mode,
       transactionId: financeDetails.transactionId,
       remarks: financeDetails.remarks,
       requestedBy: req.user!._id,
     };
     // Don't update the actual paidAmount or status until approved
-  } else {
-    if (paidAmount !== undefined) payment.paidAmount = paidAmount;
-    if (status !== undefined) payment.status = status;
+    payment.paidAmount = payment.paidAmount; // keep old value
   }
 
-  await payment.save(); // This will trigger the pre('save') hook to fix any invalid statuses
+  await payment.save(); // pre('save') hook recalculates status
 
   res.status(200).json({ status: 'success', data: payment });
 });
