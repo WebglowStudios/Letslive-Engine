@@ -124,64 +124,81 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
     return d;
   };
 
-  // Map vehicle/transfer type to our transport type enum
-  const mapTransferType = (type?: string): string => {
-    if (!type) return 'car';
-    const t = type.toLowerCase();
-    if (t.includes('bus') || t.includes('coach')) return 'bus';
-    if (t.includes('ferry') || t.includes('boat')) return 'ferry';
-    if (t.includes('cruise')) return 'cruise';
-    if (t.includes('train')) return 'train';
-    return 'car';
-  };
 
-  // ── TRANSPORTS: flights + transfers ──
+
+  // ── TRANSPORTS: flights + transfers → new vendor-group + legs[] format ──
   if (existingTransports > 0) {
     skipped.push('transport');
   } else {
     const transportDocs: object[] = [];
 
-    // From pkg.flights[]
+    // From pkg.flights[] — each flight becomes its own vendor group with one leg
     for (const flight of (pkg.flights || [])) {
+      const legNotes = [
+        flight.flightNumber ? `Flight: ${flight.flightNumber}` : '',
+        flight.class ? `Class: ${flight.class}` : '',
+        flight.pnr ? `PNR: ${flight.pnr}` : '',
+        flight.departure ? `Dep: ${flight.departure}` : '',
+        flight.arrival ? `Arr: ${flight.arrival}` : '',
+        flight.notes || '',
+      ].filter(Boolean).join(' · ');
+
       transportDocs.push({
         operation: opId,
-        type: 'flight',
-        name: flight.airline || '',
-        bookingRef: flight.pnr || flight.flightNumber || '',
-        route: flight.from && flight.to ? `${flight.from} → ${flight.to}` : '',
-        date: computeDate(flight.day),
-        departureTime: flight.departure || '',
-        arrivalTime: flight.arrival || '',
-        tripDay: flight.day ? `Day ${flight.day}` : '',
-        remarks: [
-          flight.class ? `Class: ${flight.class}` : '',
-          flight.flightNumber && flight.pnr ? `Flight No: ${flight.flightNumber}` : '',
-          flight.notes || ''
-        ].filter(Boolean).join(' | '),
+        vendorName: flight.airline || '',
+        vendorContact: '',
+        vendorEmail: '',
+        vendorCost: 0,
+        sellingPrice: 0,
         paymentStatus: 'pending',
+        remarks: '',
+        legs: [{
+          from:        flight.from || '',
+          to:          flight.to || '',
+          date:        computeDate(flight.day),
+          tripDay:     flight.day ? `Day ${flight.day}` : '',
+          vehicleType: 'Flight',
+          notes:       legNotes,
+        }],
       });
     }
 
-    // From pkg.transfers[]
+    // From pkg.transfers[] — multi-leg transfers map directly to legs[]
     for (const transfer of (pkg.transfers || [])) {
-      const legs = transfer.legs && transfer.legs.length > 0 ? transfer.legs : null;
-      const from = legs ? legs[0]?.from : transfer.from;
-      const to = legs ? legs[legs.length - 1]?.to : transfer.to;
-      const transferType = legs ? (legs[0]?.transferType || transfer.transferType) : transfer.transferType;
-      const vehicleType = legs ? (legs[0]?.vehicleType || transfer.vehicleType) : transfer.vehicleType;
+      let legs: object[];
+
+      if (transfer.legs && transfer.legs.length > 0) {
+        // Itinerary already has leg breakdown — map each leg individually
+        legs = transfer.legs.map((leg: any, legIdx: number) => ({
+          from:        leg.from || '',
+          to:          leg.to || '',
+          date:        computeDate(transfer.day),
+          tripDay:     transfer.day ? `Day ${transfer.day}` : '',
+          vehicleType: leg.vehicleType || leg.transferType || '',
+          notes:       leg.notes || '',
+        }));
+      } else {
+        // Simple single-point transfer
+        legs = [{
+          from:        transfer.from || '',
+          to:          transfer.to || '',
+          date:        computeDate(transfer.day),
+          tripDay:     transfer.day ? `Day ${transfer.day}` : '',
+          vehicleType: transfer.vehicleType || transfer.transferType || '',
+          notes:       [transfer.description || '', ...(transfer.details || [])].filter(Boolean).join(' · '),
+        }];
+      }
 
       transportDocs.push({
         operation: opId,
-        type: mapTransferType(transferType || vehicleType),
-        name: vehicleType || transferType || transfer.title || '',
-        route: from && to ? `${from} → ${to}` : (transfer.title || ''),
-        date: computeDate(transfer.day),
-        tripDay: transfer.day ? `Day ${transfer.day}` : '',
-        remarks: [
-          transfer.description || '',
-          ...(transfer.details || [])
-        ].filter(Boolean).join('\n'),
+        vendorName:    transfer.title || '',
+        vendorContact: '',
+        vendorEmail:   '',
+        vendorCost:    0,
+        sellingPrice:  0,
         paymentStatus: 'pending',
+        remarks:       transfer.description || '',
+        legs,
       });
     }
 

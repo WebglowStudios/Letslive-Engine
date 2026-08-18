@@ -1,58 +1,67 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
+// ─── Leg sub-schema ───────────────────────────────────────────────────────────
+export interface ITransferLeg {
+  from: string;
+  to: string;
+  date?: Date;
+  tripDay: string;       // e.g. "Day 1", "Arrival", "Day 3-4"
+  vehicleType: string;   // free text: Car, SUV, Bus, Flight, Train, Ferry, etc.
+  notes: string;         // leg-specific notes
+}
+
+// ─── Parent document interface ────────────────────────────────────────────────
 export interface IOperationTransport extends Document {
   operation: mongoose.Types.ObjectId;
-  type: string; // flight, train, bus, ferry, car, taxi, buggy, cruise, etc.
-  name: string; // airline name, train name, bus company, car model, etc.
-  bookingRef: string; // PNR for flights/trains, booking ID for others
-  route: string; // BOM → DXB, Station A → Station B, Pickup → Drop
-  date?: Date;
-  departureTime: string;
-  arrivalTime: string;
-  driverName: string; // for car/taxi/bus
-  driverContact: string;
-  vehicleNumber: string; // for car/bus
-  duration: string; // "Full day", "4 hours", "Airport transfer only"
-  tripDay: string; // "Day 1", "Day 3-4", "Arrival"
   vendorName: string;
+  vendorContact: string;
+  vendorEmail: string;
   vendorCost: number;
   sellingPrice: number;
   paymentStatus: 'pending' | 'paid' | 'partial';
   paymentDueDate?: Date;
   isUrgent: boolean;
   remarks: string;
+  legs: ITransferLeg[];
   createdAt: Date;
   updatedAt: Date;
 }
 
+// ─── Leg sub-schema definition ────────────────────────────────────────────────
+const legSchema = new Schema<ITransferLeg>(
+  {
+    from:        { type: String, default: '' },
+    to:          { type: String, default: '' },
+    date:        { type: Date },
+    tripDay:     { type: String, default: '' },
+    vehicleType: { type: String, default: '' },
+    notes:       { type: String, default: '' },
+  },
+  { _id: true }
+);
+
+// ─── Parent schema definition ─────────────────────────────────────────────────
 const schema = new Schema<IOperationTransport>(
   {
-    operation: { type: Schema.Types.ObjectId, ref: 'Operation', required: true, index: true },
-    type: { type: String, default: 'flight' }, // no enum restriction — flexible
-    name: { type: String, default: '' },
-    bookingRef: { type: String, default: '' },
-    route: { type: String, default: '' },
-    date: { type: Date },
-    departureTime: { type: String, default: '' },
-    arrivalTime: { type: String, default: '' },
-    driverName: { type: String, default: '' },
-    driverContact: { type: String, default: '' },
-    vehicleNumber: { type: String, default: '' },
-    duration: { type: String, default: '' }, // e.g. "Full day", "4 hours", "Airport transfer only"
-    tripDay: { type: String, default: '' }, // e.g. "Day 1", "Day 3-4", "Arrival"
-    vendorName: { type: String, default: '' },
-    vendorCost: { type: Number, default: 0 },
-    sellingPrice: { type: Number, default: 0 },
+    operation:     { type: Schema.Types.ObjectId, ref: 'Operation', required: true, index: true },
+    vendorName:    { type: String, default: '' },
+    vendorContact: { type: String, default: '' },
+    vendorEmail:   { type: String, default: '' },
+    vendorCost:    { type: Number, default: 0 },
+    sellingPrice:  { type: Number, default: 0 },
     paymentStatus: { type: String, enum: ['pending', 'paid', 'partial'], default: 'pending' },
     paymentDueDate: { type: Date },
-    isUrgent: { type: Boolean, default: false },
-    remarks: { type: String, default: '' },
+    isUrgent:      { type: Boolean, default: false },
+    remarks:       { type: String, default: '' },
+    // Use direct array notation for sub-document arrays in Mongoose TS
+    legs:          { type: [legSchema], default: [] },
   },
   { timestamps: true }
 );
 
-// Auto-set urgent
-schema.pre('save', function () {
+// ─── Auto-set urgent flag ─────────────────────────────────────────────────────
+// Explicitly type `this` so TS resolves the document fields correctly
+schema.pre<IOperationTransport>('save', function () {
   if (this.paymentDueDate && this.paymentStatus !== 'paid') {
     const hoursUntilDue = (new Date(this.paymentDueDate).getTime() - Date.now()) / (1000 * 60 * 60);
     this.isUrgent = hoursUntilDue <= 48;
