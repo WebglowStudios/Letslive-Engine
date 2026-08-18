@@ -128,6 +128,7 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
       cp.status = 'paid';
       cp.transactionId = razorpayPaymentId;
       cp.paymentMode = 'razorpay';
+      cp.paidAmount = (cp.paidAmount || 0) + amountINR;
       // We don't save cp yet, we update Booking first to keep sync
 
       if (bookingId) {
