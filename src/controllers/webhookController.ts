@@ -9,6 +9,7 @@ import { syncBookingPaymentToOperation } from '../utils/paymentSync.js';
 import Enquiry from '../models/Enquiry.js';
 import { autoCreateOperationFromBooking } from '../utils/operationBuilder.js';
 import { sendBookingConfirmation, sendAdminNewBooking } from '../services/emailService.js';
+import { getRazorpay } from './paymentController.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/webhooks/razorpay
@@ -106,12 +107,30 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
 
   // Notes: for payment_link.paid, the notes we set are on the payment_link entity
   // For payment.captured (order-based), notes are on the payment entity itself
-  const linkNotes = paymentLinkEntity?.notes as Record<string, string> | undefined;
-  const paymentNotes = entity.notes as Record<string, string> | undefined;
-  const notes = linkNotes || paymentNotes;
+  let linkNotes = paymentLinkEntity?.notes as Record<string, string> | undefined;
+  let paymentNotes = entity.notes as Record<string, string> | undefined;
+  
+  // Try to safely extract notes
+  let notes = (linkNotes && Object.keys(linkNotes).length > 0) ? linkNotes : ((paymentNotes && Object.keys(paymentNotes).length > 0) ? paymentNotes : undefined);
 
-  const bookingId = notes?.bookingId;
-  const customerPaymentId = notes?.customerPaymentId;
+  let bookingId = notes?.bookingId;
+  let customerPaymentId = notes?.customerPaymentId;
+
+  // Fallback: If Razorpay didn't include the notes in the webhook payload, but we know it's a payment link, fetch it directly!
+  if (!bookingId && !customerPaymentId && entity.payment_link_id) {
+    console.log(`[WEBHOOK] Missing notes in payload for payment_link_id ${entity.payment_link_id}. Fetching from Razorpay API...`);
+    try {
+      const razorpay = getRazorpay();
+      const pl = await razorpay.paymentLink.fetch(entity.payment_link_id as string);
+      if (pl && pl.notes) {
+        notes = pl.notes as Record<string, string>;
+        bookingId = notes.bookingId;
+        customerPaymentId = notes.customerPaymentId;
+      }
+    } catch (fetchErr) {
+      console.error(`[WEBHOOK] Failed to fetch payment link ${entity.payment_link_id}:`, fetchErr);
+    }
+  }
 
   if (!bookingId && !customerPaymentId) {
     console.warn(`[WEBHOOK] ${event} for ${razorpayOrderId || razorpayPaymentId} — no bookingId or customerPaymentId in notes. Possibly a non-booking payment. Skipping.`);

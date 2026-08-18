@@ -11,7 +11,7 @@ import { sendBookingConfirmation, sendAdminNewBooking } from '../services/emailS
 import { autoCreateOperationFromBooking } from '../utils/operationBuilder.js';
 
 // Lazily initialise Razorpay so the server doesn't crash on boot if keys are missing
-function getRazorpay(): Razorpay {
+export function getRazorpay(): Razorpay {
   if (!env.RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET) {
     throw new AppError('Razorpay is not configured on this server', 503);
   }
