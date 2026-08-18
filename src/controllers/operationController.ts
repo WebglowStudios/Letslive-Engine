@@ -351,12 +351,17 @@ export const addCustomerPayment = asyncHandler(async (req: Request, res: Respons
 });
 export const updateCustomerPayment = asyncHandler(async (req: Request, res: Response) => {
   const { financeDetails, status, paidAmount, ...rest } = req.body;
-  let updateData: any = { status, paidAmount, ...rest };
+  
+  const payment = await CustomerPayment.findById(req.params.paymentId);
+  if (!payment) throw new AppError('Payment not found', 404);
+
+  // Apply basic updates
+  Object.assign(payment, rest);
 
   if (financeDetails && (status === 'paid' || status === 'partial' || paidAmount > 0)) {
-    updateData.financeStatus = 'pending_approval';
-    updateData.requestedBy = req.user!._id;
-    updateData.financeDetails = {
+    payment.financeStatus = 'pending_approval';
+    payment.requestedBy = req.user!._id;
+    payment.financeDetails = {
       paidAmount: paidAmount || financeDetails.paidAmount,
       mode: financeDetails.mode,
       transactionId: financeDetails.transactionId,
@@ -364,12 +369,13 @@ export const updateCustomerPayment = asyncHandler(async (req: Request, res: Resp
       requestedBy: req.user!._id,
     };
     // Don't update the actual paidAmount or status until approved
-    delete updateData.paidAmount;
-    delete updateData.status;
+  } else {
+    if (paidAmount !== undefined) payment.paidAmount = paidAmount;
+    if (status !== undefined) payment.status = status;
   }
 
-  const payment = await CustomerPayment.findByIdAndUpdate(req.params.paymentId, updateData, { new: true });
-  if (!payment) throw new AppError('Payment not found', 404);
+  await payment.save(); // This will trigger the pre('save') hook to fix any invalid statuses
+
   res.status(200).json({ status: 'success', data: payment });
 });
 export const deleteCustomerPayment = asyncHandler(async (req: Request, res: Response) => {

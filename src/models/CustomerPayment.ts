@@ -59,12 +59,16 @@ const customerPaymentSchema = new Schema<ICustomerPayment>(
 
 // Auto-detect status
 customerPaymentSchema.pre('save', function () {
-  if (this.paidAmount >= this.amount) {
+  if (this.amount > 0 && this.paidAmount >= this.amount) {
     this.status = 'paid';
-  } else if (this.paidAmount > 0) {
+  } else if (this.paidAmount > 0 && this.paidAmount < this.amount) {
     this.status = 'partial';
+  } else if (this.amount === 0 && this.paidAmount === 0) {
+    this.status = 'upcoming';
   } else if (this.dueDate && new Date(this.dueDate).getTime() < Date.now()) {
     this.status = 'overdue';
+  } else {
+    this.status = 'upcoming';
   }
 });
 
