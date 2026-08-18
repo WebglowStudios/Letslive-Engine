@@ -352,20 +352,32 @@ export const generatePaymentLink = asyncHandler(async (req: Request, res: Respon
   const amountPaise = Math.round(Number(amount) * 100);
 
   try {
+    const customerObj: any = {
+      name: customerName || 'Customer',
+    };
+    const notifyObj: any = {
+      sms: false,
+      email: false,
+    };
+
+    if (customerEmail && customerEmail.includes('@')) {
+      customerObj.email = customerEmail;
+      notifyObj.email = true;
+    }
+
+    // Basic check for a valid-looking phone number (not just recurring digits)
+    if (customerPhone && customerPhone.length >= 10 && !/^(\d)\1+$/.test(customerPhone.replace(/\D/g, ''))) {
+      customerObj.contact = customerPhone;
+      notifyObj.sms = true;
+    }
+
     const paymentLink = await razorpay.paymentLink.create({
       amount: amountPaise,
       currency: 'INR',
       accept_partial: false,
       description: description || 'Payment for Letslivetours',
-      customer: {
-        name: customerName || 'Customer',
-        email: customerEmail || 'info@letslivetours.com',
-        contact: customerPhone || '+919999999999',
-      },
-      notify: {
-        sms: true,
-        email: true,
-      },
+      customer: customerObj,
+      notify: notifyObj,
       reminder_enable: true,
       notes: notes,
     });
