@@ -72,16 +72,25 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
   const event = payload.event as string;
   console.log(`[WEBHOOK] Received event: ${event}`);
 
-  // ── 4. Only handle payment.captured ──────────────────────────────────────
-  if (event !== 'payment.captured') {
+  // ── 4. Handle payment.captured OR payment_link.paid ─────────────────────
+  const isPaymentCapture = event === 'payment.captured';
+  const isPaymentLinkPaid = event === 'payment_link.paid';
+
+  if (!isPaymentCapture && !isPaymentLinkPaid) {
     // Acknowledge other events without doing anything
     res.status(200).json({ status: 'ok', message: `Event ${event} acknowledged` });
     return;
   }
 
   // ── 5. Extract payment data ───────────────────────────────────────────────
-  const paymentEntity = (payload.payload as Record<string, unknown>)?.payment as Record<string, unknown> | undefined;
-  const entity = paymentEntity?.entity as Record<string, unknown> | undefined;
+  // payment.captured  → payload.payment.entity
+  // payment_link.paid → payload.payment.entity (payment data) + payload.payment_link.entity (link data/notes)
+  const paymentEntityWrapper = (payload.payload as Record<string, unknown>)?.payment as Record<string, unknown> | undefined;
+  const entity = paymentEntityWrapper?.entity as Record<string, unknown> | undefined;
+
+  // For payment_link.paid, notes are on the payment_link entity
+  const paymentLinkEntityWrapper = (payload.payload as Record<string, unknown>)?.payment_link as Record<string, unknown> | undefined;
+  const paymentLinkEntity = paymentLinkEntityWrapper?.entity as Record<string, unknown> | undefined;
 
   if (!entity) {
     console.error('[WEBHOOK] Malformed payload — no payment.entity');
@@ -95,18 +104,22 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
   const amountPaise = entity.amount as number;
   const amountINR = Math.round(amountPaise / 100);
 
-  // bookingId is stored in the order notes when we create the Razorpay order or payment link
-  const notes = entity.notes as Record<string, string> | undefined;
+  // Notes: for payment_link.paid, the notes we set are on the payment_link entity
+  // For payment.captured (order-based), notes are on the payment entity itself
+  const linkNotes = paymentLinkEntity?.notes as Record<string, string> | undefined;
+  const paymentNotes = entity.notes as Record<string, string> | undefined;
+  const notes = linkNotes || paymentNotes;
+
   const bookingId = notes?.bookingId;
   const customerPaymentId = notes?.customerPaymentId;
 
   if (!bookingId && !customerPaymentId) {
-    console.warn(`[WEBHOOK] payment.captured for order ${razorpayOrderId} — no bookingId or customerPaymentId in notes. Possibly a non-booking payment. Skipping.`);
+    console.warn(`[WEBHOOK] ${event} for ${razorpayOrderId || razorpayPaymentId} — no bookingId or customerPaymentId in notes. Possibly a non-booking payment. Skipping.`);
     res.status(200).json({ status: 'ok', message: 'No target ID in notes — skipped' });
     return;
   }
 
-  console.log(`[WEBHOOK] payment.captured — paymentId: ${razorpayPaymentId}, bookingId: ${bookingId}, customerPaymentId: ${customerPaymentId}, amount: ₹${amountINR}`);
+  console.log(`[WEBHOOK] ${event} — paymentId: ${razorpayPaymentId}, bookingId: ${bookingId}, customerPaymentId: ${customerPaymentId}, amount: ₹${amountINR}, notes:`, JSON.stringify(notes));
 
   try {
     // ── 6. Handle Operation Installment Payment ────────────────────────────────
