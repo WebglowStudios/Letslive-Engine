@@ -9,8 +9,15 @@ import {
   addCustomerPayment, updateCustomerPayment, deleteCustomerPayment, notifyCustomerPayment,
   getFinanceOverview, getUrgentPayments, getSalespersonStats,
 } from '../controllers/operationController.js';
+import { getInstallmentDetails, createInstallmentOrder, verifyInstallmentPayment } from '../controllers/installmentPaymentController.js';
 
 const router = Router();
+
+// Public Customer Installment Endpoints (Must be before auth middleware)
+router.get('/public-payments/:paymentId/details', getInstallmentDetails);
+router.post('/public-payments/:paymentId/create-order', createInstallmentOrder);
+router.post('/public-payments/:paymentId/verify', verifyInstallmentPayment);
+
 router.use(protect, requirePermission('dashboard.view'));
 
 // Finance (before /:id)
