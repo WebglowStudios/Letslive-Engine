@@ -23,11 +23,25 @@ export const getOperations = asyncHandler(async (req: Request, res: Response) =>
   if (req.query.destination) filter.destination = new RegExp(req.query.destination as string, 'i');
   if (req.user!.role === 'staff') filter.assignedTo = req.user!._id;
 
+  if (req.query.hasPendingPayment === 'true') {
+    const pendingCPs = await CustomerPayment.find({ status: { $in: ['partial', 'upcoming', 'overdue'] } }).select('operation');
+    const opIds = pendingCPs.map(cp => cp.operation);
+    filter._id = { $in: opIds };
+  }
+
   const [operations, total] = await Promise.all([
     Operation.find(filter).populate('booking', 'bookingId totalAmount').populate('assignedTo', 'firstName lastName').sort({ createdAt: -1 }).skip(skip).limit(limit),
     Operation.countDocuments(filter),
   ]);
-  res.status(200).json({ status: 'success', results: operations.length, total, page, pages: Math.ceil(total / limit), data: operations });
+
+  // Attach pending payment to each operation
+  const opsWithPending = await Promise.all(operations.map(async (op) => {
+    const cps = await CustomerPayment.find({ operation: op._id });
+    const pendingAmount = cps.reduce((sum, cp) => sum + (Math.max(0, cp.amount - (cp.paidAmount || 0))), 0);
+    return { ...op.toObject(), pendingPayment: pendingAmount };
+  }));
+
+  res.status(200).json({ status: 'success', results: opsWithPending.length, total, page, pages: Math.ceil(total / limit), data: opsWithPending });
 });
 
 export const getOperationById = asyncHandler(async (req: Request, res: Response) => {
