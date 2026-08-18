@@ -383,9 +383,9 @@ export const updateCustomerPayment = asyncHandler(async (req: Request, res: Resp
   const payment = await CustomerPayment.findById(req.params.paymentId);
   if (!payment) throw new AppError('Payment not found', 404);
 
-  const { financeDetails, ...rest } = req.body;
+  const { financeDetails, paidAmount, ...rest } = req.body;
 
-  // Apply direct updates (milestone, amount, paidAmount, dueDate, paymentMode, transactionId, paymentLink, etc.)
+  // Apply direct updates (milestone, amount, dueDate, paymentMode, transactionId, paymentLink, etc.)
   Object.assign(payment, rest);
 
   // Only route through finance approval if explicitly requested (e.g., from a finance form)
@@ -393,14 +393,15 @@ export const updateCustomerPayment = asyncHandler(async (req: Request, res: Resp
     payment.financeStatus = 'pending_approval';
     payment.requestedBy = req.user!._id;
     payment.financeDetails = {
-      paidAmount: rest.paidAmount || financeDetails.paidAmount,
+      paidAmount: paidAmount || financeDetails.paidAmount,
       mode: financeDetails.mode,
       transactionId: financeDetails.transactionId,
       remarks: financeDetails.remarks,
       requestedBy: req.user!._id,
     };
-    // Don't update the actual paidAmount or status until approved
-    payment.paidAmount = payment.paidAmount; // keep old value
+    // Don't update the actual paidAmount or status until approved by finance
+  } else if (paidAmount !== undefined) {
+    payment.paidAmount = paidAmount;
   }
 
   await payment.save(); // pre('save') hook recalculates status
