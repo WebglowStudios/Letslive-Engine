@@ -4,6 +4,7 @@ import { AppError } from '../middleware/errorHandler.js';
 import Booking from '../models/Booking.js';
 import CustomerPayment from '../models/CustomerPayment.js';
 import Operation from '../models/Operation.js';
+import { syncBookingPaymentToOperation } from '../utils/paymentSync.js';
 
 // @desc    Get all pending finance approvals
 // @route   GET /api/finance/approvals
@@ -52,17 +53,23 @@ export const processApproval = asyncHandler(async (req: Request, res: Response) 
       booking.paidAmount += approvedAmount;
       booking.paymentStatus = booking.paidAmount >= booking.totalAmount ? 'paid' : 'partial';
       
+      const method = booking.financeDetails?.mode || 'Unknown';
+      const transactionId = booking.financeDetails?.transactionId || '';
+      
       // Update payment history
       booking.paymentHistory.push({
         amount: approvedAmount,
-        method: booking.financeDetails?.mode || 'Unknown',
-        transactionId: booking.financeDetails?.transactionId || '',
+        method: method,
+        transactionId: transactionId,
         date: new Date(),
         status: 'paid',
       });
       
       // Clear finance details payload after successful approval
       booking.financeDetails = undefined;
+      
+      // Sync this manual payment down to the Operation's installments if it exists
+      await syncBookingPaymentToOperation(booking._id, approvedAmount, method, transactionId);
     } else {
       booking.paymentFinanceStatus = 'rejected';
       // Do not clear financeDetails so requestedBy can see why/what was rejected
