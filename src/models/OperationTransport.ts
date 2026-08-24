@@ -8,11 +8,19 @@ export interface ITransferLeg {
   tripDay: string;       // e.g. "Day 1", "Arrival", "Day 3-4"
   vehicleType: string;   // free text: Car, SUV, Bus, Flight, Train, Ferry, etc.
   notes: string;         // leg-specific notes
+  pnr?: string;
+  departureTime?: string;
+  arrivalTime?: string;
+  driverName?: string;
+  driverContact?: string;
+  vehicleNumber?: string;
+  duration?: string;
 }
 
 // ─── Parent document interface ────────────────────────────────────────────────
 export interface IOperationTransport extends Document {
   operation: mongoose.Types.ObjectId;
+  type: string;
   vendorName: string;
   vendorContact: string;
   vendorEmail: string;
@@ -36,6 +44,13 @@ const legSchema = new Schema<ITransferLeg>(
     tripDay:     { type: String, default: '' },
     vehicleType: { type: String, default: '' },
     notes:       { type: String, default: '' },
+    pnr:         { type: String, default: '' },
+    departureTime:{ type: String, default: '' },
+    arrivalTime: { type: String, default: '' },
+    driverName:  { type: String, default: '' },
+    driverContact:{ type: String, default: '' },
+    vehicleNumber:{ type: String, default: '' },
+    duration:    { type: String, default: '' },
   },
   { _id: true }
 );
@@ -44,6 +59,7 @@ const legSchema = new Schema<ITransferLeg>(
 const schema = new Schema<IOperationTransport>(
   {
     operation:     { type: Schema.Types.ObjectId, ref: 'Operation', required: true, index: true },
+    type:          { type: String, default: 'other' },
     vendorName:    { type: String, default: '' },
     vendorContact: { type: String, default: '' },
     vendorEmail:   { type: String, default: '' },

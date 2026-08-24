@@ -154,7 +154,16 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
     return d;
   };
 
-
+  const mapTransferType = (type?: string): string => {
+    if (!type) return 'road';
+    const t = type.toLowerCase();
+    if (t.includes('bus') || t.includes('coach')) return 'road';
+    if (t.includes('ferry') || t.includes('boat')) return 'ferry';
+    if (t.includes('cruise')) return 'cruise';
+    if (t.includes('train')) return 'train';
+    if (t.includes('flight')) return 'flight';
+    return 'road';
+  };
 
   // ── TRANSPORTS: flights + transfers → new vendor-group + legs[] format ──
   if (existingTransports > 0) {
@@ -167,14 +176,12 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
       const legNotes = [
         flight.flightNumber ? `Flight: ${flight.flightNumber}` : '',
         flight.class ? `Class: ${flight.class}` : '',
-        flight.pnr ? `PNR: ${flight.pnr}` : '',
-        flight.departure ? `Dep: ${flight.departure}` : '',
-        flight.arrival ? `Arr: ${flight.arrival}` : '',
         flight.notes || '',
       ].filter(Boolean).join(' · ');
 
       transportDocs.push({
         operation: opId,
+        type: 'flight',
         vendorName: flight.airline || '',
         vendorContact: '',
         vendorEmail: '',
@@ -189,6 +196,9 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
           tripDay:     flight.day ? `Day ${flight.day}` : '',
           vehicleType: 'Flight',
           notes:       legNotes,
+          pnr:         flight.pnr || '',
+          departureTime: flight.departure || '',
+          arrivalTime: flight.arrival || '',
         }],
       });
     }
@@ -219,8 +229,11 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
         }];
       }
 
+      const tType = transfer.legs && transfer.legs.length > 0 ? (transfer.legs[0]?.transferType || transfer.transferType) : transfer.transferType;
+
       transportDocs.push({
         operation: opId,
+        type:          mapTransferType(tType || transfer.vehicleType),
         vendorName:    transfer.title || '',
         vendorContact: '',
         vendorEmail:   '',
