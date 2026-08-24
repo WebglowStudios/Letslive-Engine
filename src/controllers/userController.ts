@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import User from '../models/User.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
+import Enquiry from '../models/Enquiry.js';
+import Operation from '../models/Operation.js';
+import mongoose from 'mongoose';
 
 // @desc    Get all users (admin)
 // @route   GET /api/users
@@ -157,5 +160,71 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
   res.status(204).json({
     status: 'success',
     data: null,
+  });
+});
+
+// @desc    Get user performance dashboard data (admin/staff)
+// @route   GET /api/users/:id/performance
+export const getUserPerformance = asyncHandler(async (req: Request, res: Response) => {
+  const targetId = req.params.id === 'me' ? req.user!._id : req.params.id;
+  
+  if (req.params.id !== 'me' && req.user!.role !== 'admin' && req.user!.role !== 'manager') {
+    throw new AppError('Not authorized to view other users performance', 403);
+  }
+
+  const userId = new mongoose.Types.ObjectId(targetId as string);
+
+  // 1. Inquiries Managed & Conversions
+  const enquiriesStats = await Enquiry.aggregate([
+    { $match: { assignedTo: userId } },
+    {
+      $group: {
+        _id: null,
+        totalManaged: { $sum: 1 },
+        totalConverted: { $sum: { $cond: [{ $eq: ['$status', 'converted'] }, 1, 0] } }
+      }
+    }
+  ]);
+
+  const inquiriesManaged = enquiriesStats[0]?.totalManaged || 0;
+  const conversions = enquiriesStats[0]?.totalConverted || 0;
+
+  // 2. Revenue, Profit & Clients Handled (Operations)
+  const opsStats = await Operation.aggregate([
+    { $match: { assignedTo: userId } },
+    {
+      $group: {
+        _id: null,
+        clientsHandled: { $sum: 1 }, // counting number of operations handled
+        totalRevenue: { $sum: '$sellingPrice' },
+        totalProfit: { $sum: '$grossProfit' }
+      }
+    }
+  ]);
+
+  const clientsHandled = opsStats[0]?.clientsHandled || 0;
+  const revenueGenerated = opsStats[0]?.totalRevenue || 0;
+  const profitGenerated = opsStats[0]?.totalProfit || 0;
+
+  // 3. Incentives (Fixed 5% of gross profit as a standard mock metric)
+  const incentivesEarned = profitGenerated * 0.05;
+
+  // Recent Conversions/Bookings for activity table
+  const recentOperations = await Operation.find({ assignedTo: userId })
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .populate('booking', 'bookingId totalAmount');
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      inquiriesManaged,
+      conversions,
+      clientsHandled,
+      revenueGenerated,
+      profitGenerated,
+      incentivesEarned,
+      recentActivity: recentOperations
+    }
   });
 });
