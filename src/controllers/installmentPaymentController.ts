@@ -53,8 +53,22 @@ export const createInstallmentOrder = asyncHandler(async (req: Request, res: Res
     throw new AppError('This installment is already fully paid', 400);
   }
 
+  const { customAmount } = req.body;
+  let finalAmount = amountDue;
+
+  if (customAmount) {
+    const parsedAmount = Number(customAmount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      throw new AppError('Custom amount must be a valid positive number', 400);
+    }
+    if (parsedAmount > amountDue) {
+      throw new AppError('Custom amount cannot exceed the total amount due', 400);
+    }
+    finalAmount = parsedAmount;
+  }
+
   const razorpay = getRazorpay();
-  const amountPaise = Math.round(amountDue * 100);
+  const amountPaise = Math.round(finalAmount * 100);
 
   const options = {
     amount: amountPaise,

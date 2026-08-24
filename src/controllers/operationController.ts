@@ -392,6 +392,41 @@ export const addCustomerPayment = asyncHandler(async (req: Request, res: Respons
   const payment = await CustomerPayment.create({ ...req.body, operation: req.params.id });
   res.status(201).json({ status: 'success', data: payment });
 });
+
+export const splitCustomerPayment = asyncHandler(async (req: Request, res: Response) => {
+  const { primaryPaymentId, amount, milestone } = req.body;
+  if (!primaryPaymentId || !amount || amount <= 0) {
+    throw new AppError('Invalid split parameters', 400);
+  }
+
+  const primaryPayment = await CustomerPayment.findById(primaryPaymentId);
+  if (!primaryPayment) {
+    throw new AppError('Primary payment not found', 404);
+  }
+
+  if (primaryPayment.amount < amount) {
+    throw new AppError('Split amount cannot be greater than the primary payment amount', 400);
+  }
+
+  // Deduct from primary
+  primaryPayment.amount -= amount;
+  if (primaryPayment.paidAmount > primaryPayment.amount) {
+    primaryPayment.paidAmount = primaryPayment.amount; // cap it to prevent overpayment logic errors
+  }
+  await primaryPayment.save();
+
+  // Create new split payment
+  const newPayment = await CustomerPayment.create({
+    operation: req.params.id,
+    milestone: milestone || `Split from ${primaryPayment.milestone}`,
+    amount,
+    paidAmount: 0,
+    dueDate: primaryPayment.dueDate,
+    _isManual: true,
+  });
+
+  res.status(201).json({ status: 'success', data: { newPayment, primaryPayment } });
+});
 export const updateCustomerPayment = asyncHandler(async (req: Request, res: Response) => {
   const payment = await CustomerPayment.findById(req.params.paymentId);
   if (!payment) throw new AppError('Payment not found', 404);
