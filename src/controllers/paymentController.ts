@@ -31,9 +31,10 @@ export function getRazorpay(): Razorpay {
 //   - 'balance' → charge the outstanding balance (totalAmount - paidAmount)
 // ─────────────────────────────────────────────────────────────────────────────
 export const createOrder = asyncHandler(async (req: Request, res: Response) => {
-  const { bookingId, paymentType = 'full' } = req.body as {
+  const { bookingId, paymentType = 'full', customAmount } = req.body as {
     bookingId: string;
     paymentType: 'full' | 'deposit' | 'balance';
+    customAmount?: number;
   };
 
   if (!bookingId) throw new AppError('bookingId is required', 400);
@@ -82,7 +83,7 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
     receiptLabel = 'deposit';
   } else if (paymentType === 'balance') {
     if (outstanding <= 0) throw new AppError('No outstanding balance', 400);
-    chargeAmount = outstanding;
+    chargeAmount = customAmount && customAmount > 0 && customAmount <= outstanding ? customAmount : outstanding;
     receiptLabel = 'balance';
   } else {
     // full
@@ -213,17 +214,41 @@ export const verifyPayment = asyncHandler(async (req: Request, res: Response) =>
       
       const upcomingPayment = await CustomerPayment.findOne(query);
       if (upcomingPayment) {
-        upcomingPayment.paidAmount = (upcomingPayment.paidAmount || 0) + amount;
-        upcomingPayment.paidDate = new Date();
-        upcomingPayment.paymentMode = 'razorpay';
-        upcomingPayment.transactionId = razorpay_payment_id;
+        const pendingOnCard = upcomingPayment.amount - (upcomingPayment.paidAmount || 0);
         
-        if (upcomingPayment.paidAmount >= upcomingPayment.amount) {
-          upcomingPayment.status = 'paid';
+        if (amount < pendingOnCard) {
+          // Split the card! Deduct from this card
+          upcomingPayment.amount -= amount;
+          await upcomingPayment.save();
+          
+          // Create new paid card
+          await CustomerPayment.create({
+            operation: op._id,
+            booking: booking._id,
+            milestone: `Partial payment of ${upcomingPayment.milestone || 'Balance'}`,
+            amount,
+            paidAmount: amount,
+            paidDate: new Date(),
+            paymentMode: 'razorpay',
+            transactionId: razorpay_payment_id,
+            status: 'paid',
+            financeStatus: 'approved',
+            dueDate: upcomingPayment.dueDate
+          });
         } else {
-          upcomingPayment.status = 'partial';
+          // Just update the card
+          upcomingPayment.paidAmount = (upcomingPayment.paidAmount || 0) + amount;
+          upcomingPayment.paidDate = new Date();
+          upcomingPayment.paymentMode = 'razorpay';
+          upcomingPayment.transactionId = razorpay_payment_id;
+          
+          if (upcomingPayment.paidAmount >= upcomingPayment.amount) {
+            upcomingPayment.status = 'paid';
+          } else {
+            upcomingPayment.status = 'partial';
+          }
+          await upcomingPayment.save();
         }
-        await upcomingPayment.save();
       }
     }
   }

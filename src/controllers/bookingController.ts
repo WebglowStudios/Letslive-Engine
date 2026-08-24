@@ -208,6 +208,42 @@ export const getBookingById = asyncHandler(async (req: Request, res: Response) =
     throw new AppError('Not authorized to view this booking', 403);
   }
 
+  // Synchronize paidAmount with actual CustomerPayment cards if they exist
+  const CustomerPayment = (await import('../models/CustomerPayment.js')).default;
+  const Operation = (await import('../models/Operation.js')).default;
+  
+  let payments: any[] = [];
+  const operation = await Operation.findOne({ booking: booking._id });
+  if (operation) {
+    payments = await CustomerPayment.find({ operation: operation._id });
+    // Auto-repair any cards missing the booking reference
+    const brokenCards = payments.filter(p => !p.booking);
+    for (const p of brokenCards) {
+      p.booking = booking._id;
+      await p.save();
+    }
+  } else {
+    payments = await CustomerPayment.find({ booking: booking._id });
+  }
+  
+  if (payments.length > 0) {
+    const totalPaidFromCards = payments.reduce((sum, p) => sum + (p.paidAmount || 0), 0);
+    if (booking.paidAmount !== totalPaidFromCards) {
+      booking.paidAmount = totalPaidFromCards;
+      if (booking.paidAmount >= booking.totalAmount) {
+        booking.paymentStatus = 'paid';
+      } else if (booking.paidAmount > 0) {
+        booking.paymentStatus = 'partial';
+      } else {
+        booking.paymentStatus = 'pending';
+      }
+      await Booking.updateOne(
+        { _id: booking._id }, 
+        { $set: { paidAmount: booking.paidAmount, paymentStatus: booking.paymentStatus } }
+      );
+    }
+  }
+
   res.status(200).json({
     status: 'success',
     data: booking,

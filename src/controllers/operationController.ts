@@ -394,18 +394,26 @@ export const addCustomerPayment = asyncHandler(async (req: Request, res: Respons
 });
 
 export const splitCustomerPayment = asyncHandler(async (req: Request, res: Response) => {
-  const { primaryPaymentId, amount, milestone } = req.body;
-  if (!primaryPaymentId || !amount || amount <= 0) {
-    throw new AppError('Invalid split parameters', 400);
+  const { amount, milestone } = req.body;
+  const operationId = req.params.id as string;
+
+  if (!amount || amount <= 0) {
+    throw new AppError('Invalid split amount', 400);
   }
 
-  const primaryPayment = await CustomerPayment.findById(primaryPaymentId);
+  // Find an installment that can absorb this split
+  const payments = await CustomerPayment.find({ operation: operationId }).sort({ amount: -1 });
+  let primaryPayment = null;
+
+  for (const p of payments) {
+    if ((p.amount - (p.paidAmount || 0)) >= amount) {
+      primaryPayment = p;
+      break;
+    }
+  }
+
   if (!primaryPayment) {
-    throw new AppError('Primary payment not found', 404);
-  }
-
-  if (primaryPayment.amount < amount) {
-    throw new AppError('Split amount cannot be greater than the primary payment amount', 400);
+    throw new AppError('No single installment has enough pending balance to absorb this split amount.', 400);
   }
 
   // Deduct from primary
@@ -417,12 +425,13 @@ export const splitCustomerPayment = asyncHandler(async (req: Request, res: Respo
 
   // Create new split payment
   const newPayment = await CustomerPayment.create({
-    operation: req.params.id,
+    operation: operationId,
+    booking: primaryPayment.booking,
     milestone: milestone || `Split from ${primaryPayment.milestone}`,
     amount,
     paidAmount: 0,
     dueDate: primaryPayment.dueDate,
-    _isManual: true,
+    status: 'upcoming',
   });
 
   res.status(201).json({ status: 'success', data: { newPayment, primaryPayment } });
