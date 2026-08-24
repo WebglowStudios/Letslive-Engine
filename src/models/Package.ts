@@ -115,6 +115,8 @@ export interface IPackage extends Document {
   // Custom itinerary fields
   isCustom: boolean;
   showOnDestination: boolean;
+  isInternational: boolean;
+  visaIncluded: boolean;
   clientName?: string;
   clientEmail?: string;
   clientPhone?: string;
@@ -276,7 +278,9 @@ const packageSchema = new Schema<IPackage>(
     approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
     // Custom itinerary fields
     isCustom: { type: Boolean, default: false },
-    showOnDestination: { type: Boolean, default: false },
+    showOnDestination: { type: Boolean, default: true },
+    isInternational: { type: Boolean, default: false },
+    visaIncluded: { type: Boolean, default: false },
     clientName: { type: String },
     clientEmail: { type: String },
     clientPhone: { type: String },

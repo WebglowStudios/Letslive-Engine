@@ -27,6 +27,22 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
 
   const adults = travellers?.adults || 1;
   const children = travellers?.children || 0;
+  const infants = travellers?.infants || 0;
+  const totalPax = adults + children + infants;
+
+  if (pkg.isInternational) {
+    if (!req.body.primaryTraveller?.panCard) {
+      throw new AppError('PAN Card details are required for international bookings', 400);
+    }
+    if (!req.body.travellersDetails || req.body.travellersDetails.length !== totalPax) {
+      throw new AppError(`Passport details are required for all ${totalPax} travellers`, 400);
+    }
+    for (const t of req.body.travellersDetails) {
+      if (!t.passportNumber || !t.passportExpiry || !t.issuingCountry) {
+        throw new AppError(`Passport number, expiry date, and issuing country are required for traveller: ${t.name || 'Unknown'}`, 400);
+      }
+    }
+  }
 
   let basePrice = pkg.price;
   if (req.body.departureId && pkg.isGroupTour && pkg.departures) {
