@@ -25,11 +25,20 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
       return null;
     }
 
-    const pkg = populatedBooking.package as unknown as { name?: string; price?: number; _id?: string };
+    const pkg = populatedBooking.package as unknown as { name?: string; price?: number; _id?: string; adultCount?: number; childCount?: number };
     const dest = populatedBooking.destination as unknown as { name?: string };
     const usr = populatedBooking.user as unknown as { firstName?: string; lastName?: string; email?: string; phone?: string };
     const travellers = populatedBooking.travellers as { adults?: number; children?: number; infants?: number };
-    const pax = (travellers?.adults || 1) + (travellers?.children || 0);
+    const travellersDetails = populatedBooking.travellersDetails as any[] || [];
+    
+    // Calculate pax using the max of (package default), (booking adult+child), or (actual details entered)
+    const packageBasePax = (pkg?.adultCount || 0) + (pkg?.childCount || 0);
+    const bookingTravellers = (travellers?.adults || 1) + (travellers?.children || 0);
+    const enteredPax = travellersDetails.length;
+    const pax = Math.max(packageBasePax, bookingTravellers, enteredPax, 1);
+    
+    const adults = Math.max(pkg?.adultCount || travellers?.adults || 1, travellersDetails.filter(t => t.type === 'adult').length);
+    const children = Math.max(pkg?.childCount || travellers?.children || 0, travellersDetails.filter(t => t.type === 'child').length);
 
     const op = await Operation.create({
       booking: populatedBooking._id,
@@ -41,8 +50,8 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
         email: usr?.email || '',
         phone: usr?.phone || '',
         pax,
-        adults: travellers?.adults || 0,
-        children: travellers?.children || 0,
+        adults,
+        children,
       },
       destination: dest?.name || 'TBD',
       travelDates: {

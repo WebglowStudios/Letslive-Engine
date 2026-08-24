@@ -553,3 +553,37 @@ export const updateBookingDates = asyncHandler(async (req: Request, res: Respons
     data: booking,
   });
 });
+
+// @desc    Update booking passenger details and sync with operation
+// @route   PUT /api/bookings/:id/passengers
+// @access  Admin/Manager
+export const updateBookingPassengers = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { travellersDetails } = req.body;
+
+  const booking = await Booking.findById(id).populate('package');
+  if (!booking) {
+    throw new AppError('Booking not found', 404);
+  }
+
+  // Update booking
+  booking.travellersDetails = travellersDetails;
+  await booking.save();
+
+  // Find associated operation and sync pax
+  const op = await Operation.findOne({ booking: id });
+  if (op) {
+    const pkg = booking.package as any;
+    const packageBasePax = (pkg?.adultCount || 0) + (pkg?.childCount || 0);
+    const bookingTravellers = (booking.travellers?.adults || 1) + (booking.travellers?.children || 0);
+    const enteredPax = travellersDetails.length;
+    
+    op.customer.pax = Math.max(packageBasePax, bookingTravellers, enteredPax, 1);
+    op.customer.adults = Math.max(pkg?.adultCount || booking.travellers?.adults || 1, travellersDetails.filter((t: any) => t.type === 'adult').length);
+    op.customer.children = Math.max(pkg?.childCount || booking.travellers?.children || 0, travellersDetails.filter((t: any) => t.type === 'child').length);
+    
+    await op.save();
+  }
+
+  res.status(200).json({ status: 'success', data: booking });
+});
