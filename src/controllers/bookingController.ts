@@ -467,3 +467,73 @@ export const updateBookingStatus = asyncHandler(async (req: Request, res: Respon
     data: booking,
   });
 });
+
+// @desc    Update booking dates (admin/manager only)
+// @route   PUT /api/bookings/:id/dates
+export const updateBookingDates = asyncHandler(async (req: Request, res: Response) => {
+  const { travelDate, returnDate, reason } = req.body;
+
+  if (!travelDate) {
+    throw new AppError('Travel date is required', 400);
+  }
+  if (!reason) {
+    throw new AppError('Reason is required for changing dates', 400);
+  }
+
+  const booking = await Booking.findById(req.params.id);
+  if (!booking) {
+    throw new AppError('Booking not found', 404);
+  }
+
+  const oldTravelDate = booking.travelDate;
+  
+  booking.travelDate = new Date(travelDate);
+  if (returnDate) {
+    booking.returnDate = new Date(returnDate);
+  } else {
+    booking.returnDate = undefined;
+  }
+  
+  booking.dateChangeHistory = booking.dateChangeHistory || [];
+  booking.dateChangeHistory.push({
+    oldDate: oldTravelDate,
+    newDate: booking.travelDate,
+    reason,
+    changedBy: req.user!._id,
+    changedAt: new Date()
+  });
+
+  await booking.save();
+
+  // Cascade to Operation
+  const operation = await Operation.findOne({ booking: booking._id });
+  if (operation) {
+    operation.travelDates = {
+      start: booking.travelDate,
+      end: booking.returnDate || booking.travelDate, // fallback if returnDate undefined
+    };
+    await operation.save();
+  }
+
+  // Cascade to Enquiry
+  if (booking.enquiry) {
+    await Enquiry.findByIdAndUpdate(booking.enquiry, {
+      travelDate: booking.travelDate
+    });
+  }
+
+  await logActivity({
+    req,
+    action: 'status_change',
+    entity: 'booking',
+    entityId: String(booking._id),
+    entityName: String(booking._id),
+    description: `Updated travel dates for booking #${String(booking._id).slice(-6).toUpperCase()} to ${booking.travelDate.toISOString().split('T')[0]}. Reason: ${reason}`,
+    meta: { oldTravelDate, newTravelDate: booking.travelDate, reason },
+  });
+
+  res.status(200).json({
+    status: 'success',
+    data: booking,
+  });
+});

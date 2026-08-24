@@ -32,6 +32,7 @@ export interface IBooking extends Document {
   contactPhone?: string;
   contactEmail?: string;
   paymentHistory: IPaymentRecord[];
+  dateChangeHistory?: { oldDate: Date; newDate: Date; reason: string; changedBy: mongoose.Types.ObjectId; changedAt: Date }[];
   cancellationReason?: string;
   cancelledAt?: Date;
   createdAt: Date;
@@ -103,6 +104,15 @@ const bookingSchema = new Schema<IBooking>(
         transactionId: { type: String },
         date: { type: Date },
         status: { type: String },
+      },
+    ],
+    dateChangeHistory: [
+      {
+        oldDate: { type: Date },
+        newDate: { type: Date },
+        reason: { type: String },
+        changedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+        changedAt: { type: Date },
       },
     ],
     cancellationReason: { type: String },
