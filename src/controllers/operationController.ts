@@ -159,7 +159,7 @@ export const groupServices = asyncHandler(async (req: Request, res: Response) =>
 
   const groupId = new mongoose.Types.ObjectId().toString();
 
-  let Model;
+  let Model: any;
   if (type === 'transports') Model = OperationTransport;
   else if (type === 'accommodations') Model = OperationAccommodation;
   else if (type === 'activities') Model = OperationActivity;
@@ -182,7 +182,7 @@ export const ungroupServices = asyncHandler(async (req: Request, res: Response) 
   const { id } = req.params;
   const { type, groupId } = req.body;
 
-  let Model;
+  let Model: any;
   if (type === 'transports') Model = OperationTransport;
   else if (type === 'accommodations') Model = OperationAccommodation;
   else if (type === 'activities') Model = OperationActivity;
