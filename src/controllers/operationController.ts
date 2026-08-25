@@ -7,6 +7,7 @@ import OperationAccommodation from '../models/OperationAccommodation.js';
 import OperationActivity from '../models/OperationActivity.js';
 import VendorPayment from '../models/VendorPayment.js';
 import CustomerPayment from '../models/CustomerPayment.js';
+import mongoose from 'mongoose';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { sendPaymentReminder } from '../services/emailService.js';
@@ -145,6 +146,54 @@ export const deleteOperation = asyncHandler(async (req: Request, res: Response) 
 
   await Operation.findByIdAndDelete(opId);
   res.status(200).json({ status: 'success', message: 'Operation deleted successfully' });
+});
+
+// ─── GROUP / UNGROUP SERVICES ───
+export const groupServices = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { type, itemIds } = req.body; 
+
+  if (!Array.isArray(itemIds) || itemIds.length < 2) {
+    throw new AppError('At least 2 items required for grouping', 400);
+  }
+
+  const groupId = new mongoose.Types.ObjectId().toString();
+
+  let Model;
+  if (type === 'transports') Model = OperationTransport;
+  else if (type === 'accommodations') Model = OperationAccommodation;
+  else if (type === 'activities') Model = OperationActivity;
+  else throw new AppError('Invalid service type', 400);
+
+  const masterId = itemIds[0];
+  const others = itemIds.slice(1);
+
+  await Model.updateOne({ _id: masterId, operation: id }, { $set: { groupId, isGroupMaster: true } });
+  
+  await Model.updateMany(
+    { _id: { $in: others }, operation: id }, 
+    { $set: { groupId, isGroupMaster: false, vendorCost: 0, sellingPrice: 0 } }
+  );
+
+  res.status(200).json({ status: 'success', message: 'Grouped successfully' });
+});
+
+export const ungroupServices = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { type, groupId } = req.body;
+
+  let Model;
+  if (type === 'transports') Model = OperationTransport;
+  else if (type === 'accommodations') Model = OperationAccommodation;
+  else if (type === 'activities') Model = OperationActivity;
+  else throw new AppError('Invalid service type', 400);
+
+  await Model.updateMany(
+    { groupId, operation: id },
+    { $unset: { groupId: 1, isGroupMaster: 1 } }
+  );
+
+  res.status(200).json({ status: 'success', message: 'Ungrouped successfully' });
 });
 
 // ─── IMPORT FROM ITINERARY ───

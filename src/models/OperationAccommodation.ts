@@ -19,6 +19,8 @@ export interface IOperationAccommodation extends Document {
   paymentStatus: 'pending' | 'paid' | 'partial';
   paymentDueDate?: Date;
   remarks: string;
+  groupId?: string;
+  isGroupMaster?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,6 +45,8 @@ const schema = new Schema<IOperationAccommodation>(
     paymentStatus: { type: String, enum: ['pending', 'paid', 'partial'], default: 'pending' },
     paymentDueDate: { type: Date },
     remarks: { type: String, default: '' },
+    groupId: { type: String },
+    isGroupMaster: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

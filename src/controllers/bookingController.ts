@@ -186,7 +186,7 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
 // @route   GET /api/bookings
 export const getUserBookings = asyncHandler(async (req: Request, res: Response) => {
   const bookings = await Booking.find({ user: req.user!._id })
-    .populate('package', 'name slug images duration')
+    .populate('package', 'name slug images duration isInternational visaIncluded flightsIncluded')
     .populate('destination', 'name slug')
     .sort({ createdAt: -1 });
 
