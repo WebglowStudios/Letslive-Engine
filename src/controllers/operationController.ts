@@ -122,6 +122,31 @@ export const recalculateOperation = asyncHandler(async (req: Request, res: Respo
   res.status(200).json({ status: 'success', data: operation });
 });
 
+export const deleteOperation = asyncHandler(async (req: Request, res: Response) => {
+  if (req.user?.role !== 'admin') {
+    throw new AppError('Only administrators can delete operations', 403);
+  }
+  
+  const opId = req.params.id;
+  const operation = await Operation.findById(opId);
+  
+  if (!operation) {
+    throw new AppError('Operation not found', 404);
+  }
+
+  // Delete associated records
+  await Promise.all([
+    OperationTransport.deleteMany({ operation: opId }),
+    OperationAccommodation.deleteMany({ operation: opId }),
+    OperationActivity.deleteMany({ operation: opId }),
+    VendorPayment.deleteMany({ operation: opId }),
+    CustomerPayment.deleteMany({ operation: opId })
+  ]);
+
+  await Operation.findByIdAndDelete(opId);
+  res.status(200).json({ status: 'success', message: 'Operation deleted successfully' });
+});
+
 // ─── IMPORT FROM ITINERARY ───
 
 export const importFromItinerary = asyncHandler(async (req: Request, res: Response) => {

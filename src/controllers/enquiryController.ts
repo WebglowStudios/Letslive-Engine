@@ -217,6 +217,8 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
   }
   if (req.query.priority) filter.priority = req.query.priority;
   if (req.query.channel) filter.channel = req.query.channel;
+  if (req.query.destination) filter.destination = new RegExp(req.query.destination as string, 'i');
+  if (req.query.travellerCount) filter.travellerCount = parseInt(req.query.travellerCount as string);
 
   // Text search across name, email, phone, packageName
   if (req.query.search) {
@@ -729,7 +731,14 @@ export const getFollowUpsToday = asyncHandler(async (req: Request, res: Response
 export const exportEnquiries = asyncHandler(async (req: Request, res: Response) => {
   const filter: Record<string, unknown> = {};
   if (req.query.status) filter.status = req.query.status;
-  if (req.query.assignedTo) filter.assignedTo = req.query.assignedTo;
+  if (req.user?.role !== 'admin') {
+    filter.assignedTo = req.user?._id;
+  } else if (req.query.assignedTo) {
+    filter.assignedTo = req.query.assignedTo;
+  }
+  if (req.query.destination) filter.destination = new RegExp(req.query.destination as string, 'i');
+  if (req.query.travellerCount) filter.travellerCount = parseInt(req.query.travellerCount as string);
+  
   if (req.query.from || req.query.to) {
     const dateFilter: Record<string, Date> = {};
     if (req.query.from) dateFilter.$gte = new Date(req.query.from as string);
