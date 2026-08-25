@@ -209,7 +209,12 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
   const filter: Record<string, unknown> = {};
   if (req.query.status) filter.status = req.query.status;
   if (req.query.type) filter.type = req.query.type;
-  if (req.query.assignedTo) filter.assignedTo = req.query.assignedTo;
+  
+  if (req.user?.role !== 'admin') {
+    filter.assignedTo = req.user?._id;
+  } else if (req.query.assignedTo) {
+    filter.assignedTo = req.query.assignedTo;
+  }
   if (req.query.priority) filter.priority = req.query.priority;
   if (req.query.channel) filter.channel = req.query.channel;
 
@@ -548,7 +553,11 @@ export const getEnquiryStats = asyncHandler(async (req: Request, res: Response) 
     : new Date(now.getFullYear(), now.getMonth(), 1);
   const toDate = req.query.to ? new Date(req.query.to as string) : now;
 
-  const dateFilter = { createdAt: { $gte: fromDate, $lte: toDate } };
+  const dateFilter: any = { createdAt: { $gte: fromDate, $lte: toDate } };
+
+  if (req.user?.role !== 'admin') {
+    dateFilter.assignedTo = req.user?._id;
+  }
 
   const [
     byStatus,
