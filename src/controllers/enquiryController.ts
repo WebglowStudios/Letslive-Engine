@@ -269,7 +269,7 @@ export const getEnquiryById = asyncHandler(async (req: Request, res: Response) =
     .populate('assignedTo', 'firstName lastName email')
     .populate('notes.by', 'firstName lastName')
     .populate('callLog.by', 'firstName lastName')
-    .populate('bookingRef', 'bookingId totalAmount');
+    .populate('bookingRef', 'bookingId bookingStatus paymentStatus paymentFinanceStatus totalAmount paidAmount');
 
   if (!enquiry) {
     throw new AppError('Enquiry not found', 404);
@@ -867,7 +867,7 @@ export const getCustomerEnquiryById = asyncHandler(async (req: Request, res: Res
 
   const enquiry = await Enquiry.findOne({ _id: req.params.id, user: userId })
     .populate('package', 'name slug')
-    .populate('bookingRef', 'bookingId status paymentFinanceStatus totalAmount')
+    .populate('bookingRef', 'bookingId bookingStatus paymentStatus paymentFinanceStatus totalAmount paidAmount')
     .populate('assignedTo', 'firstName lastName avatar description phone');
 
   if (!enquiry) {
