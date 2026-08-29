@@ -4,6 +4,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
 import Enquiry from '../models/Enquiry.js';
 import Operation from '../models/Operation.js';
+import '../models/Booking.js'; // Side-effect import to ensure Schema is registered for populate
 import mongoose from 'mongoose';
 
 // @desc    Get all users (admin)
