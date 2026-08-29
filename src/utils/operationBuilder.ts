@@ -58,6 +58,7 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
         start: populatedBooking.travelDate,
         end: populatedBooking.returnDate || populatedBooking.travelDate,
       },
+      assignedTo: undefined,
       sellingPrice: populatedBooking.totalAmount || 0,
       status: 'planning',
     });
@@ -106,25 +107,33 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
       });
     }
 
-    // Sync enquiry -> converted + conversionValue
+    // Sync enquiry -> converted + conversionValue + carry over assignedTo
     if (populatedBooking.enquiry) {
       const linkedEnquiry = await Enquiry.findById(populatedBooking.enquiry).populate('assignedTo', 'firstName lastName email');
-      if (linkedEnquiry && linkedEnquiry.status !== 'converted') {
-        linkedEnquiry.status = 'converted';
-        linkedEnquiry.conversionValue = populatedBooking.totalAmount || 0;
-        linkedEnquiry.bookingRef = populatedBooking._id as unknown as mongoose.Types.ObjectId;
-        await linkedEnquiry.save();
+      if (linkedEnquiry) {
+        // Carry over assignedTo from Enquiry to Operation
+        if (linkedEnquiry.assignedTo) {
+          op.assignedTo = (linkedEnquiry.assignedTo as any)._id || linkedEnquiry.assignedTo;
+          await op.save();
+        }
 
-        // Congrats email to the staff who owned this enquiry (fire-and-forget)
-        const assignedStaff = linkedEnquiry.assignedTo as unknown as { firstName: string; lastName?: string; email: string } | null;
-        if (assignedStaff?.email) {
-          const customerName = `${linkedEnquiry.firstName} ${linkedEnquiry.lastName || ''}`.trim();
-          sendConversionCongrats(
-            assignedStaff.email,
-            `${assignedStaff.firstName} ${assignedStaff.lastName || ''}`.trim(),
-            customerName,
-            populatedBooking.totalAmount || 0
-          ).catch(console.error);
+        if (linkedEnquiry.status !== 'converted') {
+          linkedEnquiry.status = 'converted';
+          linkedEnquiry.conversionValue = populatedBooking.totalAmount || 0;
+          linkedEnquiry.bookingRef = populatedBooking._id as unknown as mongoose.Types.ObjectId;
+          await linkedEnquiry.save();
+
+          // Congrats email to the staff who owned this enquiry (fire-and-forget)
+          const assignedStaff = linkedEnquiry.assignedTo as unknown as { firstName: string; lastName?: string; email: string } | null;
+          if (assignedStaff?.email) {
+            const customerName = `${linkedEnquiry.firstName} ${linkedEnquiry.lastName || ''}`.trim();
+            sendConversionCongrats(
+              assignedStaff.email,
+              `${assignedStaff.firstName} ${assignedStaff.lastName || ''}`.trim(),
+              customerName,
+              populatedBooking.totalAmount || 0
+            ).catch(console.error);
+          }
         }
       }
     }
