@@ -13,6 +13,9 @@ async function backfillAssignedTo() {
   try {
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/letslivetours');
     console.log('Connected to MongoDB');
+    
+    // Enforce model registration
+    console.log(`Loaded models: ${Enquiry.modelName}, ${Operation.modelName}`);
 
     // Find all operations that don't have an assignedTo or where it's null
     const operations = await Operation.find({ assignedTo: { $exists: false } }).populate('enquiry');
