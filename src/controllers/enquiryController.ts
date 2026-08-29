@@ -105,8 +105,8 @@ export const manualCreateEnquiry = asyncHandler(async (req: Request, res: Respon
     throw new AppError('firstName, email and phone are required', 400);
   }
 
-  // Allow manual assignedTo — if not provided, stays 'new' and unassigned
-  const assignedToId = assignedTo || undefined;
+  // Allow manual assignedTo — if not provided, auto-assign to the logged-in staff member creating it
+  const assignedToId = assignedTo || req.user?._id || undefined;
   const priority = manualPriority || determinePriority(type || 'general', travelDate);
 
   const existingUser = await User.findOne({ email: email?.toLowerCase().trim() });
