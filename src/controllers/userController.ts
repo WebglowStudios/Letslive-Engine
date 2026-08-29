@@ -173,7 +173,9 @@ export const getUserPerformance = asyncHandler(async (req: Request, res: Respons
     throw new AppError('Not authorized to view other users performance', 403);
   }
 
-  const userId = new mongoose.Types.ObjectId(targetId as string);
+  const userId = new mongoose.Types.ObjectId(String(targetId));
+  console.log('[PERF DEBUG] targetId raw:', targetId, '| type:', typeof targetId);
+  console.log('[PERF DEBUG] userId as ObjectId:', userId);
 
   // 1. Inquiries Managed & Conversions
   const enquiriesStats = await Enquiry.aggregate([
@@ -206,6 +208,8 @@ export const getUserPerformance = asyncHandler(async (req: Request, res: Respons
   const clientsHandled = opsStats[0]?.clientsHandled || 0;
   const revenueGenerated = opsStats[0]?.totalRevenue || 0;
   const profitGenerated = opsStats[0]?.totalProfit || 0;
+  console.log('[PERF DEBUG] enquiriesStats:', JSON.stringify(enquiriesStats));
+  console.log('[PERF DEBUG] opsStats:', JSON.stringify(opsStats));
 
   // 3. Incentives (Fixed 5% of gross profit as a standard mock metric)
   const incentivesEarned = profitGenerated * 0.05;

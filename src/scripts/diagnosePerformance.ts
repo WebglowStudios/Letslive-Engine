@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import { env } from '../config/env.js';
 import Operation from '../models/Operation.js';
 import Enquiry from '../models/Enquiry.js';
 import User from '../models/User.js';
@@ -11,40 +10,33 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-async function diagnose() {
+async function deepDiagnose() {
   try {
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/letslivetours');
-    console.log('Connected to MongoDB for diagnosis...');
+    console.log('Connected to MongoDB');
     console.log(`Loaded models: ${Enquiry.modelName}, ${Operation.modelName}, ${User.modelName}`);
 
-    // 1. Check OP3C8AD6
-    const op = await Operation.findOne({ operationId: 'OP3C8AD6' }).lean();
-    if (!op) {
-      console.log('Operation OP3C8AD6 not found!');
-      process.exit(0);
+    // 1. Find Shubham's user
+    const shubham = await User.findOne({ firstName: 'Shubham' }).lean();
+    if (!shubham) {
+      console.log('ERROR: Shubham user not found!');
+      process.exit(1);
     }
-    
-    console.log('\n--- DIAGNOSTICS FOR OP3C8AD6 ---');
-    console.log('Operation assignedTo:', op.assignedTo);
-    
-    if (!op.assignedTo) {
-      console.log('FAILURE: The operation is still not assigned to anyone!');
-      process.exit(0);
-    }
+    console.log(`\nShubham ID: ${shubham._id}`);
 
-    // 2. Find the user it is assigned to
-    const user = await User.findById(op.assignedTo).lean();
-    if (!user) {
-      console.log(`FAILURE: The assignedTo ID ${op.assignedTo} does not match any User in the database!`);
-      process.exit(0);
-    }
+    // 2. Find ALL operations assigned to him with raw query (no populate)
+    const ops = await Operation.find({ assignedTo: shubham._id }).lean();
+    console.log(`\nOperations assigned to Shubham (raw find): ${ops.length}`);
+    ops.forEach(op => {
+      console.log(`  - ${op.operationId} | assignedTo: ${op.assignedTo} | sellingPrice: ${op.sellingPrice} | grossProfit: ${op.grossProfit}`);
+    });
 
-    console.log(`Assigned User Name: ${user.firstName} ${user.lastName}`);
-    console.log(`Assigned User ID: ${user._id}`);
-    
-    // 3. Run the exact Operations Aggregation Pipeline from the controller for this specific user
+    // 3. Run the EXACT aggregation from the controller
+    const userId = new mongoose.Types.ObjectId(String(shubham._id));
+    console.log(`\nUsing ObjectId for aggregation: ${userId}`);
+
     const opsStats = await Operation.aggregate([
-      { $match: { assignedTo: user._id } },
+      { $match: { assignedTo: userId } },
       {
         $group: {
           _id: null,
@@ -54,15 +46,28 @@ async function diagnose() {
         }
       }
     ]);
-    
-    console.log('\n--- AGGREGATION RESULTS FOR THIS USER ---');
-    console.log(JSON.stringify(opsStats, null, 2));
+    console.log('\nAggregation Result:', JSON.stringify(opsStats, null, 2));
+
+    // 4. Check the assignedTo field TYPE in the raw documents
+    const rawOp = await Operation.collection.findOne({ assignedTo: { $exists: true } });
+    if (rawOp) {
+      console.log(`\nRaw assignedTo value type: ${typeof rawOp.assignedTo}`);
+      console.log(`Raw assignedTo value: ${rawOp.assignedTo}`);
+      console.log(`Is ObjectId? ${rawOp.assignedTo instanceof mongoose.Types.ObjectId}`);
+    }
+
+    // 5. Check Enquiry stats too
+    const enquiryStats = await Enquiry.aggregate([
+      { $match: { assignedTo: userId } },
+      { $group: { _id: null, total: { $sum: 1 } } }
+    ]);
+    console.log('\nEnquiry Aggregation Result:', JSON.stringify(enquiryStats, null, 2));
 
     process.exit(0);
   } catch (error) {
-    console.error('Diag failed:', error);
+    console.error('Deep diagnosis failed:', error);
     process.exit(1);
   }
 }
 
-diagnose();
+deepDiagnose();
