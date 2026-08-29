@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import { env } from '../config/env.js';
 import Operation from '../models/Operation.js';
 import Enquiry from '../models/Enquiry.js';
 import dotenv from 'dotenv';
@@ -12,7 +11,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 async function backfillAssignedTo() {
   try {
-    await mongoose.connect(env.MONGODB_URI || 'mongodb://localhost:27017/letslivetours');
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/letslivetours');
     console.log('Connected to MongoDB');
 
     // Find all operations that don't have an assignedTo or where it's null
