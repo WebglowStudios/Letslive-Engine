@@ -28,6 +28,7 @@ export interface IBooking extends Document {
   paymentFinanceStatus: 'none' | 'pending_approval' | 'approved' | 'rejected';
   financeDetails?: { paidAmount?: number; mode: string; transactionId: string; remarks: string; requestedBy?: mongoose.Types.ObjectId };
   bookingStatus: 'pending' | 'confirmed' | 'staff-confirmed' | 'in-progress' | 'completed' | 'cancelled';
+  bookingSource: 'online' | 'admin_manual';
   specialRequests?: string;
   contactPhone?: string;
   contactEmail?: string;
@@ -99,6 +100,11 @@ const bookingSchema = new Schema<IBooking>(
       default: 'pending',
     },
     specialRequests: { type: String },
+    bookingSource: {
+      type: String,
+      enum: ['online', 'admin_manual'],
+      default: 'online',
+    },
     contactPhone: { type: String },
     contactEmail: { type: String },
     paymentHistory: [

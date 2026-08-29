@@ -182,8 +182,141 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
   }
 });
 
-// @desc    Get current user's bookings
-// @route   GET /api/bookings
+// @desc    Create a manual / offline booking (admin/staff only)
+// @route   POST /api/bookings/manual
+export const createManualBooking = asyncHandler(async (req: Request, res: Response) => {
+  const staffId = req.user!._id;
+  const {
+    enquiryId,
+    packageId,
+    userId: customerId,
+    travelDate,
+    returnDate,
+    travellers,
+    travellersDetails,
+    primaryTraveller,
+    totalAmount,
+    offlinePayment,
+    specialRequests,
+  } = req.body;
+
+  if (!customerId) throw new AppError('Customer user ID is required. Please search and select an existing customer account.', 400);
+  if (!packageId) throw new AppError('Package ID is required.', 400);
+  if (!travelDate) throw new AppError('Travel date is required.', 400);
+  if (!totalAmount || totalAmount <= 0) throw new AppError('Total amount must be greater than 0.', 400);
+
+  const pkg = await Package.findById(packageId);
+  if (!pkg) throw new AppError('Package not found', 404);
+
+  const customer = await User.findById(customerId);
+  if (!customer) throw new AppError('Customer account not found. Please select a valid customer.', 404);
+
+  // International package validation
+  if (pkg.isInternational) {
+    if (!primaryTraveller?.panCard) throw new AppError('PAN Card is required for international bookings.', 400);
+    const adults = travellers?.adults || 1;
+    const children = travellers?.children || 0;
+    const infants = travellers?.infants || 0;
+    const totalPax = adults + children + infants;
+    if (!travellersDetails || travellersDetails.length !== totalPax) {
+      throw new AppError(`Passport details are required for all ${totalPax} travellers.`, 400);
+    }
+    for (const t of travellersDetails) {
+      if (!t.passportNumber || !t.passportExpiry || !t.issuingCountry) {
+        throw new AppError(`Passport number, expiry, and issuing country required for: ${t.name || 'Unknown'}`, 400);
+      }
+    }
+  }
+
+  const paid = offlinePayment?.paidAmount || 0;
+  const paymentStatus: 'pending' | 'partial' | 'paid' =
+    paid <= 0 ? 'pending' : paid >= totalAmount ? 'paid' : 'partial';
+
+  const paymentHistory = paid > 0 ? [{
+    amount: paid,
+    method: offlinePayment?.mode || 'cash',
+    transactionId: offlinePayment?.transactionId || '',
+    date: new Date(),
+    status: 'completed',
+  }] : [];
+
+  const booking = await Booking.create({
+    user: customerId,
+    package: packageId,
+    destination: pkg.destination,
+    enquiry: enquiryId || undefined,
+    travelDate,
+    returnDate,
+    travellers: travellers || { adults: 1, children: 0, infants: 0 },
+    travellersDetails: travellersDetails || [],
+    primaryTraveller: primaryTraveller || {},
+    totalAmount,
+    paidAmount: paid,
+    paymentStatus,
+    bookingStatus: 'staff-confirmed',
+    bookingSource: 'admin_manual',
+    specialRequests,
+    contactEmail: customer.email,
+    contactPhone: customer.phone || '',
+    paymentHistory,
+    financeDetails: paid > 0 ? {
+      paidAmount: paid,
+      mode: offlinePayment?.mode || 'cash',
+      transactionId: offlinePayment?.transactionId || '-',
+      remarks: offlinePayment?.remarks || 'Offline payment recorded by staff',
+      requestedBy: staffId,
+    } : undefined,
+  });
+
+  // Auto-create Operation
+  await autoCreateOperationFromBooking(String(booking._id));
+
+  // Update linked enquiry if provided
+  if (enquiryId) {
+    const staff = await User.findById(staffId).select('firstName lastName').lean();
+    const staffName = staff ? `${staff.firstName} ${staff.lastName}` : 'Staff';
+    await Enquiry.findByIdAndUpdate(enquiryId, {
+      status: 'converted',
+      user: customerId,
+      bookingRef: booking._id,
+      $push: {
+        notes: {
+          text: `Manual/offline booking created by ${staffName}. Payment: ₹${paid.toLocaleString('en-IN')} via ${offlinePayment?.mode || 'cash'}. Booking Ref: ${booking.bookingId || String(booking._id).slice(-6).toUpperCase()}`,
+          date: new Date(),
+          by: staffId,
+        },
+      },
+    });
+  }
+
+  // Send booking confirmation email (fire-and-forget)
+  sendBookingConfirmation(
+    customer.email,
+    customer.firstName,
+    pkg.name,
+    String(booking.bookingId || booking._id),
+    totalAmount
+  ).catch(console.error);
+
+  // Activity log
+  ActivityLog.create({
+    user: staffId,
+    userName: `${req.user!.firstName} ${req.user!.lastName}`,
+    userRole: req.user!.role,
+    action: 'create',
+    entity: 'booking',
+    entityId: String(booking._id),
+    entityName: pkg.name,
+    description: `Manual offline booking created for ${customer.firstName} ${customer.lastName} — ${booking.bookingId || String(booking._id).slice(-6).toUpperCase()} | ₹${paid} via ${offlinePayment?.mode || 'cash'}`,
+    meta: { packageId: String(pkg._id), totalAmount, paidAmount: paid, mode: offlinePayment?.mode },
+  }).catch(console.error);
+
+  res.status(201).json({
+    status: 'success',
+    data: booking,
+  });
+});
+
 export const getUserBookings = asyncHandler(async (req: Request, res: Response) => {
   const bookings = await Booking.find({ user: req.user!._id })
     .populate('package', 'name slug images duration isInternational visaIncluded flightsIncluded')

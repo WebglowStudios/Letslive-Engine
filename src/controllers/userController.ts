@@ -164,7 +164,18 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
-// @desc    Get user performance dashboard data (admin/staff)
+// @desc    Search user by email (staff use: customer lookup for manual bookings)
+// @route   GET /api/users/search?email=...
+export const searchUserByEmail = asyncHandler(async (req: Request, res: Response) => {
+  const email = (req.query.email as string || '').trim().toLowerCase();
+  if (!email) throw new AppError('Email query parameter is required', 400);
+
+  const user = await User.findOne({ email }).select('_id firstName lastName email phone role createdAt').lean();
+  if (!user) throw new AppError('No account found with this email', 404);
+
+  res.status(200).json({ status: 'success', data: user });
+});
+
 // @route   GET /api/users/:id/performance
 export const getUserPerformance = asyncHandler(async (req: Request, res: Response) => {
   const targetId = req.params.id === 'me' ? req.user!._id : req.params.id;

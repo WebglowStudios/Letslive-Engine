@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   createBooking,
+  createManualBooking,
   getUserBookings,
   getBookingById,
   cancelBooking,
@@ -9,11 +10,12 @@ import {
   updateBookingDates,
   updateBookingPassengers,
 } from '../controllers/bookingController.js';
-import { protect, requirePermission, managerOnly } from '../middleware/auth.js';
+import { protect, requirePermission, managerOnly, staffOnly } from '../middleware/auth.js';
 
 const router = Router();
 
 router.post('/', protect, createBooking);
+router.post('/manual', protect, staffOnly, createManualBooking);
 router.get('/', protect, getUserBookings);
 router.get('/all', protect, requirePermission('bookings.view'), getAllBookings);
 router.get('/:id', protect, getBookingById);
