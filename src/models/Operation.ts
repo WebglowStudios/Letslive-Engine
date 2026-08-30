@@ -23,6 +23,7 @@ export interface IOperation extends Document {
   totalVendorCost: number;
   grossProfit: number;
   profitPercentage: number;
+  incentiveAmount?: number;
   status: 'planning' | 'booked' | 'in-progress' | 'completed' | 'cancelled';
   voucherGenerated: boolean;
   notes: string;
@@ -54,6 +55,7 @@ const operationSchema = new Schema<IOperation>(
     totalVendorCost: { type: Number, default: 0 },
     grossProfit: { type: Number, default: 0 },
     profitPercentage: { type: Number, default: 0 },
+    incentiveAmount: { type: Number },
     status: {
       type: String,
       enum: ['planning', 'booked', 'in-progress', 'completed', 'cancelled'],

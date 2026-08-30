@@ -234,7 +234,22 @@ export const getUserPerformance = asyncHandler(async (req: Request, res: Respons
         _id: null,
         clientsHandled: { $sum: 1 }, // counting number of operations handled
         totalRevenue: { $sum: '$sellingPrice' },
-        totalProfit: { $sum: '$grossProfit' }
+        totalProfit: { $sum: '$grossProfit' },
+        totalIncentives: { $sum: { $ifNull: ['$incentiveAmount', 0] } },
+        pendingIncentives: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  { $eq: ['$status', 'completed'] },
+                  { $eq: [{ $ifNull: ['$incentiveAmount', 'MISSING'] }, 'MISSING'] }
+                ]
+              },
+              1,
+              0
+            ]
+          }
+        }
       }
     }
   ]);
@@ -242,11 +257,8 @@ export const getUserPerformance = asyncHandler(async (req: Request, res: Respons
   const clientsHandled = opsStats[0]?.clientsHandled || 0;
   const revenueGenerated = opsStats[0]?.totalRevenue || 0;
   const profitGenerated = opsStats[0]?.totalProfit || 0;
-  console.log('[PERF DEBUG] enquiriesStats:', JSON.stringify(enquiriesStats));
-  console.log('[PERF DEBUG] opsStats:', JSON.stringify(opsStats));
-
-  // 3. Incentives (Fixed 5% of gross profit as a standard mock metric)
-  const incentivesEarned = profitGenerated * 0.05;
+  const incentivesEarned = opsStats[0]?.totalIncentives || 0;
+  const pendingIncentives = opsStats[0]?.pendingIncentives || 0;
 
   // Recent Conversions/Bookings for activity table
   const recentOperations = await Operation.find({ assignedTo: userId })
@@ -263,6 +275,7 @@ export const getUserPerformance = asyncHandler(async (req: Request, res: Respons
       revenueGenerated,
       profitGenerated,
       incentivesEarned,
+      pendingIncentives,
       recentActivity: recentOperations
     }
   });

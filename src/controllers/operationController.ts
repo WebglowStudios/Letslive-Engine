@@ -11,6 +11,7 @@ import mongoose from 'mongoose';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { sendPaymentReminder } from '../services/emailService.js';
+import { logActivity } from '../utils/logActivity.js';
 
 // ─── OPERATIONS CRUD ───
 
@@ -22,6 +23,10 @@ export const getOperations = asyncHandler(async (req: Request, res: Response) =>
   if (req.query.status) filter.status = req.query.status;
   if (req.query.assignedTo) filter.assignedTo = req.query.assignedTo;
   if (req.query.destination) filter.destination = new RegExp(req.query.destination as string, 'i');
+  if (req.query.incentiveStatus === 'pending') {
+    filter.status = 'completed';
+    filter.$or = [{ incentiveAmount: { $exists: false } }, { incentiveAmount: null }];
+  }
   if (req.user!.role === 'staff') filter.assignedTo = req.user!._id;
 
   if (req.query.hasPendingPayment === 'true') {
@@ -128,12 +133,26 @@ export const deleteOperation = asyncHandler(async (req: Request, res: Response) 
     throw new AppError('Only administrators can delete operations', 403);
   }
   
+  const { reason } = req.body;
+  if (!reason) {
+    throw new AppError('Please provide a reason for deleting this operation.', 400);
+  }
+
   const opId = req.params.id;
   const operation = await Operation.findById(opId);
   
   if (!operation) {
     throw new AppError('Operation not found', 404);
   }
+
+  await logActivity({
+    req,
+    action: 'delete',
+    entity: 'operation',
+    entityId: String(opId),
+    entityName: operation.operationId,
+    description: `Deleted Post-Sales Operation ${operation.operationId}. Reason: ${reason}`
+  });
 
   // Delete associated records
   await Promise.all([
