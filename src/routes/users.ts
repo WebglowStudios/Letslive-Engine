@@ -11,8 +11,9 @@ import {
   getStaffList,
   getUserPerformance,
   searchUserByEmail,
+  updateUserPassword,
 } from '../controllers/userController.js';
-import { protect, requirePermission, staffOnly } from '../middleware/auth.js';
+import { protect, requirePermission, staffOnly, adminOnly } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -27,6 +28,7 @@ router.put('/password', protect, changePassword);
 router.get('/search', protect, staffOnly, searchUserByEmail);
 router.get('/:id/performance', protect, getUserPerformance);
 router.get('/:id', protect, requirePermission('users.view'), getUserById);
+router.put('/:id/password', protect, adminOnly, updateUserPassword);
 router.delete('/:id', protect, requirePermission('users.delete'), deleteUser);
 
 export default router;

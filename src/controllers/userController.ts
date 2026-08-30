@@ -164,6 +164,29 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+// @desc    Update user password (admin)
+// @route   PUT /api/users/:id/password
+export const updateUserPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { password } = req.body;
+
+  if (!password || password.length < 8) {
+    throw new AppError('Password must be at least 8 characters', 400);
+  }
+
+  const user = await User.findById(req.params.id);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  user.password = password;
+  await user.save();
+
+  res.status(200).json({
+    status: 'success',
+    message: 'User password updated successfully',
+  });
+});
+
 // @desc    Search user by email (staff use: customer lookup for manual bookings)
 // @route   GET /api/users/search?email=...
 export const searchUserByEmail = asyncHandler(async (req: Request, res: Response) => {
