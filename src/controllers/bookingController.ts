@@ -13,11 +13,37 @@ import { sendBookingConfirmation, sendAdminNewBooking, sendConversionCongrats, s
 import { logActivity } from '../utils/logActivity.js';
 import ActivityLog from '../models/ActivityLog.js';
 import { autoCreateOperationFromBooking } from '../utils/operationBuilder.js';
+import crypto from 'crypto';
+import { generateAccessToken, generateRefreshToken, setTokenCookies } from '../utils/generateToken.js';
 
 // @desc    Create a booking
 // @route   POST /api/bookings
 export const createBooking = asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.user!._id;
+  let userId = req.user?._id;
+
+  if (!userId) {
+    const email = req.body.primaryTraveller?.email || req.body.contactEmail;
+    if (!email) throw new AppError('Email is required for guest checkout', 400);
+
+    let user = await User.findOne({ email });
+    if (!user) {
+      user = await User.create({
+        email,
+        firstName: req.body.primaryTraveller?.firstName || req.body.contactEmail?.split('@')[0] || 'Guest',
+        lastName: req.body.primaryTraveller?.lastName || '',
+        phone: req.body.primaryTraveller?.phone || req.body.contactPhone,
+        password: crypto.randomBytes(8).toString('hex'),
+      });
+    }
+
+    userId = user._id;
+
+    // Implicitly log the user in so subsequent /create-order calls work
+    const accessToken = generateAccessToken(String(userId));
+    const refreshToken = generateRefreshToken(String(userId));
+    setTokenCookies(res, accessToken, refreshToken);
+  }
+
   const { package: packageId, travellers } = req.body;
 
   const pkg = await Package.findById(packageId);
@@ -293,9 +319,13 @@ export const createManualBooking = asyncHandler(async (req: Request, res: Respon
   sendBookingConfirmation(
     customer.email,
     customer.firstName,
-    pkg.name,
-    String(booking.bookingId || booking._id),
-    totalAmount
+    {
+      packageName: pkg.name,
+      travelDate: new Date(booking.travelDate).toLocaleDateString('en-IN'),
+      amount: totalAmount,
+      travellers: (booking.travellers?.adults || 1) + (booking.travellers?.children || 0) + (booking.travellers?.infants || 0),
+      bookingId: String(booking.bookingId || booking._id)
+    }
   ).catch(console.error);
 
   // Activity log
