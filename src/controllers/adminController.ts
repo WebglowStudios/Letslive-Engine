@@ -132,7 +132,7 @@ export const updateStaff = asyncHandler(async (req: Request, res: Response) => {
   const updateData: Record<string, unknown> = {};
 
   if (role) {
-    const allowedRoles = ['admin', 'manager', 'staff', 'guest'];
+    const allowedRoles = ['admin', 'manager', 'sales-manager', 'ops-manager', 'sales-staff', 'ops-staff', 'guest', 'user', 'staff'];
     if (!allowedRoles.includes(role)) {
       throw new AppError('Invalid role', 400);
     }

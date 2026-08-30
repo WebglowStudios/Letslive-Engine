@@ -10,7 +10,7 @@ export interface IUser extends Document {
   password: string;
   avatar?: string;
   description?: string;
-  role: 'user' | 'admin' | 'manager' | 'staff' | 'guest';
+  role: 'user' | 'admin' | 'manager' | 'staff' | 'guest' | 'sales-manager' | 'sales-staff' | 'ops-manager' | 'ops-staff';
   wishlist: mongoose.Types.ObjectId[];
   isVerified: boolean;
   isActive: boolean;
@@ -48,7 +48,7 @@ const userSchema = new Schema<IUser>(
     password: { type: String, required: true, minlength: 8, select: false },
     avatar: { type: String },
     description: { type: String, trim: true },
-    role: { type: String, enum: ['user', 'admin', 'manager', 'staff', 'guest'], default: 'user' },
+    role: { type: String, enum: ['user', 'admin', 'manager', 'staff', 'guest', 'sales-manager', 'sales-staff', 'ops-manager', 'ops-staff'], default: 'user' },
     wishlist: [{ type: Schema.Types.ObjectId, ref: 'Package' }],
     isVerified: { type: Boolean, default: false },
     verificationToken: { type: String },

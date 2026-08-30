@@ -31,9 +31,17 @@ export const getAllUsers = asyncHandler(async (req: Request, res: Response) => {
 
 // @desc    Get staff list (for reassign dropdowns — any auth user)
 // @route   GET /api/users/staff
-export const getStaffList = asyncHandler(async (_req: Request, res: Response) => {
+export const getStaffList = asyncHandler(async (req: Request, res: Response) => {
+  let roles = ['admin', 'manager', 'sales-manager', 'sales-staff', 'ops-manager', 'ops-staff', 'staff'];
+  
+  if (req.query.department === 'sales') {
+    roles = ['admin', 'manager', 'sales-manager', 'sales-staff'];
+  } else if (req.query.department === 'ops') {
+    roles = ['admin', 'manager', 'ops-manager', 'ops-staff'];
+  }
+
   const staff = await User.find({
-    role: { $in: ['admin', 'manager', 'staff'] },
+    role: { $in: roles },
   })
     .select('_id firstName lastName email role')
     .sort({ firstName: 1 });

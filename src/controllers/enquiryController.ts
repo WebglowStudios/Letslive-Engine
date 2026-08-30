@@ -210,7 +210,8 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
   if (req.query.status) filter.status = req.query.status;
   if (req.query.type) filter.type = req.query.type;
   
-  if (req.user?.role !== 'admin') {
+  const fullAccessRoles = ['admin', 'manager', 'sales-manager'];
+  if (!fullAccessRoles.includes(req.user?.role || '')) {
     filter.assignedTo = req.user?._id;
   } else if (req.query.assignedTo) {
     filter.assignedTo = req.query.assignedTo;
@@ -277,7 +278,7 @@ export const getEnquiryById = asyncHandler(async (req: Request, res: Response) =
 
   // Staff can only view their own assigned enquiries
   const user = req.user!;
-  if (user.role === 'staff' && enquiry.assignedTo?.toString() !== user._id.toString()) {
+  if ((user.role === 'staff' || user.role === 'sales-staff') && enquiry.assignedTo?.toString() !== user._id.toString()) {
     throw new AppError('Access denied', 403);
   }
 
@@ -306,7 +307,7 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
 
   // Staff can only update their own assigned enquiries
   const user = req.user!;
-  if (user.role === 'staff' && enquiry.assignedTo?.toString() !== user._id.toString()) {
+  if ((user.role === 'staff' || user.role === 'sales-staff') && enquiry.assignedTo?.toString() !== user._id.toString()) {
     throw new AppError('Access denied. This enquiry is not assigned to you.', 403);
   }
 
@@ -426,7 +427,7 @@ export const logCall = asyncHandler(async (req: Request, res: Response) => {
 
   // Staff can only log calls on their assigned enquiries
   const user = req.user!;
-  if (user.role === 'staff' && enquiry.assignedTo?.toString() !== user._id.toString()) {
+  if ((user.role === 'staff' || user.role === 'sales-staff') && enquiry.assignedTo?.toString() !== user._id.toString()) {
     throw new AppError('Access denied', 403);
   }
 
@@ -711,7 +712,7 @@ export const getFollowUpsToday = asyncHandler(async (req: Request, res: Response
   };
 
   // Staff only see their own
-  if (req.user!.role === 'staff') {
+  if (req.user!.role === 'staff' || req.user!.role === 'sales-staff') {
     filter.assignedTo = req.user!._id;
   }
 

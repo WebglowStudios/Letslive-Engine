@@ -21,7 +21,7 @@ const router = Router();
 router.get('/custom', protect, requirePermission('packages.view'), asyncHandler(async (req: Request, res: Response) => {
   const filter: Record<string, unknown> = { isCustom: true };
   // Staff only sees their own, admin/manager sees all
-  if (req.user!.role === 'staff') {
+  if (['staff', 'sales-staff', 'ops-staff'].includes(req.user!.role)) {
     filter.createdBy = req.user!._id;
   }
   const itineraries = await Package.find(filter)

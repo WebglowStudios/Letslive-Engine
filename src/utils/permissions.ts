@@ -1,6 +1,6 @@
 import { IUser } from '../models/User.js';
 
-export type Role = "admin" | "manager" | "staff" | "guest" | "user";
+export type Role = "admin" | "manager" | "staff" | "guest" | "user" | "sales-manager" | "sales-staff" | "ops-manager" | "ops-staff";
 
 export type Permission =
   | "dashboard.view"
@@ -64,6 +64,32 @@ export const rolePermissions: Record<Role, Permission[]> = {
     "enquiries.view", "enquiries.respond",
     "careers.view", "careers.create", "careers.edit", "careers.delete",
     "newsletter.view",
+    "activity.view",
+  ],
+  "sales-manager": [
+    "dashboard.view",
+    "enquiries.view", "enquiries.respond", "enquiries.delete",
+    "packages.view",
+    "destinations.view",
+    "users.view",
+    "activity.view",
+  ],
+  "sales-staff": [
+    "dashboard.view",
+    "enquiries.view", "enquiries.respond",
+    "activity.view",
+  ],
+  "ops-manager": [
+    "dashboard.view",
+    "bookings.view", "bookings.update", "bookings.delete",
+    "destinations.view",
+    "packages.view",
+    "users.view",
+    "activity.view",
+  ],
+  "ops-staff": [
+    "dashboard.view",
+    "bookings.view", "bookings.update",
     "activity.view",
   ],
   staff: [

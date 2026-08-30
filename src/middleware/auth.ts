@@ -70,11 +70,11 @@ export const roleCheck = (...allowedRoles: string[]) => {
   };
 };
 
-// Staff+ access (admin, manager, staff)
-export const staffOnly = roleCheck('admin', 'manager', 'staff');
+// Staff+ access (admin, manager, staff, sales-manager, ops-manager, sales-staff, ops-staff)
+export const staffOnly = roleCheck('admin', 'manager', 'staff', 'sales-manager', 'ops-manager', 'sales-staff', 'ops-staff');
 
-// Manager+ access (admin, manager)
-export const managerOnly = roleCheck('admin', 'manager');
+// Manager+ access (admin, manager, sales-manager, ops-manager)
+export const managerOnly = roleCheck('admin', 'manager', 'sales-manager', 'ops-manager');
 
 // Granular permission check
 export const requirePermission = (permission: Permission) => {

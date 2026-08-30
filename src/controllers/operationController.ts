@@ -27,7 +27,9 @@ export const getOperations = asyncHandler(async (req: Request, res: Response) =>
     filter.status = 'completed';
     filter.$or = [{ incentiveAmount: { $exists: false } }, { incentiveAmount: null }];
   }
-  if (req.user!.role === 'staff') filter.assignedTo = req.user!._id;
+  if (req.user!.role === 'staff' || req.user!.role === 'ops-staff') {
+    filter.assignedTo = req.user!._id;
+  }
 
   if (req.query.hasPendingPayment === 'true') {
     const pendingCPs = await CustomerPayment.find({ status: { $in: ['partial', 'upcoming', 'overdue'] } }).select('operation');
@@ -74,7 +76,7 @@ export const getOperationById = asyncHandler(async (req: Request, res: Response)
     ]
   }).populate('package', 'name slug description itinerary').populate('assignedTo', 'firstName lastName email');
   if (!operation) throw new AppError('Operation not found', 404);
-  if (req.user!.role === 'staff' && operation.assignedTo?.toString() !== req.user!._id.toString()) throw new AppError('Access denied', 403);
+  if ((req.user!.role === 'staff' || req.user!.role === 'ops-staff') && operation.assignedTo?.toString() !== req.user!._id.toString()) throw new AppError('Access denied', 403);
 
   const [transports, accommodations, activities, vendorPayments, customerPayments] = await Promise.all([
     OperationTransport.find({ operation: operation._id }).sort({ date: 1 }),
