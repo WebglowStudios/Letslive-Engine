@@ -59,7 +59,7 @@ export const getDashboardStats = asyncHandler(async (_req: Request, res: Respons
 // @route   GET /api/admin/staff
 export const getStaff = asyncHandler(async (_req: Request, res: Response) => {
   const staff = await User.find({
-    role: { $in: ['admin', 'manager', 'staff', 'guest'] },
+    role: { $in: ['admin', 'manager', 'sales-manager', 'ops-manager', 'sales-staff', 'ops-staff', 'staff', 'guest'] },
   }).sort({ createdAt: -1 });
 
   res.status(200).json({
@@ -83,7 +83,7 @@ export const createStaff = asyncHandler(async (req: Request, res: Response) => {
   // Non-admins can only create customer accounts (user/guest)
   const adminRoles = ['admin'];
   const customerRoles = ['user', 'guest'];
-  const allAllowed = ['admin', 'manager', 'staff', 'user', 'guest'];
+  const allAllowed = ['admin', 'manager', 'sales-manager', 'ops-manager', 'sales-staff', 'ops-staff', 'staff', 'user', 'guest'];
 
   if (!allAllowed.includes(role)) {
     throw new AppError('Invalid role', 400);

@@ -42,7 +42,7 @@ router.get('/activity', requirePermission('activity.view'), asyncHandler(async (
   if (req.query.userType === 'user') {
     filter.userRole = 'user';
   } else if (req.query.userType === 'staff') {
-    filter.userRole = { $in: ['admin', 'manager', 'staff', 'guest'] };
+    filter.userRole = { $in: ['admin', 'manager', 'sales-manager', 'ops-manager', 'sales-staff', 'ops-staff', 'staff', 'guest'] };
   }
 
   const [logs, total] = await Promise.all([

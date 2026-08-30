@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Package from '../models/Package.js';
 import Destination from '../models/Destination.js';
+import ApprovalRequest from '../models/ApprovalRequest.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { logActivity } from '../utils/logActivity.js';
@@ -211,6 +212,20 @@ export const getPackagesByDestination = asyncHandler(async (req: Request, res: R
 // @desc    Create a package
 // @route   POST /api/packages
 export const createPackage = asyncHandler(async (req: Request, res: Response) => {
+  if (req.user?.role !== 'admin' && !req.body.isCustom) {
+    await ApprovalRequest.create({
+      entityType: 'Package',
+      action: 'create',
+      payload: req.body,
+      requestedBy: req.user?._id,
+    });
+    return res.status(202).json({
+      status: 'success',
+      approvalRequired: true,
+      message: 'Package creation submitted for approval',
+    });
+  }
+
   if (req.body.isCustom && req.user) {
     req.body.createdBy = req.user._id;
   }
@@ -239,6 +254,26 @@ export const createPackage = asyncHandler(async (req: Request, res: Response) =>
 // @desc    Update a package
 // @route   PUT /api/packages/:id
 export const updatePackage = asyncHandler(async (req: Request, res: Response) => {
+  const pkgCheck = await Package.findById(req.params.id);
+  if (!pkgCheck) {
+    throw new AppError('Package not found', 404);
+  }
+
+  if (req.user?.role !== 'admin' && !pkgCheck.isCustom) {
+    await ApprovalRequest.create({
+      entityType: 'Package',
+      entityId: req.params.id as any,
+      action: 'update',
+      payload: req.body,
+      requestedBy: req.user?._id,
+    });
+    return res.status(202).json({
+      status: 'success',
+      approvalRequired: true,
+      message: 'Package update submitted for approval',
+    });
+  }
+
   // Strip empty destination to avoid ObjectId cast error
   if (!req.body.destination) {
     delete req.body.destination;
@@ -274,6 +309,26 @@ export const updatePackage = asyncHandler(async (req: Request, res: Response) =>
 // @desc    Delete a package
 // @route   DELETE /api/packages/:id
 export const deletePackage = asyncHandler(async (req: Request, res: Response) => {
+  const pkgCheck = await Package.findById(req.params.id);
+  if (!pkgCheck) {
+    throw new AppError('Package not found', 404);
+  }
+
+  if (req.user?.role !== 'admin' && !pkgCheck.isCustom) {
+    await ApprovalRequest.create({
+      entityType: 'Package',
+      entityId: req.params.id as any,
+      action: 'delete',
+      payload: {},
+      requestedBy: req.user?._id,
+    });
+    return res.status(202).json({
+      status: 'success',
+      approvalRequired: true,
+      message: 'Package deletion submitted for approval',
+    });
+  }
+
   const pkg = await Package.findByIdAndDelete(req.params.id);
 
   if (!pkg) {

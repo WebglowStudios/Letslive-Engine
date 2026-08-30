@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Destination from '../models/Destination.js';
+import ApprovalRequest from '../models/ApprovalRequest.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { logActivity } from '../utils/logActivity.js';
@@ -124,6 +125,20 @@ export const getDestinationBySlug = asyncHandler(async (req: Request, res: Respo
 // @desc    Create a destination
 // @route   POST /api/destinations
 export const createDestination = asyncHandler(async (req: Request, res: Response) => {
+  if (req.user?.role !== 'admin') {
+    await ApprovalRequest.create({
+      entityType: 'Destination',
+      action: 'create',
+      payload: req.body,
+      requestedBy: req.user?._id,
+    });
+    return res.status(202).json({
+      status: 'success',
+      approvalRequired: true,
+      message: 'Destination creation submitted for approval',
+    });
+  }
+
   const destination = await Destination.create(req.body);
 
   await logActivity({
@@ -141,6 +156,26 @@ export const createDestination = asyncHandler(async (req: Request, res: Response
 // @desc    Update a destination
 // @route   PUT /api/destinations/:id
 export const updateDestination = asyncHandler(async (req: Request, res: Response) => {
+  const destCheck = await Destination.findById(req.params.id);
+  if (!destCheck) {
+    throw new AppError('Destination not found', 404);
+  }
+
+  if (req.user?.role !== 'admin') {
+    await ApprovalRequest.create({
+      entityType: 'Destination',
+      entityId: req.params.id as any,
+      action: 'update',
+      payload: req.body,
+      requestedBy: req.user?._id,
+    });
+    return res.status(202).json({
+      status: 'success',
+      approvalRequired: true,
+      message: 'Destination update submitted for approval',
+    });
+  }
+
   const destination = await Destination.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
     runValidators: true,
@@ -170,6 +205,26 @@ export const updateDestination = asyncHandler(async (req: Request, res: Response
 // @desc    Delete a destination
 // @route   DELETE /api/destinations/:id
 export const deleteDestination = asyncHandler(async (req: Request, res: Response) => {
+  const destCheck = await Destination.findById(req.params.id);
+  if (!destCheck) {
+    throw new AppError('Destination not found', 404);
+  }
+
+  if (req.user?.role !== 'admin') {
+    await ApprovalRequest.create({
+      entityType: 'Destination',
+      entityId: req.params.id as any,
+      action: 'delete',
+      payload: {},
+      requestedBy: req.user?._id,
+    });
+    return res.status(202).json({
+      status: 'success',
+      approvalRequired: true,
+      message: 'Destination deletion submitted for approval',
+    });
+  }
+
   const destination = await Destination.findByIdAndDelete(req.params.id);
 
   if (!destination) {
