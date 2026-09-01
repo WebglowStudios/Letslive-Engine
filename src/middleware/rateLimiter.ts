@@ -16,7 +16,7 @@ export const authLimiter = rateLimit({
 
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: isDev ? 1000 : 300, // 300 requests per 15 min (staff media library needs more headroom)
+  max: isDev ? 3000 : 1500, // 1500 requests per 15 min for admin panel usage
   message: {
     status: 'fail',
     message: 'Too many requests from this IP. Please try again later.',
