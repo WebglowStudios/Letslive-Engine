@@ -114,12 +114,47 @@ router.delete(
     }
 
     try {
-      // First delete all resources in the folder
+      // Check if any images in this folder are referenced in the database
+      const folderResources = await cloudinary.api.resources({
+        type: 'upload',
+        prefix: folderPath,
+        max_results: 500,
+        resource_type: 'image',
+      });
+
+      if (folderResources.resources && folderResources.resources.length > 0) {
+        const imageUrls = folderResources.resources.map((r: { secure_url: string }) => r.secure_url);
+        const models = [Package, Destination, Article, DayTemplate, AboutContent];
+        const inUseUrls: string[] = [];
+
+        for (const M of models) {
+          const Model = M as any;
+          const docs = await Model.find({}).lean();
+          for (const doc of docs) {
+            const docStr = JSON.stringify(doc);
+            for (const url of imageUrls) {
+              if (docStr.includes(url) && !inUseUrls.includes(url)) {
+                inUseUrls.push(url);
+              }
+            }
+          }
+        }
+
+        if (inUseUrls.length > 0) {
+          throw new AppError(
+            `Cannot delete folder: ${inUseUrls.length} image(s) inside it are currently in use by packages or other content. Remove them from all packages first.`,
+            400
+          );
+        }
+      }
+
+      // Safe to delete — no images in use
       await cloudinary.api.delete_resources_by_prefix(folderPath, { resource_type: 'image' });
       // Then delete the folder itself
       await cloudinary.api.delete_folder(folderPath);
       res.status(200).json({ status: 'success', message: 'Folder deleted' });
     } catch (err: unknown) {
+      if (err instanceof AppError) throw err;
       const message = err instanceof Error ? err.message : 'Failed to delete folder';
       throw new AppError(message, 400);
     }
@@ -385,6 +420,32 @@ router.delete(
     if (!publicId) {
       throw new AppError('No publicId provided', 400);
     }
+
+    // Check if this image is referenced anywhere in the database before deleting
+    try {
+      const resource = await cloudinary.api.resource(publicId);
+      const imageUrl = resource.secure_url;
+
+      if (imageUrl) {
+        const models = [Package, Destination, Article, DayTemplate, AboutContent];
+        for (const M of models) {
+          const Model = M as any;
+          const docs = await Model.find({}).lean();
+          for (const doc of docs) {
+            if (JSON.stringify(doc).includes(imageUrl)) {
+              throw new AppError(
+                'Cannot delete this image: it is currently being used in a package, destination, or other content. Remove it from all content first.',
+                400
+              );
+            }
+          }
+        }
+      }
+    } catch (err: unknown) {
+      if (err instanceof AppError) throw err;
+      // If we can't fetch the resource info, allow deletion (image may already be orphaned)
+    }
+
     await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
     res.status(200).json({ status: 'success', message: 'Image deleted' });
   })
