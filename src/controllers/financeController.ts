@@ -110,7 +110,7 @@ export const processApproval = asyncHandler(async (req: Request, res: Response) 
     const op = await Operation.findById(payment.operation);
     if (op) {
       if (action === 'approve' && difference !== 0) {
-        const booking = await Booking.findById(op.booking);
+        const booking = await Booking.findById(payment.booking);
         if (booking) {
           booking.paidAmount += difference;
           if (booking.paidAmount >= booking.totalAmount) {

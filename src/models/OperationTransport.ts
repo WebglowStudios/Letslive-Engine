@@ -30,8 +30,9 @@ export interface IOperationTransport extends Document {
   paymentDueDate?: Date;
   isUrgent: boolean;
   remarks: string;
-  groupId?: string;
+  groupId?: mongoose.Types.ObjectId;
   isGroupMaster?: boolean;
+  linkedBooking?: mongoose.Types.ObjectId;
   legs: ITransferLeg[];
   createdAt: Date;
   updatedAt: Date;
@@ -71,8 +72,9 @@ const schema = new Schema<IOperationTransport>(
     paymentDueDate: { type: Date },
     isUrgent:      { type: Boolean, default: false },
     remarks:       { type: String, default: '' },
-    groupId:       { type: String },
+    groupId:       { type: mongoose.Schema.Types.ObjectId, ref: 'OperationTransport' },
     isGroupMaster: { type: Boolean, default: false },
+    linkedBooking: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking' },
     // Use direct array notation for sub-document arrays in Mongoose TS
     legs:          { type: [legSchema], default: [] },
   },

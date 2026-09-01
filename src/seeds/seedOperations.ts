@@ -30,7 +30,7 @@ async function seed() {
   // ════════════════════════════════════
   // OP 1: Dubai Family Trip (Completed)
   // ════════════════════════════════════
-  const op1 = await Operation.create({ operationId: 'OPS-2026-0001', booking: new mongoose.Types.ObjectId(), customer: { name: 'Rahul Sharma', email: 'rahul@gmail.com', phone: '+91 98765 43210', pax: 4 }, destination: 'Dubai', travelDates: { start: new Date('2026-03-15'), end: new Date('2026-03-22') }, assignedTo: staffId, sellingPrice: 420000, totalVendorCost: 285000, status: 'completed' });
+  const op1 = await Operation.create({ operationId: 'OPS-2026-0001', bookings: [new mongoose.Types.ObjectId()], customers: [{ name: 'Rahul Sharma', email: 'rahul@gmail.com', phone: '+91 98765 43210', pax: 4 }], destination: 'Dubai', travelDates: { start: new Date('2026-03-15'), end: new Date('2026-03-22') }, assignedTo: staffId, sellingPrice: 420000, totalVendorCost: 285000, status: 'completed' });
 
   await OperationTransport.create({ operation: op1._id, vendorName: 'TravelMax Pvt Ltd', vendorCost: 36000, sellingPrice: 48000, paymentStatus: 'paid', remarks: 'IndiGo 6E-2041 | IGO7823', legs: [{ from: 'Mumbai (BOM)', to: 'Dubai (DXB)', date: new Date('2026-03-15'), tripDay: 'Day 1 - Departure', vehicleType: 'flight', notes: '06:30 - 08:45' }] });
   await OperationTransport.create({ operation: op1._id, vendorName: 'TravelMax Pvt Ltd', vendorCost: 44000, sellingPrice: 56000, paymentStatus: 'paid', remarks: 'Emirates EK-509 | EK509234', legs: [{ from: 'Dubai (DXB)', to: 'Mumbai (BOM)', date: new Date('2026-03-22'), tripDay: 'Day 8 - Return', vehicleType: 'flight', notes: '14:20 - 19:05' }] });
@@ -52,7 +52,7 @@ async function seed() {
   // ════════════════════════════════════
   // OP 2: Bali Honeymoon (Booked)
   // ════════════════════════════════════
-  const op2 = await Operation.create({ operationId: 'OPS-2026-0002', booking: new mongoose.Types.ObjectId(), customer: { name: 'Ankit & Priya Verma', email: 'ankit.verma@outlook.com', phone: '+91 87654 32100', pax: 2 }, destination: 'Bali, Indonesia', travelDates: { start: new Date('2026-07-10'), end: new Date('2026-07-17') }, assignedTo: staffId, sellingPrice: 215000, totalVendorCost: 142000, status: 'booked' });
+  const op2 = await Operation.create({ operationId: 'OPS-2026-0002', bookings: [new mongoose.Types.ObjectId()], customers: [{ name: 'Ankit & Priya Verma', email: 'ankit.verma@outlook.com', phone: '+91 87654 32100', pax: 2 }], destination: 'Bali, Indonesia', travelDates: { start: new Date('2026-07-10'), end: new Date('2026-07-17') }, assignedTo: staffId, sellingPrice: 215000, totalVendorCost: 142000, status: 'booked' });
 
   await OperationTransport.create({ operation: op2._id, vendorName: 'Cleartrip B2B', vendorCost: 32000, sellingPrice: 42000, paymentStatus: 'paid', remarks: 'Singapore Airlines SQ-421 | SQ-441289', legs: [{ from: 'Delhi (DEL)', to: 'Bali (DPS) via SIN', date: new Date('2026-07-10'), tripDay: 'Day 1 - Arrival', vehicleType: 'flight', notes: '01:15 - 13:40' }] });
   await OperationTransport.create({ operation: op2._id, vendorName: 'Cleartrip B2B', vendorCost: 28000, sellingPrice: 36000, paymentStatus: 'pending', paymentDueDate: new Date('2026-07-05'), isUrgent: true, remarks: 'Garuda Indonesia GA-887 | GA-887123', legs: [{ from: 'Bali (DPS)', to: 'Delhi (DEL)', date: new Date('2026-07-17'), tripDay: 'Day 8 - Return', vehicleType: 'flight', notes: '22:30 - 05:10+1' }] });
@@ -72,7 +72,7 @@ async function seed() {
   // ════════════════════════════════════
   // OP 3: Thailand Group (Planning)
   // ════════════════════════════════════
-  await Operation.create({ operationId: 'OPS-2026-0003', booking: new mongoose.Types.ObjectId(), customer: { name: 'Vikram Desai (Group of 6)', email: 'vikram.d@company.com', phone: '+91 99887 76655', pax: 6 }, destination: 'Thailand (Bangkok + Pattaya + Phuket)', travelDates: { start: new Date('2026-08-20'), end: new Date('2026-08-28') }, assignedTo: staffId, sellingPrice: 660000, totalVendorCost: 0, status: 'planning' });
+  await Operation.create({ operationId: 'OPS-2026-0003', bookings: [new mongoose.Types.ObjectId()], customers: [{ name: 'Vikram Desai (Group of 6)', email: 'vikram.d@company.com', phone: '+91 99887 76655', pax: 6 }], destination: 'Thailand (Bangkok + Pattaya + Phuket)', travelDates: { start: new Date('2026-08-20'), end: new Date('2026-08-28') }, assignedTo: staffId, sellingPrice: 660000, totalVendorCost: 0, status: 'planning' });
 
   console.log('✅ Op 3 (Thailand Group - Planning, empty) seeded');
   console.log('\n🎉 Done! 3 operations with proper transport/accommodation/activity data.');

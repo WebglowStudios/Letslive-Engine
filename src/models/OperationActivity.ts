@@ -13,8 +13,9 @@ export interface IOperationActivity extends Document {
   paymentStatus: 'pending' | 'paid' | 'partial';
   paymentDueDate?: Date;
   remarks: string;
-  groupId?: string;
+  groupId?: mongoose.Types.ObjectId;
   isGroupMaster?: boolean;
+  linkedBooking?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,8 +34,9 @@ const operationActivitySchema = new Schema<IOperationActivity>(
     paymentStatus: { type: String, enum: ['pending', 'paid', 'partial'], default: 'pending' },
     paymentDueDate: { type: Date },
     remarks: { type: String, default: '' },
-    groupId: { type: String },
+    groupId: { type: mongoose.Schema.Types.ObjectId, ref: 'OperationActivity' },
     isGroupMaster: { type: Boolean, default: false },
+    linkedBooking: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking' },
   },
   { timestamps: true }
 );

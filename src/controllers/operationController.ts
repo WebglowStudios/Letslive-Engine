@@ -38,7 +38,7 @@ export const getOperations = asyncHandler(async (req: Request, res: Response) =>
   }
 
   const [operations, total] = await Promise.all([
-    Operation.find(filter).populate('booking', 'bookingId totalAmount').populate('assignedTo', 'firstName lastName').sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Operation.find(filter).populate('bookings', 'bookingId totalAmount').populate('assignedTo', 'firstName lastName').sort({ createdAt: -1 }).skip(skip).limit(limit),
     Operation.countDocuments(filter),
   ]);
 
@@ -70,7 +70,7 @@ export const getOperations = asyncHandler(async (req: Request, res: Response) =>
 
 export const getOperationById = asyncHandler(async (req: Request, res: Response) => {
   const operation = await Operation.findById(req.params.id).populate({
-    path: 'booking',
+    path: 'bookings',
     populate: [
       { path: 'package', select: 'name slug isCustom description itinerary' }
     ]
@@ -99,13 +99,16 @@ export const updateOperation = asyncHandler(async (req: Request, res: Response) 
   if (!operation) throw new AppError('Operation not found', 404);
 
   // Sync status to booking if it changed
-  if (req.body.status && operation.booking) {
+  if (req.body.status && operation.bookings && operation.bookings.length > 0) {
     let bookingStatus = 'in-progress';
     if (req.body.status === 'completed') bookingStatus = 'completed';
     else if (req.body.status === 'cancelled') bookingStatus = 'cancelled';
     else if (req.body.status === 'planning') bookingStatus = 'confirmed';
     
-    await Booking.findByIdAndUpdate(operation.booking, { bookingStatus });
+    await Booking.updateMany(
+      { _id: { $in: operation.bookings } },
+      { bookingStatus }
+    );
   }
 
   res.status(200).json({ status: 'success', data: operation });
@@ -623,4 +626,145 @@ export const getSalespersonStats = asyncHandler(async (_req: Request, res: Respo
     { $sort: { totalProfit: -1 } },
   ]);
   res.status(200).json({ status: 'success', data: stats });
+});
+
+// ─── POST-SALES ADVANCED PASSENGER MANAGEMENT ───
+
+export const addOperationPassenger = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params; // operation ID
+  const { mode, passengerData, bookingId, email, phone, firstName, lastName } = req.body;
+
+  const operation = await Operation.findById(id).populate('package');
+  if (!operation) throw new AppError('Operation not found', 404);
+
+  const pkg = operation.package as any;
+  const price = pkg?.price || 0;
+
+  if (mode === 'existing') {
+    if (!bookingId) throw new AppError('Booking ID is required for existing mode', 400);
+    const booking = await Booking.findById(bookingId);
+    if (!booking) throw new AppError('Booking not found', 404);
+    
+    // 1. Add passenger to booking
+    booking.travellersDetails = [...(booking.travellersDetails || []), passengerData];
+    if (passengerData.type === 'child') {
+      booking.travellers.children = (booking.travellers.children || 0) + 1;
+    } else {
+      booking.travellers.adults = (booking.travellers.adults || 1) + 1;
+    }
+    
+    // 2. Financial Bookkeeping
+    booking.totalAmount = (booking.totalAmount || 0) + price;
+    await booking.save();
+
+    operation.sellingPrice += price;
+    
+    // Update pax in operation customers array
+    const custIndex = operation.bookings?.findIndex((b: any) => String(b) === String(bookingId));
+    if (custIndex !== undefined && custIndex !== -1 && operation.customers[custIndex]) {
+       operation.customers[custIndex].pax += 1;
+       if (passengerData.type === 'child') operation.customers[custIndex].children = (operation.customers[custIndex].children || 0) + 1;
+       else operation.customers[custIndex].adults = (operation.customers[custIndex].adults || 0) + 1;
+       operation.markModified('customers');
+    }
+
+    await operation.save();
+
+    await CustomerPayment.create({
+      operation: operation._id,
+      booking: booking._id,
+      milestone: 'Extra Passenger Addition',
+      amount: price,
+      paidAmount: 0,
+      status: 'upcoming',
+      dueDate: new Date(),
+    });
+
+    // 3. Update Package Slots
+    if (pkg && operation.departureId) {
+      await mongoose.model('Package').updateOne(
+        { _id: pkg._id, 'departures._id': operation.departureId },
+        { $inc: { 'departures.$.bookedSlots': 1 } }
+      );
+    }
+
+    res.status(200).json({ status: 'success', message: 'Passenger added to existing booking', data: operation });
+
+  } else if (mode === 'new') {
+    if (!email) throw new AppError('Email is required for new booking mode', 400);
+    
+    // 1. Resolve User
+    let user = await mongoose.model('User').findOne({ email });
+    if (!user) {
+      user = await mongoose.model('User').create({
+        firstName: firstName || passengerData.name.split(' ')[0] || 'Guest',
+        lastName: lastName || passengerData.name.split(' ').slice(1).join(' ') || '',
+        email,
+        phone: phone || '',
+        role: 'user',
+        password: Math.random().toString(36).slice(-8), // random pass
+      });
+    }
+
+    if (!pkg?._id) throw new AppError('Cannot create a new booking for an operation without a linked package', 400);
+
+    // 2. Create Booking
+    const newBooking = await Booking.create({
+      user: user._id,
+      package: pkg._id,
+      departureId: operation.departureId,
+      // destination on Operation is a string, Booking expects ObjectId, so we omit it here
+      totalAmount: price,
+      paidAmount: 0,
+      paymentStatus: 'pending',
+      bookingStatus: 'confirmed',
+      travelDate: operation.travelDates?.start || new Date(),
+      returnDate: operation.travelDates?.end,
+      travellers: { adults: passengerData.type === 'adult' ? 1 : 0, children: passengerData.type === 'child' ? 1 : 0, infants: 0 },
+      travellersDetails: [passengerData],
+      primaryTraveller: {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone || ''
+      },
+      bookingId: `BK${Date.now().toString().slice(-6)}`
+    });
+
+    // 3. Add to Operation
+    operation.bookings.push(newBooking._id);
+    operation.customers.push({
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      email: user.email,
+      phone: user.phone || '',
+      pax: 1,
+      adults: passengerData.type === 'adult' ? 1 : 0,
+      children: passengerData.type === 'child' ? 1 : 0,
+    });
+    operation.sellingPrice += price;
+    await operation.save();
+
+    // 4. Create Payment
+    await CustomerPayment.create({
+      operation: operation._id,
+      booking: newBooking._id,
+      milestone: 'Full Payment',
+      amount: price,
+      paidAmount: 0,
+      status: 'upcoming',
+      dueDate: new Date(),
+    });
+
+    // 5. Update Package Slots
+    if (pkg && operation.departureId) {
+      await mongoose.model('Package').updateOne(
+        { _id: pkg._id, 'departures._id': operation.departureId },
+        { $inc: { 'departures.$.bookedSlots': 1 } }
+      );
+    }
+
+    res.status(200).json({ status: 'success', message: 'New booking created and added to operation', data: operation });
+  } else {
+    throw new AppError('Invalid mode. Must be existing or new', 400);
+  }
 });

@@ -11,13 +11,13 @@ import { sendConversionCongrats } from '../services/emailService.js';
  */
 export async function autoCreateOperationFromBooking(bookingId: string | mongoose.Types.ObjectId) {
   try {
-    const existingOp = await Operation.findOne({ booking: bookingId });
+    const existingOp = await Operation.findOne({ bookings: bookingId });
     if (existingOp) {
       return existingOp;
     }
 
     const populatedBooking = await Booking.findById(bookingId)
-      .populate('package', 'name price')
+      .populate('package', 'name price isGroupTour')
       .populate('destination', 'name')
       .populate('user', 'firstName lastName email phone');
 
@@ -25,7 +25,7 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
       return null;
     }
 
-    const pkg = populatedBooking.package as unknown as { name?: string; price?: number; _id?: string; adultCount?: number; childCount?: number };
+    const pkg = populatedBooking.package as unknown as { name?: string; price?: number; _id?: string; adultCount?: number; childCount?: number; isGroupTour?: boolean };
     const dest = populatedBooking.destination as unknown as { name?: string };
     const usr = populatedBooking.user as unknown as { firstName?: string; lastName?: string; email?: string; phone?: string };
     const travellers = populatedBooking.travellers as { adults?: number; children?: number; infants?: number };
@@ -40,28 +40,49 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
     const adults = Math.max(pkg?.adultCount || travellers?.adults || 1, travellersDetails.filter(t => t.type === 'adult').length);
     const children = Math.max(pkg?.childCount || travellers?.children || 0, travellersDetails.filter(t => t.type === 'child').length);
 
-    const op = await Operation.create({
-      booking: populatedBooking._id,
-      operationId: `OP${String(populatedBooking._id).slice(-6).toUpperCase()}`,
-      package: pkg?._id || undefined,
-      enquiry: populatedBooking.enquiry || undefined,
-      customer: {
-        name: usr ? `${usr.firstName || ''} ${usr.lastName || ''}`.trim() : 'Customer',
-        email: usr?.email || '',
-        phone: usr?.phone || '',
-        pax,
-        adults,
-        children,
-      },
-      destination: dest?.name || 'TBD',
-      travelDates: {
-        start: populatedBooking.travelDate,
-        end: populatedBooking.returnDate || populatedBooking.travelDate,
-      },
-      assignedTo: undefined,
-      sellingPrice: populatedBooking.totalAmount || 0,
-      status: 'planning',
-    });
+    const customerObj = {
+      name: usr ? `${usr.firstName || ''} ${usr.lastName || ''}`.trim() : 'Customer',
+      email: usr?.email || '',
+      phone: usr?.phone || '',
+      pax,
+      adults,
+      children,
+    };
+
+    let op: any;
+
+    // Check if Group Tour
+    if (pkg?.isGroupTour && populatedBooking.departureId) {
+      const groupOp = await Operation.findOne({ package: pkg._id, departureId: populatedBooking.departureId });
+      
+      if (groupOp) {
+        groupOp.bookings.push(populatedBooking._id);
+        groupOp.customers.push(customerObj);
+        groupOp.sellingPrice += (populatedBooking.totalAmount || 0);
+        await groupOp.save();
+        op = groupOp;
+      }
+    }
+
+    if (!op) {
+      // Create new Operation (Private Tour, OR First booking of a Group Tour)
+      op = await Operation.create({
+        bookings: [populatedBooking._id],
+        departureId: populatedBooking.departureId || undefined,
+        operationId: `OP${String(populatedBooking._id).slice(-6).toUpperCase()}`,
+        package: pkg?._id || undefined,
+        enquiry: populatedBooking.enquiry || undefined,
+        customers: [customerObj],
+        destination: dest?.name || 'TBD',
+        travelDates: {
+          start: populatedBooking.travelDate,
+          end: populatedBooking.returnDate || populatedBooking.travelDate,
+        },
+        assignedTo: undefined,
+        sellingPrice: populatedBooking.totalAmount || 0,
+        status: 'planning',
+      });
+    }
 
     // Auto-generate Customer Payments (Installments)
     const total = populatedBooking.totalAmount || 0;

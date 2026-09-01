@@ -7,7 +7,7 @@ import {
   addActivity, updateActivity, deleteActivity,
   addVendorPayment, updateVendorPayment, deleteVendorPayment,
   addCustomerPayment, updateCustomerPayment, deleteCustomerPayment, notifyCustomerPayment, splitCustomerPayment,
-  getFinanceOverview, getUrgentPayments, getSalespersonStats,
+  getFinanceOverview, getUrgentPayments, getSalespersonStats, addOperationPassenger,
 } from '../controllers/operationController.js';
 import { getInstallmentDetails, createInstallmentOrder, verifyInstallmentPayment } from '../controllers/installmentPaymentController.js';
 
@@ -35,6 +35,7 @@ router.post('/:id/group', groupServices);
 router.post('/:id/ungroup', ungroupServices);
 router.put('/:id/recalculate', recalculateOperation);
 router.post('/:id/import-itinerary', importFromItinerary);
+router.post('/:id/passengers', addOperationPassenger);
 
 // Transport
 router.post('/:id/transports', addTransport);

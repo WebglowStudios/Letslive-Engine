@@ -323,7 +323,7 @@ export const createManualBooking = asyncHandler(async (req: Request, res: Respon
       packageName: pkg.name,
       travelDate: new Date(booking.travelDate).toLocaleDateString('en-IN'),
       amount: totalAmount,
-      travellers: (booking.travellers?.adults || 1) + (booking.travellers?.children || 0) + (booking.travellers?.infants || 0),
+      travellers: String((booking.travellers?.adults || 1) + (booking.travellers?.children || 0) + (booking.travellers?.infants || 0)),
       bookingId: String(booking.bookingId || booking._id)
     }
   ).catch(console.error);
@@ -734,16 +734,18 @@ export const updateBookingPassengers = asyncHandler(async (req: Request, res: Re
   await booking.save();
 
   // Find associated operation and sync pax
-  const op = await Operation.findOne({ booking: id });
-  if (op) {
+  const op = await Operation.findOne({ bookings: id } as any);
+  if (op && op.customers && op.customers.length > 0) {
     const pkg = booking.package as any;
     const packageBasePax = (pkg?.adultCount || 0) + (pkg?.childCount || 0);
     const bookingTravellers = (booking.travellers?.adults || 1) + (booking.travellers?.children || 0);
     const enteredPax = travellersDetails.length;
     
-    op.customer.pax = Math.max(packageBasePax, bookingTravellers, enteredPax, 1);
-    op.customer.adults = Math.max(pkg?.adultCount || booking.travellers?.adults || 1, travellersDetails.filter((t: any) => t.type === 'adult').length);
-    op.customer.children = Math.max(pkg?.childCount || booking.travellers?.children || 0, travellersDetails.filter((t: any) => t.type === 'child').length);
+    // For simplicity, update the first customer pax (works perfectly for private tours, approximate for group tours)
+    op.customers[0].pax = Math.max(packageBasePax, bookingTravellers, enteredPax, 1);
+    op.customers[0].adults = Math.max(pkg?.adultCount || booking.travellers?.adults || 1, travellersDetails.filter((t: any) => t.type === 'adult').length);
+    op.customers[0].children = Math.max(pkg?.childCount || booking.travellers?.children || 0, travellersDetails.filter((t: any) => t.type === 'child').length);
+    op.markModified('customers');
     
     await op.save();
   }

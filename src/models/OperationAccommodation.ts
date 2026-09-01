@@ -19,8 +19,9 @@ export interface IOperationAccommodation extends Document {
   paymentStatus: 'pending' | 'paid' | 'partial';
   paymentDueDate?: Date;
   remarks: string;
-  groupId?: string;
+  groupId?: mongoose.Types.ObjectId;
   isGroupMaster?: boolean;
+  linkedBooking?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,8 +46,9 @@ const schema = new Schema<IOperationAccommodation>(
     paymentStatus: { type: String, enum: ['pending', 'paid', 'partial'], default: 'pending' },
     paymentDueDate: { type: Date },
     remarks: { type: String, default: '' },
-    groupId: { type: String },
+    groupId: { type: mongoose.Schema.Types.ObjectId, ref: 'OperationAccommodation' },
     isGroupMaster: { type: Boolean, default: false },
+    linkedBooking: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking' },
   },
   { timestamps: true }
 );

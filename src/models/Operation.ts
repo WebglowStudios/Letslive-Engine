@@ -2,17 +2,18 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IOperation extends Document {
   operationId: string;
-  booking: mongoose.Types.ObjectId;
+  bookings: mongoose.Types.ObjectId[];
+  departureId?: mongoose.Types.ObjectId;
   package?: mongoose.Types.ObjectId;
   enquiry?: mongoose.Types.ObjectId;  // trace back to originating lead
-  customer: {
+  customers: {
     name: string;
     email: string;
     phone?: string;
     pax: number;
     adults?: number;
     children?: number;
-  };
+  }[];
   destination: string;
   travelDates: {
     start: Date;
@@ -31,20 +32,21 @@ export interface IOperation extends Document {
   updatedAt: Date;
 }
 
-const operationSchema = new Schema<IOperation>(
+  const operationSchema = new Schema<IOperation>(
   {
     operationId: { type: String, unique: true, index: true },
-    booking: { type: Schema.Types.ObjectId, ref: 'Booking', required: true, index: true },
+    bookings: [{ type: Schema.Types.ObjectId, ref: 'Booking', required: true, index: true }],
+    departureId: { type: Schema.Types.ObjectId, index: true },
     package: { type: Schema.Types.ObjectId, ref: 'Package' },
     enquiry: { type: Schema.Types.ObjectId, ref: 'Enquiry' },
-    customer: {
+    customers: [{
       name: { type: String, required: true },
       email: { type: String },
       phone: { type: String },
       pax: { type: Number, default: 1 },
       adults: { type: Number },
       children: { type: Number },
-    },
+    }],
     destination: { type: String, required: true },
     travelDates: {
       start: { type: Date },

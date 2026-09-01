@@ -32,7 +32,7 @@ export const getAllUsers = asyncHandler(async (req: Request, res: Response) => {
 // @desc    Get staff list (for reassign dropdowns — any auth user)
 // @route   GET /api/users/staff
 export const getStaffList = asyncHandler(async (req: Request, res: Response) => {
-  let roles = ['admin', 'manager', 'sales-manager', 'sales-staff', 'ops-manager', 'ops-staff', 'staff'];
+  let roles: any[] = ['admin', 'manager', 'sales-manager', 'sales-staff', 'ops-manager', 'ops-staff', 'staff'];
   
   if (req.query.department === 'sales') {
     roles = ['admin', 'manager', 'sales-manager', 'sales-staff'];
