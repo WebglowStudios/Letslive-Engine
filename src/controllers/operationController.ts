@@ -83,7 +83,7 @@ export const getOperationById = asyncHandler(async (req: Request, res: Response)
     OperationAccommodation.find({ operation: operation._id }).sort({ checkIn: 1 }),
     OperationActivity.find({ operation: operation._id }).sort({ date: 1 }),
     VendorPayment.find({ operation: operation._id }).sort({ dueDate: 1 }),
-    CustomerPayment.find({ operation: operation._id }).sort({ dueDate: 1 }),
+    CustomerPayment.find({ operation: operation._id }).sort({ dueDate: 1 }).populate('booking', 'bookingId primaryTraveller'),
   ]);
 
   res.status(200).json({ status: 'success', data: { operation, transports, accommodations, activities, vendorPayments, customerPayments } });
@@ -726,7 +726,8 @@ export const addOperationPassenger = asyncHandler(async (req: Request, res: Resp
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
-        phone: user.phone || ''
+        phone: user.phone || '',
+        panCard: passengerData.panCard || ''
       },
       bookingId: `BK${Date.now().toString().slice(-6)}`
     });
