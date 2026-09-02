@@ -259,7 +259,7 @@ export const updatePackage = asyncHandler(async (req: Request, res: Response) =>
     throw new AppError('Package not found', 404);
   }
 
-  if (req.user?.role !== 'admin' && !pkgCheck.isCustom) {
+  if (req.user?.role !== 'admin' && req.user?.role !== 'manager' && !pkgCheck.isCustom) {
     await ApprovalRequest.create({
       entityType: 'Package',
       entityId: req.params.id as any,
