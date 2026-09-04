@@ -765,31 +765,44 @@ export const updateBookingPrimaryTraveller = asyncHandler(async (req: Request, r
     throw new AppError('Booking not found', 404);
   }
 
+  // Safe merge — don't crash if primaryTraveller doesn't exist yet
+  const existing = booking.primaryTraveller || {};
   booking.primaryTraveller = {
-    firstName: firstName || booking.primaryTraveller.firstName,
-    lastName: lastName || booking.primaryTraveller.lastName,
-    email: email || booking.primaryTraveller.email,
-    phone: phone || booking.primaryTraveller.phone,
-    panCard: panCard || booking.primaryTraveller.panCard,
+    firstName: firstName ?? (existing as any).firstName ?? '',
+    lastName: lastName ?? (existing as any).lastName ?? '',
+    email: email ?? (existing as any).email ?? '',
+    phone: phone ?? (existing as any).phone ?? '',
+    panCard: panCard ?? (existing as any).panCard ?? '',
   };
   await booking.save();
 
-  // Sync with Operation if it exists (for the customer card display)
-  const op = await Operation.findOne({ bookings: id } as any);
-  if (op && op.customers && op.customers.length > 0) {
-    // Find the corresponding customer entry (for single booking, it's index 0)
-    // For group bookings, try to find by email or phone or just update the first one if it's a single booking
-    if (op.bookings.length === 1) {
-      op.customers[0].name = `${firstName || ''} ${lastName || ''}`.trim();
+  // Sync with Operation — check both new (bookings[]) and legacy (booking) fields
+  const op = await Operation.findOne({
+    $or: [
+      { bookings: id },
+      { booking: id },
+    ]
+  } as any);
+
+  if (op) {
+    const fullName = `${firstName || ''} ${lastName || ''}`.trim();
+    if (op.customers && op.customers.length > 0 && op.bookings.length <= 1) {
+      // New ops — update customer snapshot
+      op.customers[0].name = fullName || op.customers[0].name;
       op.customers[0].email = email || op.customers[0].email;
       op.customers[0].phone = phone || op.customers[0].phone;
       op.markModified('customers');
       await op.save();
-    } else {
-      // For group bookings, find the specific customer by matching old name or email
-      // We don't have an exact mapping, so we'll leave group tour "Operation customers" untouched 
-      // since they are just a snapshot, or we could update the booking's specific customer snapshot.
-      // Easiest is to update if we find a match on the old email.
+    } else if ((op as any).customer) {
+      // Legacy ops — update the customer (singular) snapshot
+      (op as any).customer = {
+        ...(op as any).customer,
+        name: fullName || (op as any).customer.name,
+        email: email || (op as any).customer.email,
+        phone: phone || (op as any).customer.phone,
+      };
+      op.markModified('customer');
+      await op.save();
     }
   }
 
