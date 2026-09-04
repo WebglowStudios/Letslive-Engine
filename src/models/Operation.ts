@@ -2,10 +2,19 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IOperation extends Document {
   operationId: string;
+  booking?: mongoose.Types.ObjectId;  // legacy single-booking ref
   bookings: mongoose.Types.ObjectId[];
   departureId?: mongoose.Types.ObjectId;
   package?: mongoose.Types.ObjectId;
   enquiry?: mongoose.Types.ObjectId;  // trace back to originating lead
+  customer?: {            // legacy single-customer snapshot
+    name: string;
+    email: string;
+    phone?: string;
+    pax: number;
+    adults?: number;
+    children?: number;
+  };
   customers: {
     name: string;
     email: string;
@@ -35,10 +44,19 @@ export interface IOperation extends Document {
   const operationSchema = new Schema<IOperation>(
   {
     operationId: { type: String, unique: true, index: true },
+    booking: { type: Schema.Types.ObjectId, ref: 'Booking', index: true },  // legacy single-booking
     bookings: [{ type: Schema.Types.ObjectId, ref: 'Booking', required: true, index: true }],
     departureId: { type: Schema.Types.ObjectId, index: true },
     package: { type: Schema.Types.ObjectId, ref: 'Package' },
     enquiry: { type: Schema.Types.ObjectId, ref: 'Enquiry' },
+    customer: {            // legacy single-customer snapshot
+      name: { type: String },
+      email: { type: String },
+      phone: { type: String },
+      pax: { type: Number, default: 1 },
+      adults: { type: Number },
+      children: { type: Number },
+    },
     customers: [{
       name: { type: String, required: true },
       email: { type: String },
