@@ -9,6 +9,7 @@ import {
   updateBookingStatus,
   updateBookingDates,
   updateBookingPassengers,
+  updateBookingPrimaryTraveller,
 } from '../controllers/bookingController.js';
 import { protect, optionalProtect, requirePermission, managerOnly, staffOnly } from '../middleware/auth.js';
 
@@ -23,5 +24,6 @@ router.put('/:id/cancel', protect, cancelBooking);
 router.put('/:id/status', protect, requirePermission('bookings.update'), updateBookingStatus);
 router.put('/:id/dates', protect, managerOnly, updateBookingDates);
 router.put('/:id/passengers', protect, requirePermission('bookings.update'), updateBookingPassengers);
+router.put('/:id/primary-traveller', protect, requirePermission('bookings.update'), updateBookingPrimaryTraveller);
 
 export default router;

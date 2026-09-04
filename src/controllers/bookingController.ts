@@ -752,3 +752,46 @@ export const updateBookingPassengers = asyncHandler(async (req: Request, res: Re
 
   res.status(200).json({ status: 'success', data: booking });
 });
+
+// @desc    Update primary traveller details for a booking
+// @route   PUT /api/bookings/:id/primary-traveller
+// @access  Admin/Manager/Staff
+export const updateBookingPrimaryTraveller = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { firstName, lastName, email, phone, panCard } = req.body;
+
+  const booking = await Booking.findById(id);
+  if (!booking) {
+    throw new AppError('Booking not found', 404);
+  }
+
+  booking.primaryTraveller = {
+    firstName: firstName || booking.primaryTraveller.firstName,
+    lastName: lastName || booking.primaryTraveller.lastName,
+    email: email || booking.primaryTraveller.email,
+    phone: phone || booking.primaryTraveller.phone,
+    panCard: panCard || booking.primaryTraveller.panCard,
+  };
+  await booking.save();
+
+  // Sync with Operation if it exists (for the customer card display)
+  const op = await Operation.findOne({ bookings: id } as any);
+  if (op && op.customers && op.customers.length > 0) {
+    // Find the corresponding customer entry (for single booking, it's index 0)
+    // For group bookings, try to find by email or phone or just update the first one if it's a single booking
+    if (op.bookings.length === 1) {
+      op.customers[0].name = `${firstName || ''} ${lastName || ''}`.trim();
+      op.customers[0].email = email || op.customers[0].email;
+      op.customers[0].phone = phone || op.customers[0].phone;
+      op.markModified('customers');
+      await op.save();
+    } else {
+      // For group bookings, find the specific customer by matching old name or email
+      // We don't have an exact mapping, so we'll leave group tour "Operation customers" untouched 
+      // since they are just a snapshot, or we could update the booking's specific customer snapshot.
+      // Easiest is to update if we find a match on the old email.
+    }
+  }
+
+  res.status(200).json({ status: 'success', data: booking });
+});
