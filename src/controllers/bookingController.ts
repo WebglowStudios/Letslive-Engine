@@ -685,7 +685,12 @@ export const updateBookingDates = asyncHandler(async (req: Request, res: Respons
   await booking.save();
 
   // Cascade to Operation
-  const operation = await Operation.findOne({ booking: booking._id });
+  const operation = await Operation.findOne({ 
+    $or: [
+      { bookings: booking._id },
+      { booking: booking._id }
+    ]
+  } as any);
   if (operation) {
     operation.travelDates = {
       start: booking.travelDate,
@@ -734,20 +739,30 @@ export const updateBookingPassengers = asyncHandler(async (req: Request, res: Re
   await booking.save();
 
   // Find associated operation and sync pax
-  const op = await Operation.findOne({ bookings: id } as any);
-  if (op && op.customers && op.customers.length > 0) {
+  const op = await Operation.findOne({ $or: [{ bookings: id }, { booking: id }] } as any);
+  if (op) {
     const pkg = booking.package as any;
     const packageBasePax = (pkg?.adultCount || 0) + (pkg?.childCount || 0);
     const bookingTravellers = (booking.travellers?.adults || 1) + (booking.travellers?.children || 0);
     const enteredPax = travellersDetails.length;
     
-    // For simplicity, update the first customer pax (works perfectly for private tours, approximate for group tours)
-    op.customers[0].pax = Math.max(packageBasePax, bookingTravellers, enteredPax, 1);
-    op.customers[0].adults = Math.max(pkg?.adultCount || booking.travellers?.adults || 1, travellersDetails.filter((t: any) => t.type === 'adult').length);
-    op.customers[0].children = Math.max(pkg?.childCount || booking.travellers?.children || 0, travellersDetails.filter((t: any) => t.type === 'child').length);
-    op.markModified('customers');
-    
-    await op.save();
+    const maxPax = Math.max(packageBasePax, bookingTravellers, enteredPax, 1);
+    const maxAdults = Math.max(pkg?.adultCount || booking.travellers?.adults || 1, travellersDetails.filter((t: any) => t.type === 'adult').length);
+    const maxChildren = Math.max(pkg?.childCount || booking.travellers?.children || 0, travellersDetails.filter((t: any) => t.type === 'child').length);
+
+    if (op.customers && op.customers.length > 0 && op.bookings.length <= 1) {
+      op.customers[0].pax = maxPax;
+      op.customers[0].adults = maxAdults;
+      op.customers[0].children = maxChildren;
+      op.markModified('customers');
+      await op.save();
+    } else if ((op as any).customer) {
+      (op as any).customer.pax = maxPax;
+      (op as any).customer.adults = maxAdults;
+      (op as any).customer.children = maxChildren;
+      op.markModified('customer');
+      await op.save();
+    }
   }
 
   res.status(200).json({ status: 'success', data: booking });

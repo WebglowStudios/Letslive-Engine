@@ -124,15 +124,20 @@ export const updateOperation = asyncHandler(async (req: Request, res: Response) 
   const operation = await Operation.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
   if (!operation) throw new AppError('Operation not found', 404);
 
+  const bookingIds = [...(operation.bookings || [])];
+  if ((operation as any).booking && !bookingIds.includes((operation as any).booking)) {
+    bookingIds.push((operation as any).booking);
+  }
+
   // Sync status to booking if it changed
-  if (req.body.status && operation.bookings && operation.bookings.length > 0) {
+  if (req.body.status && bookingIds.length > 0) {
     let bookingStatus = 'in-progress';
     if (req.body.status === 'completed') bookingStatus = 'completed';
     else if (req.body.status === 'cancelled') bookingStatus = 'cancelled';
     else if (req.body.status === 'planning') bookingStatus = 'confirmed';
     
     await Booking.updateMany(
-      { _id: { $in: operation.bookings } },
+      { _id: { $in: bookingIds } },
       { bookingStatus }
     );
   }
@@ -692,6 +697,11 @@ export const addOperationPassenger = asyncHandler(async (req: Request, res: Resp
        if (passengerData.type === 'child') operation.customers[custIndex].children = (operation.customers[custIndex].children || 0) + 1;
        else operation.customers[custIndex].adults = (operation.customers[custIndex].adults || 0) + 1;
        operation.markModified('customers');
+    } else if ((operation as any).customer) {
+       (operation as any).customer.pax += 1;
+       if (passengerData.type === 'child') (operation as any).customer.children = ((operation as any).customer.children || 0) + 1;
+       else (operation as any).customer.adults = ((operation as any).customer.adults || 0) + 1;
+       operation.markModified('customer');
     }
 
     await operation.save();
