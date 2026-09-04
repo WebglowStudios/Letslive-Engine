@@ -86,7 +86,26 @@ export const getOperationById = asyncHandler(async (req: Request, res: Response)
     CustomerPayment.find({ operation: operation._id }).sort({ dueDate: 1 }).populate('booking', 'bookingId primaryTraveller'),
   ]);
 
-  res.status(200).json({ status: 'success', data: { operation, transports, accommodations, activities, vendorPayments, customerPayments } });
+  // Calculate live financial totals from actual CustomerPayments (same as getOperations list does)
+  const totalBilled = customerPayments.reduce((sum, cp) => sum + (cp.amount || 0), 0);
+  const totalReceived = customerPayments.reduce((sum, cp) => sum + (cp.paidAmount || 0), 0);
+  const pendingPayment = Math.max(0, totalBilled - totalReceived);
+  const effectiveSelling = totalBilled > 0 ? totalBilled : (operation.sellingPrice || 0);
+  const vendorCost = operation.totalVendorCost || 0;
+  const grossProfit = effectiveSelling - vendorCost;
+  const profitPercentage = effectiveSelling > 0 ? Math.round((grossProfit / effectiveSelling) * 100) : 0;
+
+  const operationWithLiveData = {
+    ...operation.toObject(),
+    effectiveSelling,
+    totalReceived,
+    pendingPayment,
+    grossProfit,
+    profitPercentage,
+  };
+
+  res.status(200).json({ status: 'success', data: { operation: operationWithLiveData, transports, accommodations, activities, vendorPayments, customerPayments } });
+
 });
 
 export const createOperation = asyncHandler(async (req: Request, res: Response) => {
