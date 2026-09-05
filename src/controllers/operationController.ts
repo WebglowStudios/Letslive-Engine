@@ -149,11 +149,14 @@ export const updateOperation = asyncHandler(async (req: Request, res: Response) 
 
 export const recalculateOperation = asyncHandler(async (req: Request, res: Response) => {
   const opId = req.params.id;
-  const [transports, accommodations, activities] = await Promise.all([
+  const [transports, accommodations, activities, customerPayments] = await Promise.all([
     OperationTransport.find({ operation: opId }),
     OperationAccommodation.find({ operation: opId }),
     OperationActivity.find({ operation: opId }),
+    CustomerPayment.find({ operation: opId }),
   ]);
+
+  // 1. Calculate Total Vendor Cost across all services
   const totalVendorCost =
     transports.reduce((s, t) => s + (t.vendorCost || 0), 0) +
     accommodations.reduce((s, a) => s + (a.vendorCost || 0), 0) +
@@ -163,11 +166,118 @@ export const recalculateOperation = asyncHandler(async (req: Request, res: Respo
       return s + actBase + transferCost;
     }, 0);
 
+  // 2. Calculate Line-Item Selling Price (if configured in service tabs)
+  const totalLineItemSelling =
+    transports.reduce((s, t) => s + (t.sellingPrice || 0), 0) +
+    accommodations.reduce((s, a) => s + (a.sellingPrice || 0), 0) +
+    activities.reduce((s, a) => {
+      const actBase = a.sellingPrice || 0;
+      const transferSelling = (a.transfers || []).reduce((ts: number, tr: any) => ts + (tr.hasPricing ? (tr.sellingPrice || 0) : 0), 0);
+      return s + actBase + transferSelling;
+    }, 0);
+
+  // 3. Recalculate and normalize CustomerPayment statuses and totals
+  let totalCustomerBilled = 0;
+  let totalCustomerReceived = 0;
+
+  for (const cp of customerPayments) {
+    totalCustomerBilled += (cp.amount || 0);
+    totalCustomerReceived += (cp.paidAmount || 0);
+
+    // Ensure status is strictly consistent with paidAmount vs amount
+    let expectedStatus = cp.status;
+    if (cp.amount > 0 && cp.paidAmount >= cp.amount) {
+      expectedStatus = 'paid';
+    } else if (cp.paidAmount > 0 && cp.paidAmount < cp.amount) {
+      expectedStatus = 'partial';
+    } else if (cp.dueDate && new Date(cp.dueDate).getTime() < Date.now() && (cp.paidAmount || 0) < cp.amount) {
+      expectedStatus = 'overdue';
+    } else {
+      expectedStatus = 'upcoming';
+    }
+
+    if (cp.status !== expectedStatus) {
+      cp.status = expectedStatus;
+      await cp.save();
+    }
+  }
+
   const operation = await Operation.findById(opId);
   if (!operation) throw new AppError('Operation not found', 404);
+
+  // 4. Resolve Selling Price
+  // - Priority 1: Customer Payments (actual installment schedule agreed with client)
+  // - Priority 2: Sum of individual line item selling prices (if set by ops team)
+  // - Priority 3: Current stored selling price
+  // - Priority 4: Booking total amount
+  let newSellingPrice = operation.sellingPrice || 0;
+  if (totalCustomerBilled > 0) {
+    newSellingPrice = totalCustomerBilled;
+  } else if (totalLineItemSelling > 0) {
+    newSellingPrice = totalLineItemSelling;
+  } else if (newSellingPrice === 0 && operation.bookings?.length) {
+    const linkedBookings = await Booking.find({ _id: { $in: operation.bookings } });
+    const bSum = linkedBookings.reduce((s, b) => s + (b.totalAmount || 0), 0);
+    if (bSum > 0) newSellingPrice = bSum;
+  }
+
+  // 5. Update and save Operation
   operation.totalVendorCost = totalVendorCost;
+  operation.sellingPrice = newSellingPrice;
+  operation.grossProfit = newSellingPrice - totalVendorCost;
+  operation.profitPercentage = newSellingPrice > 0
+    ? Math.round(((newSellingPrice - totalVendorCost) / newSellingPrice) * 100)
+    : 0;
+
   await operation.save();
-  res.status(200).json({ status: 'success', data: operation });
+
+  // 6. Synchronize Linked Bookings
+  const allBookingIds = [...(operation.bookings || [])];
+  if ((operation as any).booking && !allBookingIds.some(id => String(id) === String((operation as any).booking))) {
+    allBookingIds.push((operation as any).booking);
+  }
+
+  if (allBookingIds.length > 0) {
+    for (const bId of allBookingIds) {
+      const bPayments = customerPayments.filter(cp => cp.booking && String(cp.booking) === String(bId));
+      let bTotal = 0;
+      let bPaid = 0;
+
+      if (bPayments.length > 0) {
+        bTotal = bPayments.reduce((s, cp) => s + (cp.amount || 0), 0);
+        bPaid = bPayments.reduce((s, cp) => s + (cp.paidAmount || 0), 0);
+      } else if (allBookingIds.length === 1) {
+        bTotal = totalCustomerBilled > 0 ? totalCustomerBilled : newSellingPrice;
+        bPaid = totalCustomerReceived;
+      }
+
+      let bStatus: 'pending' | 'partial' | 'paid' = 'pending';
+      if (bTotal > 0 && bPaid >= bTotal) {
+        bStatus = 'paid';
+      } else if (bPaid > 0) {
+        bStatus = 'partial';
+      }
+
+      const updateFields: any = { paymentStatus: bStatus };
+      if (bTotal > 0) updateFields.totalAmount = bTotal;
+      if (bPaid >= 0) updateFields.paidAmount = bPaid;
+
+      await Booking.findByIdAndUpdate(bId, { $set: updateFields });
+    }
+  }
+
+  // 7. Return with live data fields attached
+  const pendingPayment = Math.max(0, newSellingPrice - totalCustomerReceived);
+  const operationWithLiveData = {
+    ...operation.toObject(),
+    effectiveSelling: newSellingPrice,
+    totalReceived: totalCustomerReceived,
+    pendingPayment,
+    grossProfit: operation.grossProfit,
+    profitPercentage: operation.profitPercentage,
+  };
+
+  res.status(200).json({ status: 'success', message: 'Pricing and payments recalculated successfully', data: operationWithLiveData });
 });
 
 export const deleteOperation = asyncHandler(async (req: Request, res: Response) => {
@@ -751,15 +861,35 @@ export const addOperationPassenger = asyncHandler(async (req: Request, res: Resp
   const pkg = operation.package as any;
   const price = pkg?.price || 0;
 
+  // Sanitize passenger data: ensure age is number or undefined, dob is Date or undefined, and auto-calculate age if dob is provided
+  const sanitizedPassenger: any = {
+    ...passengerData,
+    age: (passengerData?.age !== '' && passengerData?.age !== undefined && passengerData?.age !== null)
+      ? Number(passengerData.age)
+      : undefined,
+    dob: passengerData?.dob ? new Date(passengerData.dob) : undefined,
+  };
+  if (sanitizedPassenger.age === undefined && sanitizedPassenger.dob && !isNaN(sanitizedPassenger.dob.getTime())) {
+    const today = new Date();
+    let calculatedAge = today.getFullYear() - sanitizedPassenger.dob.getFullYear();
+    const m = today.getMonth() - sanitizedPassenger.dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < sanitizedPassenger.dob.getDate())) {
+      calculatedAge--;
+    }
+    if (calculatedAge >= 0) sanitizedPassenger.age = calculatedAge;
+  }
+
   if (mode === 'existing') {
     if (!bookingId) throw new AppError('Booking ID is required for existing mode', 400);
     const booking = await Booking.findById(bookingId);
     if (!booking) throw new AppError('Booking not found', 404);
     
     // 1. Add passenger to booking
-    booking.travellersDetails = [...(booking.travellersDetails || []), passengerData];
-    if (passengerData.type === 'child') {
+    booking.travellersDetails = [...(booking.travellersDetails || []), sanitizedPassenger];
+    if (sanitizedPassenger.type === 'child') {
       booking.travellers.children = (booking.travellers.children || 0) + 1;
+    } else if (sanitizedPassenger.type === 'infant') {
+      booking.travellers.infants = (booking.travellers.infants || 0) + 1;
     } else {
       booking.travellers.adults = (booking.travellers.adults || 1) + 1;
     }
@@ -774,12 +904,12 @@ export const addOperationPassenger = asyncHandler(async (req: Request, res: Resp
     const custIndex = operation.bookings?.findIndex((b: any) => String(b) === String(bookingId));
     if (custIndex !== undefined && custIndex !== -1 && operation.customers[custIndex]) {
        operation.customers[custIndex].pax += 1;
-       if (passengerData.type === 'child') operation.customers[custIndex].children = (operation.customers[custIndex].children || 0) + 1;
+       if (sanitizedPassenger.type === 'child') operation.customers[custIndex].children = (operation.customers[custIndex].children || 0) + 1;
        else operation.customers[custIndex].adults = (operation.customers[custIndex].adults || 0) + 1;
        operation.markModified('customers');
     } else if ((operation as any).customer) {
        (operation as any).customer.pax += 1;
-       if (passengerData.type === 'child') (operation as any).customer.children = ((operation as any).customer.children || 0) + 1;
+       if (sanitizedPassenger.type === 'child') (operation as any).customer.children = ((operation as any).customer.children || 0) + 1;
        else (operation as any).customer.adults = ((operation as any).customer.adults || 0) + 1;
        operation.markModified('customer');
     }
@@ -836,8 +966,8 @@ export const addOperationPassenger = asyncHandler(async (req: Request, res: Resp
       bookingStatus: 'confirmed',
       travelDate: operation.travelDates?.start || new Date(),
       returnDate: operation.travelDates?.end,
-      travellers: { adults: passengerData.type === 'adult' ? 1 : 0, children: passengerData.type === 'child' ? 1 : 0, infants: 0 },
-      travellersDetails: [passengerData],
+      travellers: { adults: sanitizedPassenger.type === 'adult' ? 1 : 0, children: sanitizedPassenger.type === 'child' ? 1 : 0, infants: sanitizedPassenger.type === 'infant' ? 1 : 0 },
+      travellersDetails: [sanitizedPassenger],
       primaryTraveller: {
         firstName: user.firstName,
         lastName: user.lastName,

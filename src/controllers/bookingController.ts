@@ -16,6 +16,28 @@ import { autoCreateOperationFromBooking } from '../utils/operationBuilder.js';
 import crypto from 'crypto';
 import { generateAccessToken, generateRefreshToken, setTokenCookies } from '../utils/generateToken.js';
 
+const sanitizeTravellersDetails = (details?: any[]): any[] => {
+  if (!details || !Array.isArray(details)) return [];
+  return details.map((t: any) => {
+    let age = (t.age !== '' && t.age !== undefined && t.age !== null) ? Number(t.age) : undefined;
+    let dob = t.dob ? new Date(t.dob) : undefined;
+    if (age === undefined && dob && !isNaN(dob.getTime())) {
+      const today = new Date();
+      let calculatedAge = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+        calculatedAge--;
+      }
+      if (calculatedAge >= 0) age = calculatedAge;
+    }
+    return {
+      ...t,
+      age,
+      dob,
+    };
+  });
+};
+
 // @desc    Create a booking
 // @route   POST /api/bookings
 export const createBooking = asyncHandler(async (req: Request, res: Response) => {
@@ -45,6 +67,10 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
   }
 
   const { package: packageId, travellers } = req.body;
+
+  if (req.body.travellersDetails) {
+    req.body.travellersDetails = sanitizeTravellersDetails(req.body.travellersDetails);
+  }
 
   const pkg = await Package.findById(packageId);
   if (!pkg) {
@@ -237,6 +263,8 @@ export const createManualBooking = asyncHandler(async (req: Request, res: Respon
   const customer = await User.findById(customerId);
   if (!customer) throw new AppError('Customer account not found. Please select a valid customer.', 404);
 
+  const sanitizedTravellers = sanitizeTravellersDetails(travellersDetails);
+
   // International package validation
   if (pkg.isInternational) {
     if (!primaryTraveller?.panCard) throw new AppError('PAN Card is required for international bookings.', 400);
@@ -274,7 +302,7 @@ export const createManualBooking = asyncHandler(async (req: Request, res: Respon
     travelDate,
     returnDate,
     travellers: travellers || { adults: 1, children: 0, infants: 0 },
-    travellersDetails: travellersDetails || [],
+    travellersDetails: sanitizedTravellers || [],
     primaryTraveller: primaryTraveller || {},
     totalAmount,
     paidAmount: paid,
@@ -910,7 +938,7 @@ export const updateBookingPassengers = asyncHandler(async (req: Request, res: Re
   }
 
   // Update booking
-  booking.travellersDetails = travellersDetails;
+  booking.travellersDetails = sanitizeTravellersDetails(travellersDetails);
   await booking.save();
 
   // Find associated operation and sync pax
