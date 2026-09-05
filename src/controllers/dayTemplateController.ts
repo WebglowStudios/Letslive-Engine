@@ -31,7 +31,7 @@ export const getTemplates = async (req: Request, res: Response) => {
 // 3. Create a new template
 export const createTemplate = async (req: Request, res: Response) => {
   try {
-    const { name, folder, title, description, activities, meals, accommodation, images } = req.body;
+    const { name, folder, title, description, activities, recommendations, meals, accommodation, images } = req.body;
     
     if (!name) {
       return res.status(400).json({ success: false, message: 'Template name is required.' });
@@ -43,6 +43,7 @@ export const createTemplate = async (req: Request, res: Response) => {
       title: title || '',
       description: description || '',
       activities: activities || [],
+      recommendations: recommendations || [],
       meals: meals || [],
       accommodation: accommodation || '',
       images: images || [],

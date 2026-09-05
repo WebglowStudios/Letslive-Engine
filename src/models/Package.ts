@@ -13,6 +13,7 @@ export interface IItineraryDay {
   title: string;
   description: string;
   activities: (string | IDayActivity)[];
+  recommendations?: (string | IDayActivity)[];
   meals: string[];
   accommodation: string;
   images: string[];
@@ -205,6 +206,7 @@ const packageSchema = new Schema<IPackage>(
         title: { type: String },
         description: { type: String },
         activities: [{ type: Schema.Types.Mixed }],
+        recommendations: [{ type: Schema.Types.Mixed }],
         meals: [{ type: String }],
         accommodation: { type: String },
         images: [{ type: String }],

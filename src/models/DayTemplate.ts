@@ -7,6 +7,7 @@ export interface IDayTemplate extends Document {
   title: string;
   description: string;
   activities: (string | IDayActivity)[];
+  recommendations?: (string | IDayActivity)[];
   meals: string[];
   accommodation: string;
   images: string[];
@@ -22,6 +23,7 @@ const dayTemplateSchema = new Schema<IDayTemplate>(
     title: { type: String, default: '' },
     description: { type: String, default: '' },
     activities: [{ type: Schema.Types.Mixed }],
+    recommendations: [{ type: Schema.Types.Mixed }],
     meals: [{ type: String }],
     accommodation: { type: String, default: '' },
     images: [{ type: String }],
