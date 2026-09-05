@@ -40,10 +40,12 @@ export const approveRequest = asyncHandler(async (req: Request, res: Response) =
     let resultEntity;
 
     if (action === 'create') {
+      payload.approvalStatus = 'approved';
       if (entityType === 'Package') resultEntity = await Package.create(payload);
       else resultEntity = await Destination.create(payload);
     } else if (action === 'update') {
       if (!entityId) throw new AppError('Missing entityId for update action', 400);
+      payload.approvalStatus = 'approved';
       if (entityType === 'Package') {
         resultEntity = await Package.findByIdAndUpdate(entityId.toString(), payload, { new: true, runValidators: true });
       } else {

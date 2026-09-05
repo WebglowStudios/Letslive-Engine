@@ -42,7 +42,7 @@ router.delete('/:id', protect, requirePermission('packages.delete'), deletePacka
 router.post('/:id/delink', protect, requirePermission('packages.edit'), delinkPackage);
 
 // Duplicate a package
-router.post('/:id/duplicate', protect, requirePermission('packages.create'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/duplicate', protect, asyncHandler(async (req: Request, res: Response) => {
   const original = await Package.findById(req.params.id).lean();
   if (!original) {
     res.status(404).json({ status: 'fail', message: 'Package not found' });
@@ -53,8 +53,8 @@ router.post('/:id/duplicate', protect, requirePermission('packages.create'), asy
   const { _id, slug, createdAt, updatedAt, __v, ...rest } = original as unknown as Record<string, unknown>;
   void _id; void createdAt; void updatedAt; void __v;
 
-  // Build a unique name by appending a timestamp so repeated duplicates never clash
-  const copyName = `${rest.name} -- copy`;
+  // Use custom name if provided, or build a unique copy name
+  const copyName = req.body.name && req.body.name.trim() ? req.body.name.trim() : `${rest.name} -- copy`;
   const uniqueSlug = `${slug}-copy-${Date.now()}`;
 
   let customerData = {};
@@ -79,7 +79,8 @@ router.post('/:id/duplicate', protect, requirePermission('packages.create'), asy
     name: copyName,
     slug: uniqueSlug,
     isFeatured: false,
-    approvalStatus: 'pending',
+    approvalStatus: 'approved',
+    isActive: true,
     rating: 0,
     reviewCount: 0,
     createdBy: req.user!._id,

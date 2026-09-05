@@ -125,7 +125,9 @@ export const getDestinationBySlug = asyncHandler(async (req: Request, res: Respo
 // @desc    Create a destination
 // @route   POST /api/destinations
 export const createDestination = asyncHandler(async (req: Request, res: Response) => {
-  if (req.user?.role !== 'admin') {
+  const canDirectChange = req.user?.role === 'admin' || req.user?.role === 'manager';
+
+  if (!canDirectChange) {
     await ApprovalRequest.create({
       entityType: 'Destination',
       action: 'create',
@@ -138,6 +140,8 @@ export const createDestination = asyncHandler(async (req: Request, res: Response
       message: 'Destination creation submitted for approval',
     });
   }
+
+  req.body.approvalStatus = req.body.approvalStatus || 'approved';
 
   const destination = await Destination.create(req.body);
 
@@ -161,7 +165,10 @@ export const updateDestination = asyncHandler(async (req: Request, res: Response
     throw new AppError('Destination not found', 404);
   }
 
-  if (req.user?.role !== 'admin') {
+  const canDirectChange = req.user?.role === 'admin' || req.user?.role === 'manager';
+  const isLiveApproved = destCheck.approvalStatus === 'approved' && destCheck.isActive === true;
+
+  if (!canDirectChange && isLiveApproved) {
     await ApprovalRequest.create({
       entityType: 'Destination',
       entityId: req.params.id as any,
@@ -210,7 +217,10 @@ export const deleteDestination = asyncHandler(async (req: Request, res: Response
     throw new AppError('Destination not found', 404);
   }
 
-  if (req.user?.role !== 'admin') {
+  const canDirectChange = req.user?.role === 'admin' || req.user?.role === 'manager';
+  const isLiveApproved = destCheck.approvalStatus === 'approved' && destCheck.isActive === true;
+
+  if (!canDirectChange && isLiveApproved) {
     await ApprovalRequest.create({
       entityType: 'Destination',
       entityId: req.params.id as any,

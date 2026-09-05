@@ -242,7 +242,9 @@ export const getPackagesByDestination = asyncHandler(async (req: Request, res: R
 // @desc    Create a package
 // @route   POST /api/packages
 export const createPackage = asyncHandler(async (req: Request, res: Response) => {
-  if (req.user?.role !== 'admin' && !req.body.isCustom) {
+  const canDirectChange = req.user?.role === 'admin' || req.user?.role === 'manager';
+
+  if (!canDirectChange && !req.body.isCustom) {
     await ApprovalRequest.create({
       entityType: 'Package',
       action: 'create',
@@ -254,6 +256,10 @@ export const createPackage = asyncHandler(async (req: Request, res: Response) =>
       approvalRequired: true,
       message: 'Package creation submitted for approval',
     });
+  }
+
+  if (canDirectChange || req.body.isCustom) {
+    req.body.approvalStatus = req.body.approvalStatus || 'approved';
   }
 
   if (req.body.isCustom && req.user) {
@@ -289,7 +295,10 @@ export const updatePackage = asyncHandler(async (req: Request, res: Response) =>
     throw new AppError('Package not found', 404);
   }
 
-  if (req.user?.role !== 'admin' && req.user?.role !== 'manager' && !pkgCheck.isCustom) {
+  const canDirectChange = req.user?.role === 'admin' || req.user?.role === 'manager';
+  const isLiveApproved = pkgCheck.approvalStatus === 'approved' && pkgCheck.isActive === true;
+
+  if (!canDirectChange && isLiveApproved && !pkgCheck.isCustom) {
     await ApprovalRequest.create({
       entityType: 'Package',
       entityId: req.params.id as any,
@@ -344,7 +353,10 @@ export const deletePackage = asyncHandler(async (req: Request, res: Response) =>
     throw new AppError('Package not found', 404);
   }
 
-  if (req.user?.role !== 'admin' && !pkgCheck.isCustom) {
+  const canDirectChange = req.user?.role === 'admin' || req.user?.role === 'manager';
+  const isLiveApproved = pkgCheck.approvalStatus === 'approved' && pkgCheck.isActive === true;
+
+  if (!canDirectChange && isLiveApproved && !pkgCheck.isCustom) {
     await ApprovalRequest.create({
       entityType: 'Package',
       entityId: req.params.id as any,
