@@ -1,11 +1,18 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import slugify from 'slugify';
 
+export interface IDayActivity {
+  title: string;
+  description?: string;
+  image?: string;
+  images?: string[];
+}
+
 export interface IItineraryDay {
   day: number;
   title: string;
   description: string;
-  activities: string[];
+  activities: (string | IDayActivity)[];
   meals: string[];
   accommodation: string;
   images: string[];
@@ -144,6 +151,7 @@ export interface IPackage extends Document {
     depositLabel?: string;              // custom label shown to user e.g. "Book with ₹5000"
     balanceDueDays?: number;            // days before travel by which balance must be paid
   };
+  imageMap?: Record<string, string>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -194,7 +202,7 @@ const packageSchema = new Schema<IPackage>(
         day: { type: Number },
         title: { type: String },
         description: { type: String },
-        activities: [{ type: String }],
+        activities: [{ type: Schema.Types.Mixed }],
         meals: [{ type: String }],
         accommodation: { type: String },
         images: [{ type: String }],

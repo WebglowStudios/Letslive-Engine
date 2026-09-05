@@ -9,6 +9,7 @@ import Destination from '../models/Destination.js';
 import Article from '../models/Article.js';
 import DayTemplate from '../models/DayTemplate.js';
 import AboutContent from '../models/AboutContent.js';
+import MediaImage from '../models/MediaImage.js';
 
 const router = Router();
 
@@ -249,30 +250,36 @@ router.get(
       // unless ?recursive=true is passed
       const recursive = req.query.recursive === 'true';
 
-      const images = result.resources
+      const filteredResources = result.resources
         .filter((r: { public_id: string }) => {
           if (recursive) return true;
           // Only include images directly in this folder (no additional slashes after folder prefix)
           const afterPrefix = r.public_id.slice(folder.length + 1); // +1 for the slash
           return !afterPrefix.includes('/');
-        })
-        .map((r: { secure_url: string; public_id: string; width: number; height: number; created_at: string; bytes: number; format: string }) => {
-          // Extract a readable name from the public_id
-          const rawName = r.public_id.split('/').pop() || r.public_id;
-          // Strip the timestamp suffix we append (e.g. "-lq2abc3") — pattern: dash followed by base36 at end
-          const displayName = rawName.replace(/-[a-z0-9]{5,10}$/, '') || rawName;
-
-          return {
-            url: r.secure_url,
-            publicId: r.public_id,
-            width: r.width,
-            height: r.height,
-            createdAt: r.created_at,
-            size: r.bytes,
-            format: r.format,
-            name: displayName,
-          };
         });
+
+      const publicIds = filteredResources.map((r: { public_id: string }) => r.public_id);
+      const mediaDocs = await MediaImage.find({ publicId: { $in: publicIds } }).lean();
+      const mediaMap = new Map<string, string>();
+      for (const m of mediaDocs) {
+        if (m.name) mediaMap.set(m.publicId, m.name);
+      }
+
+      const images = filteredResources.map((r: { secure_url: string; public_id: string; width: number; height: number; created_at: string; bytes: number; format: string }) => {
+        // Only return name if set in database; old/existing images without names remain unnamed ('')
+        const customName = mediaMap.get(r.public_id) || '';
+
+        return {
+          url: r.secure_url,
+          publicId: r.public_id,
+          width: r.width,
+          height: r.height,
+          createdAt: r.created_at,
+          size: r.bytes,
+          format: r.format,
+          name: customName,
+        };
+      });
 
       res.status(200).json({ status: 'success', data: images });
     } catch {
@@ -299,6 +306,8 @@ router.post(
       throw new AppError('Cloudinary is not configured. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in .env', 500);
     }
 
+    const locationName = (req.body.name || '').trim();
+
     // Upload buffer to Cloudinary
     const folder = (req.query.folder as string) || 'letslivetours';
 
@@ -314,7 +323,7 @@ router.post(
     const uniqueSuffix = Date.now().toString(36);
     const publicId = `${folder}/${originalName}-${uniqueSuffix}`;
 
-    const result = await new Promise<{ secure_url: string; public_id: string; width: number; height: number; format: string; original_filename: string }>((resolve, reject) => {
+    const result = await new Promise<{ secure_url: string; public_id: string; width: number; height: number; format: string; original_filename: string; bytes: number }>((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           public_id: publicId,
@@ -328,11 +337,27 @@ router.post(
         },
         (error, result) => {
           if (error) reject(error);
-          else resolve(result as { secure_url: string; public_id: string; width: number; height: number; format: string; original_filename: string });
+          else resolve(result as any);
         }
       );
       uploadStream.end(req.file!.buffer);
     });
+
+    // Save record to MediaImage model
+    const mediaDoc = await MediaImage.findOneAndUpdate(
+      { publicId: result.public_id },
+      {
+        url: result.secure_url,
+        name: locationName,
+        publicId: result.public_id,
+        folder,
+        width: result.width,
+        height: result.height,
+        format: result.format,
+        size: result.bytes,
+      },
+      { upsert: true, new: true }
+    );
 
     res.status(200).json({
       status: 'success',
@@ -342,7 +367,7 @@ router.post(
         width: result.width,
         height: result.height,
         format: result.format,
-        name: originalName,
+        name: mediaDoc.name,
         originalFilename: result.original_filename,
       },
     });
@@ -369,9 +394,26 @@ router.post(
 
     const folder = (req.query.folder as string) || 'letslivetours';
 
+    let nameList: string[] = [];
+    if (Array.isArray(req.body.names)) {
+      nameList = req.body.names.map((n: unknown) => String(n || ''));
+    } else if (typeof req.body.names === 'string') {
+      try {
+        const parsed = JSON.parse(req.body.names);
+        if (Array.isArray(parsed)) {
+          nameList = parsed.map((n: unknown) => String(n || ''));
+        } else {
+          nameList = [req.body.names];
+        }
+      } catch {
+        nameList = [req.body.names];
+      }
+    }
+
     const uploads = await Promise.all(
       files.map(
-        (file) => {
+        async (file, idx) => {
+          const locationName = (nameList[idx] || '').trim();
           // Preserve original filename
           const originalName = file.originalname
             .replace(/\.[^/.]+$/, '')
@@ -382,7 +424,7 @@ router.post(
           const uniqueSuffix = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
           const publicId = `${folder}/${originalName}-${uniqueSuffix}`;
 
-          return new Promise<{ url: string; publicId: string; name: string }>((resolve, reject) => {
+          const r = await new Promise<{ secure_url: string; public_id: string; width?: number; height?: number; format?: string; bytes?: number }>((resolve, reject) => {
             const uploadStream = cloudinary.uploader.upload_stream(
               {
                 public_id: publicId,
@@ -393,13 +435,29 @@ router.post(
               (error, result) => {
                 if (error) reject(error);
                 else {
-                  const r = result as { secure_url: string; public_id: string };
-                  resolve({ url: r.secure_url, publicId: r.public_id, name: originalName });
+                  resolve(result as any);
                 }
               }
             );
             uploadStream.end(file.buffer);
           });
+
+          await MediaImage.findOneAndUpdate(
+            { publicId: r.public_id },
+            {
+              url: r.secure_url,
+              name: locationName,
+              publicId: r.public_id,
+              folder,
+              width: r.width,
+              height: r.height,
+              format: r.format,
+              size: r.bytes,
+            },
+            { upsert: true, new: true }
+          );
+
+          return { url: r.secure_url, publicId: r.public_id, name: locationName };
         }
       )
     );
@@ -408,7 +466,44 @@ router.post(
   })
 );
 
-// @desc    Delete image from Cloudinary
+// @desc    Update image location name
+// @route   PATCH /api/upload/:publicId/name
+// @access  Staff+
+router.patch(
+  '/:publicId/name',
+  protect,
+  requirePermission('packages.create'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const publicId = decodeURIComponent(req.params.publicId as string);
+    const name = (req.body.name || '').trim();
+
+    let media = await MediaImage.findOne({ publicId });
+    if (!media) {
+      try {
+        const resource = await cloudinary.api.resource(publicId);
+        media = await MediaImage.create({
+          publicId,
+          url: resource.secure_url,
+          name,
+          folder: publicId.split('/').slice(0, -1).join('/') || 'letslivetours',
+          width: resource.width,
+          height: resource.height,
+          format: resource.format,
+          size: resource.bytes,
+        });
+      } catch {
+        throw new AppError('Image not found in Cloudinary or database', 404);
+      }
+    } else {
+      media.name = name;
+      await media.save();
+    }
+
+    res.status(200).json({ status: 'success', data: media });
+  })
+);
+
+// @desc    Delete image from Cloudinary & Database
 // @route   DELETE /api/upload/:publicId
 // @access  Staff+
 router.delete(
@@ -447,6 +542,7 @@ router.delete(
     }
 
     await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+    await MediaImage.deleteOne({ publicId });
     res.status(200).json({ status: 'success', message: 'Image deleted' });
   })
 );

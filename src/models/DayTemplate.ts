@@ -1,11 +1,12 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
+import { IDayActivity } from './Package';
 
 export interface IDayTemplate extends Document {
   name: string;
   folder: string;
   title: string;
   description: string;
-  activities: string[];
+  activities: (string | IDayActivity)[];
   meals: string[];
   accommodation: string;
   images: string[];
@@ -20,7 +21,7 @@ const dayTemplateSchema = new Schema<IDayTemplate>(
     folder: { type: String, default: 'Uncategorized', trim: true },
     title: { type: String, default: '' },
     description: { type: String, default: '' },
-    activities: [{ type: String }],
+    activities: [{ type: Schema.Types.Mixed }],
     meals: [{ type: String }],
     accommodation: { type: String, default: '' },
     images: [{ type: String }],

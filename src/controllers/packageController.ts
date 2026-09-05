@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import Package from '../models/Package.js';
 import Destination from '../models/Destination.js';
 import ApprovalRequest from '../models/ApprovalRequest.js';
+import MediaImage from '../models/MediaImage.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { logActivity } from '../utils/logActivity.js';
@@ -148,9 +149,38 @@ export const getPackageBySlug = asyncHandler(async (req: Request, res: Response)
     throw new AppError('Package not found', 404);
   }
 
+  const allImageUrls = [
+    pkg.heroImage,
+    ...(pkg.images || []),
+    ...(pkg.destinationImages || []),
+    ...(pkg.stayImages || []),
+    ...(pkg.activityImages || []),
+    ...(pkg.itinerary?.flatMap((d: any) => d.images || []) || []),
+  ].filter(Boolean) as string[];
+
+  const mediaDocs = await MediaImage.find({ url: { $in: allImageUrls } }).lean();
+  const imageMap: Record<string, string> = {};
+
+  if (pkg.imageMap) {
+    if (pkg.imageMap instanceof Map) {
+      pkg.imageMap.forEach((v: string, k: string) => { imageMap[k] = v; });
+    } else if (typeof pkg.imageMap === 'object') {
+      Object.assign(imageMap, pkg.imageMap);
+    }
+  }
+
+  for (const doc of mediaDocs) {
+    if (doc.url && doc.name && doc.name.trim()) {
+      imageMap[doc.url] = doc.name.trim();
+    }
+  }
+
+  const pkgObj = pkg.toObject();
+  pkgObj.imageMap = imageMap;
+
   res.status(200).json({
     status: 'success',
-    data: pkg,
+    data: pkgObj,
   });
 });
 

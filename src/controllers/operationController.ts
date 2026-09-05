@@ -505,7 +505,9 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
       actDocs.push({
         operation: opId,
         title: day.title || `Day ${day.day}`,
-        description: day.activities && day.activities.length > 0 ? day.activities.join(' | ') : day.description || '',
+        description: day.activities && day.activities.length > 0
+          ? day.activities.map((a: any) => typeof a === 'string' ? a : (a.title || a.name || '')).filter(Boolean).join(' | ')
+          : day.description || '',
         date: computeDate(day.day),
         tripDay: `Day ${day.day}`,
         paymentStatus: 'pending',
