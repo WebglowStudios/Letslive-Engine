@@ -194,18 +194,27 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
   });
 
   // Automatically update the enquiry: mark converted, link to user account (so it
-  // appears in their dashboard), and push a booking-confirmed note for staff.
+  // appears in their dashboard), and push a booking-confirmed note & timeline event for staff.
   if (enquiryId) {
+    const refCode = booking.bookingId || String(booking._id).slice(-6).toUpperCase();
     await Enquiry.findByIdAndUpdate(enquiryId, {
       status: 'converted',
       user: userId,   // ← backfill the user link in case enquiry was submitted anonymously
       bookingRef: booking._id,
+      conversionValue: totalAmount,
       $push: {
         notes: {
-          text: `Customer successfully booked this package via the website! Booking Ref: ${booking.bookingId || String(booking._id).slice(-6).toUpperCase()}`,
-          date: new Date()
-        }
-      }
+          text: `Customer successfully booked this package via the website! Booking Ref: ${refCode}`,
+          date: new Date(),
+        },
+        timeline: {
+          type: 'converted',
+          title: `Lead converted! Booking #${refCode}`,
+          description: `Customer completed booking online. Total amount: ₹${totalAmount.toLocaleString('en-IN')}`,
+          date: new Date(),
+          meta: { bookingId: booking._id, totalAmount, bookingRef: refCode },
+        },
+      },
     });
   }
 
@@ -329,15 +338,26 @@ export const createManualBooking = asyncHandler(async (req: Request, res: Respon
   if (enquiryId) {
     const staff = await User.findById(staffId).select('firstName lastName').lean();
     const staffName = staff ? `${staff.firstName} ${staff.lastName}` : 'Staff';
+    const refCode = booking.bookingId || String(booking._id).slice(-6).toUpperCase();
     await Enquiry.findByIdAndUpdate(enquiryId, {
       status: 'converted',
       user: customerId,
       bookingRef: booking._id,
+      conversionValue: totalAmount,
       $push: {
         notes: {
-          text: `Manual/offline booking created by ${staffName}. Payment: ₹${paid.toLocaleString('en-IN')} via ${offlinePayment?.mode || 'cash'}. Booking Ref: ${booking.bookingId || String(booking._id).slice(-6).toUpperCase()}`,
+          text: `Manual/offline booking created by ${staffName}. Payment: ₹${paid.toLocaleString('en-IN')} via ${offlinePayment?.mode || 'cash'}. Booking Ref: ${refCode}`,
           date: new Date(),
           by: staffId,
+        },
+        timeline: {
+          type: 'converted',
+          title: `Lead converted! Booking #${refCode}`,
+          description: `Manual booking created by ${staffName}. Paid ₹${paid.toLocaleString('en-IN')} via ${offlinePayment?.mode || 'cash'} (Total: ₹${totalAmount.toLocaleString('en-IN')})`,
+          by: staffId,
+          byName: staffName,
+          date: new Date(),
+          meta: { bookingId: booking._id, totalAmount, paid, mode: offlinePayment?.mode },
         },
       },
     });

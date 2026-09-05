@@ -14,6 +14,35 @@ export interface ICallLog {
   duration?: number; // call duration in seconds
 }
 
+export interface ITimelineEvent {
+  type:
+    | 'created'
+    | 'acquisition'
+    | 'requirements'
+    | 'message'
+    | 'status_change'
+    | 'priority_change'
+    | 'assignment'
+    | 'call'
+    | 'note'
+    | 'follow_up'
+    | 'itinerary_linked'
+    | 'itinerary_delinked'
+    | 'booking_link_sent'
+    | 'account_created'
+    | 'converted'
+    | 'closed'
+    | 'feedback'
+    | 'system'
+    | 'custom';
+  title: string;
+  description?: string;
+  by?: mongoose.Types.ObjectId;
+  byName?: string;
+  date: Date;
+  meta?: Record<string, any>;
+}
+
 export interface IEnquiry extends Document {
   type: 'general' | 'booking' | 'support' | 'callback' | 'group-quote' | 'group-tour';
   firstName: string;
@@ -31,6 +60,7 @@ export interface IEnquiry extends Document {
   priority: 'low' | 'medium' | 'high' | 'urgent';
   assignedTo?: mongoose.Types.ObjectId;
   notes: INote[];
+  timeline: ITimelineEvent[];
   source: 'website' | 'whatsapp' | 'phone' | 'walk-in' | 'instagram' | 'google' | 'referral' | 'other';
   // ─── CRM fields ───────────────────────────────────────────────────────────
   dnpCount: number;                            // 0–6+, incremented each unanswered call attempt
@@ -91,6 +121,17 @@ const enquirySchema = new Schema<IEnquiry>(
         text: { type: String },
         by: { type: Schema.Types.ObjectId, ref: 'User' },
         date: { type: Date, default: Date.now },
+      },
+    ],
+    timeline: [
+      {
+        type: { type: String, required: true },
+        title: { type: String, required: true },
+        description: { type: String },
+        by: { type: Schema.Types.ObjectId, ref: 'User' },
+        byName: { type: String },
+        date: { type: Date, default: Date.now },
+        meta: { type: Schema.Types.Mixed },
       },
     ],
     source: {

@@ -49,12 +49,64 @@ export const createEnquiry = asyncHandler(async (req: Request, res: Response) =>
     }
   }
 
+  // Build granular initial timeline events for user acquisition
+  const initialTimeline: any[] = [
+    {
+      type: 'acquisition',
+      title: `Enquiry received via ${req.body.source || 'website'}${req.body.channel ? ` (Channel: ${req.body.channel})` : ''}`,
+      description: `Inbound ${req.body.type || 'general'} inquiry submitted`,
+      date: new Date(),
+      meta: { source: req.body.source || 'website', channel: req.body.channel, type: req.body.type || 'general' },
+    },
+  ];
+
+  if (req.body.destination || req.body.travelDate || req.body.travellerCount || req.body.budget) {
+    const details = [
+      req.body.destination ? `Destination: ${req.body.destination}` : null,
+      req.body.travellerCount ? `Travellers: ${req.body.travellerCount} pax` : null,
+      req.body.budget ? `Budget: ₹${Number(req.body.budget).toLocaleString('en-IN')}` : null,
+      req.body.travelDate ? `Travel Date: ${new Date(req.body.travelDate).toLocaleDateString('en-IN')}` : null,
+    ].filter(Boolean).join(' • ');
+
+    initialTimeline.push({
+      type: 'requirements',
+      title: 'Trip requirements captured',
+      description: details,
+      date: new Date(Date.now() + 100),
+      meta: {
+        destination: req.body.destination,
+        travelDate: req.body.travelDate,
+        travellerCount: req.body.travellerCount,
+        budget: req.body.budget,
+      },
+    });
+  }
+
+  if (req.body.packageName) {
+    initialTimeline.push({
+      type: 'system',
+      title: `Package of interest: ${req.body.packageName}`,
+      date: new Date(Date.now() + 200),
+      meta: { packageName: req.body.packageName, package: req.body.package },
+    });
+  }
+
+  if (req.body.message) {
+    initialTimeline.push({
+      type: 'message',
+      title: 'Initial customer query message',
+      description: req.body.message,
+      date: new Date(Date.now() + 300),
+    });
+  }
+
   const enquiry = await Enquiry.create({
     ...req.body,
     user: linkedUserId,
     assignedTo: undefined,   // always unassigned — admin will assign manually
     status: 'new',
     priority,
+    timeline: initialTimeline,
   });
 
   // Send emails (fire-and-forget)
@@ -111,6 +163,72 @@ export const manualCreateEnquiry = asyncHandler(async (req: Request, res: Respon
 
   const existingUser = await User.findOne({ email: email?.toLowerCase().trim() });
 
+  const creatorName = req.user ? `${req.user.firstName} ${req.user.lastName || ''}`.trim() : 'Staff';
+  const initialTimeline: any[] = [
+    {
+      type: 'acquisition',
+      title: `Manual lead created via ${channel || 'phone'}`,
+      description: `Lead ingested and recorded by ${creatorName}`,
+      by: req.user?._id,
+      byName: creatorName,
+      date: new Date(),
+      meta: { channel, source: (['whatsapp', 'website', 'instagram', 'google', 'referral', 'walk-in', 'other'].includes(channel)) ? channel : 'phone' },
+    },
+  ];
+
+  if (destination || travelDate || travellerCount || budget) {
+    const details = [
+      destination ? `Destination: ${destination}` : null,
+      travellerCount ? `Travellers: ${travellerCount} pax` : null,
+      budget ? `Budget: ₹${Number(budget).toLocaleString('en-IN')}` : null,
+      travelDate ? `Travel Date: ${new Date(travelDate).toLocaleDateString('en-IN')}` : null,
+    ].filter(Boolean).join(' • ');
+
+    initialTimeline.push({
+      type: 'requirements',
+      title: 'Trip requirements recorded',
+      description: details,
+      by: req.user?._id,
+      byName: creatorName,
+      date: new Date(Date.now() + 100),
+      meta: { destination, travelDate, travellerCount, budget },
+    });
+  }
+
+  if (packageName) {
+    initialTimeline.push({
+      type: 'system',
+      title: `Package of interest: ${packageName}`,
+      by: req.user?._id,
+      byName: creatorName,
+      date: new Date(Date.now() + 200),
+    });
+  }
+
+  if (message) {
+    initialTimeline.push({
+      type: 'message',
+      title: 'Lead notes / customer query',
+      description: message,
+      by: req.user?._id,
+      byName: creatorName,
+      date: new Date(Date.now() + 300),
+    });
+  }
+
+  if (assignedToId) {
+    const staffMember = await User.findById(assignedToId);
+    const assignedStaffName = staffMember ? `${staffMember.firstName} ${staffMember.lastName || ''}`.trim() : 'Staff';
+    initialTimeline.push({
+      type: 'assignment',
+      title: `Assigned to ${assignedStaffName}`,
+      description: `Assigned upon creation by ${creatorName}`,
+      by: req.user?._id,
+      byName: creatorName,
+      date: new Date(Date.now() + 400),
+    });
+  }
+
   const enquiry = await Enquiry.create({
     firstName, lastName, email, phone,
     type: type || 'general',
@@ -130,6 +248,7 @@ export const manualCreateEnquiry = asyncHandler(async (req: Request, res: Respon
     user: existingUser ? existingUser._id : undefined,
     status: assignedToId ? 'assigned' : 'new',
     priority,
+    timeline: initialTimeline,
   });
 
   await logActivity({
@@ -267,9 +386,10 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
 export const getEnquiryById = asyncHandler(async (req: Request, res: Response) => {
   const enquiry = await Enquiry.findById(req.params.id)
     .populate('package', 'name slug')
-    .populate('assignedTo', 'firstName lastName email')
+    .populate('assignedTo', 'firstName lastName email avatar')
     .populate('notes.by', 'firstName lastName')
     .populate('callLog.by', 'firstName lastName')
+    .populate('timeline.by', 'firstName lastName')
     .populate('bookingRef', 'bookingId bookingStatus paymentStatus paymentFinanceStatus totalAmount paidAmount');
 
   if (!enquiry) {
@@ -282,16 +402,22 @@ export const getEnquiryById = asyncHandler(async (req: Request, res: Response) =
     throw new AppError('Access denied', 403);
   }
 
-  // Fetch all packages linked to this enquiry
-  const linkedItineraries = await Package.find({ enquiryId: enquiry._id })
-    .select('_id name slug price')
-    .lean();
+  // Fetch all packages linked to this enquiry and past activity logs
+  const [linkedItineraries, activityLogs] = await Promise.all([
+    Package.find({ enquiryId: enquiry._id })
+      .select('_id name slug price')
+      .lean(),
+    ActivityLog.find({ entity: 'enquiry', entityId: String(enquiry._id) })
+      .sort({ createdAt: -1 })
+      .lean(),
+  ]);
 
   res.status(200).json({
     status: 'success',
     data: {
       ...enquiry.toJSON(),
       linkedItineraries,
+      activityLogs,
     },
   });
 });
@@ -312,6 +438,16 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
   }
 
   const prevStatus = enquiry.status;
+  const prevPriority = enquiry.priority;
+  const prevAssignedTo = enquiry.assignedTo ? String(enquiry.assignedTo) : undefined;
+  const prevDestination = enquiry.destination;
+  const prevTravellerCount = enquiry.travellerCount;
+  const prevBudget = enquiry.budget;
+  const prevTravelDate = enquiry.travelDate ? new Date(enquiry.travelDate).toISOString() : undefined;
+  const prevTags = [...(enquiry.tags || [])];
+
+  const actorName = req.user ? `${req.user.firstName} ${req.user.lastName || ''}`.trim() : 'Staff';
+  enquiry.timeline = enquiry.timeline || [];
 
   // ── Contact / identity fields ──────────────────────────────────────────────
   if (req.body.firstName !== undefined) enquiry.firstName = req.body.firstName;
@@ -337,12 +473,63 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
     await User.findByIdAndUpdate(enquiry.user, userUpdate).catch(console.error);
   }
 
+  // ── Status changes ─────────────────────────────────────────────────────────
   if (req.body.status) enquiry.status = req.body.status;
   if (req.body.priority) enquiry.priority = req.body.priority;
+
+  if (req.body.status && req.body.status !== prevStatus) {
+    if (req.body.status === 'closed') {
+      const lostText = req.body.lostReason || enquiry.lostReason || 'Closed';
+      const otherNote = req.body.lostReasonOtherText ? ` ("${req.body.lostReasonOtherText}")` : '';
+      enquiry.timeline.push({
+        type: 'closed',
+        title: 'Lead closed / marked as lost',
+        description: `Reason: ${lostText}${otherNote}`,
+        by: req.user!._id,
+        byName: actorName,
+        date: new Date(),
+        meta: { prevStatus, newStatus: 'closed', lostReason: lostText, lostReasonOtherText: req.body.lostReasonOtherText },
+      });
+    } else if (req.body.status === 'converted') {
+      enquiry.timeline.push({
+        type: 'converted',
+        title: 'Lead marked as Converted',
+        description: `Status updated from ${prevStatus} to converted`,
+        by: req.user!._id,
+        byName: actorName,
+        date: new Date(),
+        meta: { prevStatus, newStatus: 'converted' },
+      });
+    } else {
+      enquiry.timeline.push({
+        type: 'status_change',
+        title: `Status changed: ${prevStatus} → ${req.body.status}`,
+        description: `Status moved to ${req.body.status} by ${actorName}`,
+        by: req.user!._id,
+        byName: actorName,
+        date: new Date(),
+        meta: { prevStatus, newStatus: req.body.status },
+      });
+    }
+  }
+
+  // ── Priority changes ───────────────────────────────────────────────────────
+  if (req.body.priority && req.body.priority !== prevPriority) {
+    enquiry.timeline.push({
+      type: 'priority_change',
+      title: `Priority changed: ${prevPriority} → ${req.body.priority}`,
+      description: `Priority updated to ${req.body.priority.toUpperCase()} by ${actorName}`,
+      by: req.user!._id,
+      byName: actorName,
+      date: new Date(),
+      meta: { prevPriority, newPriority: req.body.priority },
+    });
+  }
+
+  // ── Follow-up date / notes ────────────────────────────────────────────────
   if (req.body.followUpDate !== undefined) {
     enquiry.followUpDate = req.body.followUpDate ? new Date(req.body.followUpDate) : undefined;
     
-    // Automatically log this as a note on the timeline for visibility
     if (req.body.followUpDate) {
       const fDate = new Date(req.body.followUpDate).toLocaleDateString('en-IN');
       const fNotes = req.body.followUpNotes ? ` (Notes: ${req.body.followUpNotes})` : '';
@@ -351,6 +538,16 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
         by: req.user!._id,
         date: new Date(),
       });
+
+      enquiry.timeline.push({
+        type: 'follow_up',
+        title: `Follow-up scheduled for ${fDate}`,
+        description: req.body.followUpNotes ? `Notes: "${req.body.followUpNotes}"` : `Follow-up set by ${actorName}`,
+        by: req.user!._id,
+        byName: actorName,
+        date: new Date(),
+        meta: { followUpDate: req.body.followUpDate, followUpNotes: req.body.followUpNotes },
+      });
     }
   }
   if (req.body.followUpNotes !== undefined) enquiry.followUpNotes = req.body.followUpNotes;
@@ -358,13 +555,29 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
   if (req.body.budget !== undefined) enquiry.budget = req.body.budget;
   if (req.body.tags !== undefined) enquiry.tags = req.body.tags;
   if (req.body.channel !== undefined) enquiry.channel = req.body.channel;
+
+  // ── Staff assignment ───────────────────────────────────────────────────────
   if (req.body.assignedTo) {
+    const isNewAssignment = String(req.body.assignedTo) !== prevAssignedTo;
     enquiry.assignedTo = req.body.assignedTo;
     if (enquiry.status === 'new') enquiry.status = 'assigned';
 
     // Notify the newly assigned staff member (fire-and-forget)
     User.findById(req.body.assignedTo).then((staffMember) => {
       if (staffMember) {
+        const targetStaffName = `${staffMember.firstName} ${staffMember.lastName || ''}`.trim();
+        if (isNewAssignment) {
+          enquiry.timeline.push({
+            type: 'assignment',
+            title: `Lead assigned to ${targetStaffName}`,
+            description: `Assigned by ${actorName}`,
+            by: req.user!._id,
+            byName: actorName,
+            date: new Date(),
+            meta: { assignedTo: req.body.assignedTo, staffName: targetStaffName },
+          });
+          enquiry.save().catch(console.error);
+        }
         sendStaffEnquiryAssigned(
           staffMember.email,
           staffMember.firstName,
@@ -374,6 +587,36 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
         ).catch(console.error);
       }
     }).catch(console.error);
+  }
+
+  // ── Trip Requirements changes ─────────────────────────────────────────────
+  const reqDiffs: string[] = [];
+  if (req.body.destination !== undefined && req.body.destination !== prevDestination) reqDiffs.push(`Destination: ${req.body.destination}`);
+  if (req.body.travellerCount !== undefined && req.body.travellerCount !== prevTravellerCount) reqDiffs.push(`Travellers: ${req.body.travellerCount} pax`);
+  if (req.body.budget !== undefined && req.body.budget !== prevBudget) reqDiffs.push(`Budget: ₹${Number(req.body.budget).toLocaleString('en-IN')}`);
+  if (req.body.travelDate !== undefined && (req.body.travelDate ? new Date(req.body.travelDate).toISOString() : undefined) !== prevTravelDate) {
+    reqDiffs.push(`Travel Date: ${req.body.travelDate ? new Date(req.body.travelDate).toLocaleDateString('en-IN') : 'Cleared'}`);
+  }
+  if (reqDiffs.length > 0) {
+    enquiry.timeline.push({
+      type: 'requirements',
+      title: 'Trip requirements updated',
+      description: reqDiffs.join(' • '),
+      by: req.user!._id,
+      byName: actorName,
+      date: new Date(),
+    });
+  }
+
+  // ── Tags changes ──────────────────────────────────────────────────────────
+  if (req.body.tags && JSON.stringify(req.body.tags) !== JSON.stringify(prevTags)) {
+    enquiry.timeline.push({
+      type: 'system',
+      title: `Tags updated: ${(req.body.tags || []).join(', ') || 'None'}`,
+      by: req.user!._id,
+      byName: actorName,
+      date: new Date(),
+    });
   }
 
   // Require lostReason when closing
@@ -389,6 +632,14 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
     enquiry.notes.push({
       text: req.body.note,
       by: req.user!._id,
+      date: new Date(),
+    });
+    enquiry.timeline.push({
+      type: 'note',
+      title: 'Internal note added',
+      description: req.body.note,
+      by: req.user!._id,
+      byName: actorName,
       date: new Date(),
     });
   }
@@ -411,7 +662,8 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
   const updated = await Enquiry.findById(enquiry._id)
     .populate('assignedTo', 'firstName lastName')
     .populate('notes.by', 'firstName lastName')
-    .populate('callLog.by', 'firstName lastName');
+    .populate('callLog.by', 'firstName lastName')
+    .populate('timeline.by', 'firstName lastName');
 
   res.status(200).json({
     status: 'success',
@@ -461,6 +713,18 @@ export const logCall = asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
+  const actorName = user ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Staff';
+  enquiry.timeline = enquiry.timeline || [];
+  enquiry.timeline.push({
+    type: 'call',
+    title: `Call logged: ${outcome.replace('-', ' ')}${duration ? ` (${duration}s)` : ''}`,
+    description: notes ? `"${notes}"` : undefined,
+    by: user._id,
+    byName: actorName,
+    date: new Date(),
+    meta: { outcome, duration, notes, dnpCount: enquiry.dnpCount },
+  });
+
   await enquiry.save();
 
   // Log activity
@@ -499,7 +763,8 @@ export const logCall = asyncHandler(async (req: Request, res: Response) => {
   const updated = await Enquiry.findById(enquiry._id)
     .populate('callLog.by', 'firstName lastName')
     .populate('assignedTo', 'firstName lastName')
-    .populate('notes.by', 'firstName lastName');
+    .populate('notes.by', 'firstName lastName')
+    .populate('timeline.by', 'firstName lastName');
 
   res.status(200).json({ status: 'success', data: updated });
 });
@@ -514,20 +779,54 @@ export const bulkUpdateEnquiries = asyncHandler(async (req: Request, res: Respon
   }
   if (!action) throw new AppError('action is required', 400);
 
-  let updateOp: Record<string, unknown> = {};
+  let setOp: Record<string, unknown> = {};
+  let pushEvent: any = null;
+  const staffName = req.user ? `${req.user.firstName} ${req.user.lastName || ''}`.trim() : 'Staff';
 
   if (action === 'reassign') {
     if (!payload?.assignedTo) throw new AppError('payload.assignedTo is required for reassign', 400);
-    updateOp = { assignedTo: payload.assignedTo, status: 'assigned' };
+    const targetStaff = await User.findById(payload.assignedTo);
+    const targetStaffName = targetStaff ? `${targetStaff.firstName} ${targetStaff.lastName || ''}`.trim() : 'Staff';
+    setOp = { assignedTo: payload.assignedTo, status: 'assigned' };
+    pushEvent = {
+      type: 'assignment',
+      title: `Bulk reassigned to ${targetStaffName}`,
+      description: `Reassigned by ${staffName}`,
+      by: req.user!._id,
+      byName: staffName,
+      date: new Date(),
+    };
   } else if (action === 'close') {
-    updateOp = { status: 'closed', lostReason: payload?.lostReason || 'other' };
+    setOp = { status: 'closed', lostReason: payload?.lostReason || 'other' };
+    pushEvent = {
+      type: 'closed',
+      title: 'Bulk closed / marked lost',
+      description: `Reason: ${payload?.lostReason || 'other'} • Closed by ${staffName}`,
+      by: req.user!._id,
+      byName: staffName,
+      date: new Date(),
+    };
   } else if (action === 'mark-follow-up') {
-    updateOp = { status: 'follow-up', followUpDate: payload?.followUpDate ? new Date(payload.followUpDate) : undefined };
+    const fDate = payload?.followUpDate ? new Date(payload.followUpDate).toLocaleDateString('en-IN') : 'Scheduled';
+    setOp = { status: 'follow-up', followUpDate: payload?.followUpDate ? new Date(payload.followUpDate) : undefined };
+    pushEvent = {
+      type: 'follow_up',
+      title: `Follow-up scheduled for ${fDate}`,
+      description: `Scheduled via bulk action by ${staffName}`,
+      by: req.user!._id,
+      byName: staffName,
+      date: new Date(),
+    };
   } else {
     throw new AppError('Invalid action. Use: reassign | close | mark-follow-up', 400);
   }
 
-  const result = await Enquiry.updateMany({ _id: { $in: ids } }, { $set: updateOp });
+  const updateOp: any = { $set: setOp };
+  if (pushEvent) {
+    updateOp.$push = { timeline: pushEvent };
+  }
+
+  const result = await Enquiry.updateMany({ _id: { $in: ids } }, updateOp);
 
   await logActivity({
     req,
@@ -824,6 +1123,19 @@ export const sendBookingLinkHandler = asyncHandler(async (req: Request, res: Res
     enquiryId: enquiry._id.toString(),
   });
 
+  const finalPrice = req.body.price || pkg?.price;
+  enquiry.timeline = enquiry.timeline || [];
+  enquiry.timeline.push({
+    type: 'booking_link_sent',
+    title: `Booking link sent to ${enquiry.email}`,
+    description: `Package: ${packageName || 'Custom Package'}${finalPrice ? ` • ₹${Number(finalPrice).toLocaleString('en-IN')}` : ''}`,
+    by: req.user!._id,
+    byName: staffName,
+    date: new Date(),
+    meta: { packageSlug: slug, packageName, price: finalPrice },
+  });
+  await enquiry.save();
+
   res.status(200).json({
     status: 'success',
     message: `Booking link sent to ${enquiry.email}`,
@@ -907,6 +1219,15 @@ export const submitEnquiryFeedback = asyncHandler(async (req: Request, res: Resp
     comments,
     submittedAt: new Date(),
   };
+
+  enquiry.timeline = enquiry.timeline || [];
+  enquiry.timeline.push({
+    type: 'feedback',
+    title: `Customer feedback submitted: ${rating} / 5 ⭐`,
+    description: comments ? `"${comments}"` : 'No written comments',
+    date: new Date(),
+    meta: { rating: Number(rating), comments },
+  });
 
   await enquiry.save();
 

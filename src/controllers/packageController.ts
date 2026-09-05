@@ -398,12 +398,25 @@ export const delinkPackage = asyncHandler(async (req: Request, res: Response) =>
   pkg.enquiryId = undefined;
   await pkg.save();
 
-  // 2. Remove legacy link from Enquiry if it points to this package
+  // 2. Remove legacy link from Enquiry if it points to this package and log timeline event
   const Enquiry = mongoose.model('Enquiry'); // Using mongoose.model to avoid circular dep if any, or we can just import it
-  const enquiry = await Enquiry.findById(enquiryId);
-  if (enquiry && String(enquiry.package) === String(pkg._id)) {
-    enquiry.package = undefined;
-    enquiry.packageName = undefined;
+  const enquiry: any = await Enquiry.findById(enquiryId);
+  if (enquiry) {
+    if (String(enquiry.package) === String(pkg._id)) {
+      enquiry.package = undefined;
+      enquiry.packageName = undefined;
+    }
+    const staffName = req.user ? `${req.user.firstName} ${req.user.lastName || ''}`.trim() : 'Staff';
+    enquiry.timeline = enquiry.timeline || [];
+    enquiry.timeline.push({
+      type: 'itinerary_delinked',
+      title: `Itinerary delinked: ${pkg.name}`,
+      description: `Package unlinked by ${staffName}`,
+      by: req.user?._id,
+      byName: staffName,
+      date: new Date(),
+      meta: { packageId: pkg._id, name: pkg.name },
+    });
     await enquiry.save();
   }
 

@@ -88,9 +88,21 @@ router.post('/:id/duplicate', protect, requirePermission('packages.create'), asy
   });
 
   if (enquiryId && isCustom) {
+    const creatorName = req.user ? `${req.user.firstName} ${req.user.lastName || ''}`.trim() : 'Staff';
     await Enquiry.findByIdAndUpdate(enquiryId, {
       package: copy._id,
       packageName: copy.name,
+      $push: {
+        timeline: {
+          type: 'itinerary_linked',
+          title: `Custom itinerary created: ${copy.name}`,
+          description: `Custom proposal created by ${creatorName}${copy.price ? ` • ₹${copy.price.toLocaleString('en-IN')}` : ''}`,
+          by: req.user!._id,
+          byName: creatorName,
+          date: new Date(),
+          meta: { packageId: copy._id, slug: copy.slug, name: copy.name, price: copy.price },
+        },
+      },
     });
   }
 

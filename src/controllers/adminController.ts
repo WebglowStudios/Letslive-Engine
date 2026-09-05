@@ -112,7 +112,21 @@ export const createStaff = asyncHandler(async (req: Request, res: Response) => {
 
   // If enquiryId provided, link this user account back to the enquiry
   if (enquiryId) {
-    await Enquiry.findByIdAndUpdate(enquiryId, { user: user._id });
+    const creatorName = req.user ? `${req.user.firstName} ${req.user.lastName || ''}`.trim() : 'Admin';
+    await Enquiry.findByIdAndUpdate(enquiryId, {
+      user: user._id,
+      $push: {
+        timeline: {
+          type: 'account_created',
+          title: `Customer account created: ${user.email}`,
+          description: `Customer registered by ${creatorName}`,
+          by: req.user?._id,
+          byName: creatorName,
+          date: new Date(),
+          meta: { userId: user._id, email: user.email },
+        },
+      },
+    });
   }
 
   // Remove password from response
