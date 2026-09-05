@@ -28,6 +28,8 @@ export interface IStay {
   checkOut?: string;
   address?: string;
   confirmationNo?: string;
+  remark?: string;
+  showRemarkToCustomer?: boolean;
 }
 
 export interface ITransferLeg {
@@ -224,6 +226,8 @@ const packageSchema = new Schema<IPackage>(
         checkOut: { type: String },
         address: { type: String },
         confirmationNo: { type: String },
+        remark: { type: String, default: '' },
+        showRemarkToCustomer: { type: Boolean, default: false },
       },
     ],
     transfers: [

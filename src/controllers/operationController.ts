@@ -135,6 +135,8 @@ export const updateOperation = asyncHandler(async (req: Request, res: Response) 
     if (req.body.status === 'completed') bookingStatus = 'completed';
     else if (req.body.status === 'cancelled') bookingStatus = 'cancelled';
     else if (req.body.status === 'planning') bookingStatus = 'confirmed';
+    else if (req.body.status === 'vendor-confirmed') bookingStatus = 'vendor-confirmed';
+    else if (req.body.status === 'booked') bookingStatus = 'confirmed';
     
     await Booking.updateMany(
       { _id: { $in: bookingIds } },
@@ -478,6 +480,7 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
         confirmationNumber: stay.confirmationNo || '',
         tripDay: `Day ${currentStayDay}-${currentStayDay + nights}`,
         remarks: [
+          stay.remark || '',
           stay.rating ? `${stay.rating} property` : '',
           stay.address || '',
           stay.checkIn ? `Time In: ${stay.checkIn}` : '',

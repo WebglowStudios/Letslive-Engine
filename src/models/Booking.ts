@@ -27,7 +27,7 @@ export interface IBooking extends Document {
   paymentStatus: 'pending' | 'partial' | 'paid' | 'refunded';
   paymentFinanceStatus: 'none' | 'pending_approval' | 'approved' | 'rejected';
   financeDetails?: { paidAmount?: number; mode: string; transactionId: string; remarks: string; requestedBy?: mongoose.Types.ObjectId };
-  bookingStatus: 'pending' | 'confirmed' | 'staff-confirmed' | 'in-progress' | 'completed' | 'cancelled';
+  bookingStatus: 'pending' | 'confirmed' | 'staff-confirmed' | 'vendor-confirmed' | 'in-progress' | 'completed' | 'cancelled';
   bookingSource: 'online' | 'admin_manual';
   specialRequests?: string;
   contactPhone?: string;
@@ -96,7 +96,7 @@ const bookingSchema = new Schema<IBooking>(
     },
     bookingStatus: {
       type: String,
-      enum: ['pending', 'confirmed', 'staff-confirmed', 'in-progress', 'completed', 'cancelled'],
+      enum: ['pending', 'confirmed', 'staff-confirmed', 'vendor-confirmed', 'in-progress', 'completed', 'cancelled'],
       default: 'pending',
     },
     specialRequests: { type: String },

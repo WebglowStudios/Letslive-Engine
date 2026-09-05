@@ -351,12 +351,39 @@ export const getUserBookings = asyncHandler(async (req: Request, res: Response) 
   const bookings = await Booking.find({ user: req.user!._id })
     .populate('package', 'name slug images duration isInternational visaIncluded flightsIncluded')
     .populate('destination', 'name slug')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const Operation = (await import('../models/Operation.js')).default;
+  const bookingIds = bookings.map(b => b._id);
+  const operations = await Operation.find({
+    $or: [
+      { bookings: { $in: bookingIds } },
+      { booking: { $in: bookingIds } },
+    ]
+  }).select('status voucherGenerated bookings booking').lean();
+
+  const enhanced = bookings.map((b: any) => {
+    const op = operations.find(o => 
+      (o.bookings && o.bookings.some(bid => String(bid) === String(b._id))) ||
+      (o.booking && String(o.booking) === String(b._id))
+    );
+    const opStatus = op?.status;
+    const isVendorConfirmed = opStatus === 'vendor-confirmed' || 
+      b.bookingStatus === 'vendor-confirmed' || 
+      ['in-progress', 'completed'].includes(opStatus || '') || 
+      Boolean(op?.voucherGenerated);
+    return {
+      ...b,
+      operationStatus: opStatus || null,
+      isVendorConfirmed,
+    };
+  });
 
   res.status(200).json({
     status: 'success',
-    results: bookings.length,
-    data: bookings,
+    results: enhanced.length,
+    data: enhanced,
   });
 });
 
@@ -381,7 +408,7 @@ export const getBookingById = asyncHandler(async (req: Request, res: Response) =
 
   // Check ownership or staff+
   const isOwner = booking.user && booking.user._id ? booking.user._id.toString() === req.user!._id.toString() : false;
-  const isStaffOrAbove = ["admin", "manager", "staff"].includes(req.user!.role);
+  const isStaffOrAbove = ["admin", "manager", "staff", "ops-staff", "ops-manager", "sales-staff", "sales-manager"].includes(req.user!.role);
 
   if (!isOwner && !isStaffOrAbove) {
     throw new AppError('Not authorized to view this booking', 403);
@@ -392,7 +419,9 @@ export const getBookingById = asyncHandler(async (req: Request, res: Response) =
   const Operation = (await import('../models/Operation.js')).default;
   
   let payments: any[] = [];
-  const operation = await Operation.findOne({ booking: booking._id });
+  const operation = await Operation.findOne({
+    $or: [{ bookings: booking._id }, { booking: booking._id }]
+  });
   if (operation) {
     payments = await CustomerPayment.find({ operation: operation._id });
     // Auto-repair any cards missing the booking reference
@@ -423,9 +452,155 @@ export const getBookingById = asyncHandler(async (req: Request, res: Response) =
     }
   }
 
+  const isVendorConfirmed = operation?.status === 'vendor-confirmed' ||
+    booking.bookingStatus === 'vendor-confirmed' ||
+    ['in-progress', 'completed'].includes(operation?.status || '') ||
+    Boolean(operation?.voucherGenerated);
+
+  const bookingData = {
+    ...booking.toObject(),
+    operationStatus: operation?.status || null,
+    isVendorConfirmed,
+    voucherAvailable: isVendorConfirmed,
+  };
+
   res.status(200).json({
     status: 'success',
-    data: booking,
+    data: bookingData,
+  });
+});
+
+// @desc    Get complete voucher data for a booking
+// @route   GET /api/bookings/:id/voucher-data
+export const getBookingVoucherData = asyncHandler(async (req: Request, res: Response) => {
+  const booking = await Booking.findById(req.params.id)
+    .populate('user', 'firstName lastName email phone')
+    .populate('package');
+
+  if (!booking) {
+    throw new AppError('Booking not found', 404);
+  }
+
+  // Check ownership or staff+
+  const isOwner = booking.user && (booking.user as any)._id
+    ? (booking.user as any)._id.toString() === req.user!._id.toString()
+    : false;
+  const isStaffOrAbove = ['admin', 'manager', 'staff', 'ops-staff', 'ops-manager', 'sales-staff', 'sales-manager'].includes(req.user!.role);
+
+  if (!isOwner && !isStaffOrAbove) {
+    throw new AppError('Not authorized to access this voucher', 403);
+  }
+
+  const Operation = (await import('../models/Operation.js')).default;
+  const OperationTransport = (await import('../models/OperationTransport.js')).default;
+  const OperationAccommodation = (await import('../models/OperationAccommodation.js')).default;
+  const OperationActivity = (await import('../models/OperationActivity.js')).default;
+
+  const operation = await Operation.findOne({
+    $or: [{ bookings: booking._id }, { booking: booking._id }]
+  });
+
+  if (!operation) {
+    throw new AppError('Post-sales operation not found for this booking', 404);
+  }
+
+  const isConfirmed = operation.status === 'vendor-confirmed' ||
+    booking.bookingStatus === 'vendor-confirmed' ||
+    ['in-progress', 'completed'].includes(operation.status) ||
+    Boolean(operation.voucherGenerated);
+
+  if (!isConfirmed && !isStaffOrAbove) {
+    throw new AppError('Voucher is not yet available. It will be unlocked once vendors are confirmed by operations.', 400);
+  }
+
+  const [transports, accommodations, activities] = await Promise.all([
+    OperationTransport.find({ operation: operation._id }).lean(),
+    OperationAccommodation.find({ operation: operation._id }).lean(),
+    OperationActivity.find({ operation: operation._id }).lean(),
+  ]);
+
+  const pkg = booking.package as any;
+
+  let itinerary = pkg?.itinerary || [];
+  let transferSummary = pkg?.transferSummary || '';
+  const hasPolicies = Boolean(
+    (pkg?.paymentPolicy?.length > 0) ||
+    (pkg?.cancellationPolicy?.length > 0) ||
+    (pkg?.flightCancellationPolicy?.length > 0)
+  );
+
+  // Fallback to activities if package has no itinerary
+  if ((!itinerary || itinerary.length === 0) && activities.length > 0) {
+    itinerary = activities.map((a: any, i: number) => {
+      const dayMatch = (a.tripDay || '').match(/\d+/);
+      const dayNum = dayMatch ? parseInt(dayMatch[0], 10) : (i + 1);
+      return {
+        day: dayNum,
+        title: a.title || `Day ${dayNum}`,
+        description: a.description || '',
+        meals: [],
+      };
+    }).sort((a: any, b: any) => a.day - b.day);
+  }
+
+  let pdfFlights: any[] = transports
+    .filter((t: any) => t.type === 'flight')
+    .flatMap((t: any) => (t.legs || []).map((leg: any) => ({
+      airline: t.vendorName || t.title,
+      date: leg.date,
+      from: leg.from,
+      to: leg.to,
+      departure: leg.departureTime,
+      arrival: leg.arrivalTime,
+    })));
+
+  if (pdfFlights.length === 0) {
+    const pkgFlights = pkg?.flights || [];
+    pdfFlights = pkgFlights.filter((f: any) => f && (f.airline || f.from || f.to)).map((f: any) => ({
+      airline: f.airline || 'Flight',
+      date: f.day ? `Day ${f.day}` : undefined,
+      from: f.from,
+      to: f.to,
+      departure: f.departure,
+      arrival: f.arrival,
+    }));
+  }
+
+  const pdfTransports = transports.filter((t: any) => t.type !== 'flight');
+
+  const customerName = booking.primaryTraveller?.firstName
+    ? `${booking.primaryTraveller.firstName} ${booking.primaryTraveller.lastName || ''}`.trim()
+    : `${(booking.user as any)?.firstName || 'Customer'} ${(booking.user as any)?.lastName || ''}`.trim();
+
+  const totalPax = (booking.travellers?.adults || 1) + (booking.travellers?.children || 0) + (booking.travellers?.infants || 0);
+
+  const voucherData = {
+    operationId: operation.operationId,
+    destination: operation.destination,
+    customerName,
+    pax: totalPax,
+    adults: booking.travellers?.adults,
+    children: booking.travellers?.children,
+    paymentStatus: booking.paymentStatus,
+    totalAmount: booking.totalAmount,
+    paidAmount: booking.paidAmount,
+    isInternational: pkg?.isInternational,
+    visaIncluded: pkg?.visaIncluded,
+    flightsIncluded: pkg?.flightsIncluded,
+    flights: pdfFlights,
+    accommodations,
+    transports: pdfTransports,
+    itinerary,
+    activities,
+    transferSummary,
+    packageSlug: pkg?.slug || '',
+    hasPolicies,
+    dateChangeHistory: booking.dateChangeHistory,
+  };
+
+  res.status(200).json({
+    status: 'success',
+    data: voucherData,
   });
 });
 

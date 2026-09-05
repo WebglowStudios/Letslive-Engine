@@ -34,7 +34,7 @@ export interface IOperation extends Document {
   grossProfit: number;
   profitPercentage: number;
   incentiveAmount?: number;
-  status: 'planning' | 'booked' | 'in-progress' | 'completed' | 'cancelled';
+  status: 'planning' | 'booked' | 'vendor-confirmed' | 'in-progress' | 'completed' | 'cancelled';
   voucherGenerated: boolean;
   notes: string;
   createdAt: Date;
@@ -78,7 +78,7 @@ export interface IOperation extends Document {
     incentiveAmount: { type: Number },
     status: {
       type: String,
-      enum: ['planning', 'booked', 'in-progress', 'completed', 'cancelled'],
+      enum: ['planning', 'booked', 'vendor-confirmed', 'in-progress', 'completed', 'cancelled'],
       default: 'planning',
     },
     voucherGenerated: { type: Boolean, default: false },

@@ -10,6 +10,7 @@ import {
   updateBookingDates,
   updateBookingPassengers,
   updateBookingPrimaryTraveller,
+  getBookingVoucherData,
 } from '../controllers/bookingController.js';
 import { protect, optionalProtect, requirePermission, managerOnly, staffOnly } from '../middleware/auth.js';
 
@@ -19,6 +20,7 @@ router.post('/', optionalProtect, createBooking);
 router.post('/manual', protect, staffOnly, createManualBooking);
 router.get('/', protect, getUserBookings);
 router.get('/all', protect, requirePermission('bookings.view'), getAllBookings);
+router.get('/:id/voucher-data', protect, getBookingVoucherData);
 router.get('/:id', protect, getBookingById);
 router.put('/:id/cancel', protect, cancelBooking);
 router.put('/:id/status', protect, requirePermission('bookings.update'), updateBookingStatus);
