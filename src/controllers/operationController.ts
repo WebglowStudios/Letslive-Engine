@@ -73,22 +73,22 @@ export const getOperationById = asyncHandler(async (req: Request, res: Response)
     path: 'bookings',
     select: 'bookingId totalAmount paidAmount paymentStatus travellersDetails primaryTraveller dateChangeHistory package',
     populate: [
-      { path: 'package', select: 'name slug isCustom description itinerary adultCount childCount isInternational visaIncluded flightsIncluded' }
+      { path: 'package', select: 'name slug isCustom description itinerary adultCount childCount isInternational visaIncluded flightsIncluded flights' }
     ]
   }).populate({
     path: 'booking',
     select: 'bookingId totalAmount paidAmount paymentStatus travellersDetails primaryTraveller dateChangeHistory package',
     populate: [
-      { path: 'package', select: 'name slug isCustom description itinerary adultCount childCount isInternational visaIncluded flightsIncluded' }
+      { path: 'package', select: 'name slug isCustom description itinerary adultCount childCount isInternational visaIncluded flightsIncluded flights' }
     ]
-  }).populate('package', 'name slug description itinerary isInternational visaIncluded flightsIncluded').populate('assignedTo', 'firstName lastName email');
+  }).populate('package', 'name slug description itinerary isInternational visaIncluded flightsIncluded flights').populate('assignedTo', 'firstName lastName email');
   if (!operation) throw new AppError('Operation not found', 404);
   if ((req.user!.role === 'staff' || req.user!.role === 'ops-staff') && operation.assignedTo?.toString() !== req.user!._id.toString()) throw new AppError('Access denied', 403);
 
   const [transports, accommodations, activities, vendorPayments, customerPayments] = await Promise.all([
     OperationTransport.find({ operation: operation._id }).sort({ date: 1 }),
     OperationAccommodation.find({ operation: operation._id }).sort({ checkIn: 1 }),
-    OperationActivity.find({ operation: operation._id }).sort({ date: 1 }),
+    OperationActivity.find({ operation: operation._id }).sort({ date: 1, createdAt: 1 }),
     VendorPayment.find({ operation: operation._id }).sort({ dueDate: 1 }),
     CustomerPayment.find({ operation: operation._id }).sort({ dueDate: 1 }).populate('booking', 'bookingId primaryTraveller'),
   ]);
@@ -155,7 +155,11 @@ export const recalculateOperation = asyncHandler(async (req: Request, res: Respo
   const totalVendorCost =
     transports.reduce((s, t) => s + (t.vendorCost || 0), 0) +
     accommodations.reduce((s, a) => s + (a.vendorCost || 0), 0) +
-    activities.reduce((s, a) => s + (a.vendorCost || 0), 0);
+    activities.reduce((s, a) => {
+      const actBase = a.vendorCost || 0;
+      const transferCost = (a.transfers || []).reduce((ts: number, tr: any) => ts + (tr.hasPricing ? (tr.vendorCost || 0) : 0), 0);
+      return s + actBase + transferCost;
+    }, 0);
 
   const operation = await Operation.findById(opId);
   if (!operation) throw new AppError('Operation not found', 404);
@@ -223,7 +227,15 @@ export const groupServices = asyncHandler(async (req: Request, res: Response) =>
   const masterId = itemIds[0];
   const others = itemIds.slice(1);
 
-  await Model.updateOne({ _id: masterId, operation: id }, { $set: { groupId, isGroupMaster: true } });
+  // Preserve and sum existing vendorCost and sellingPrice so grouping aggregates existing costs
+  const items = await Model.find({ _id: { $in: itemIds }, operation: id });
+  const sumCost = items.reduce((sum: number, it: any) => sum + (it.vendorCost || 0), 0);
+  const sumSelling = items.reduce((sum: number, it: any) => sum + (it.sellingPrice || 0), 0);
+
+  await Model.updateOne(
+    { _id: masterId, operation: id }, 
+    { $set: { groupId, isGroupMaster: true, vendorCost: sumCost, sellingPrice: sumSelling } }
+  );
   
   await Model.updateMany(
     { _id: { $in: others }, operation: id }, 
@@ -258,10 +270,23 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
 
   const operation = await Operation.findById(opId);
   if (!operation) throw new AppError('Operation not found', 404);
-  if (!operation.package) throw new AppError('This operation has no linked package/itinerary', 400);
+
+  // Resolve linked package: check operation.package, bookings, or single booking
+  let packageId: any = operation.package;
+  if (!packageId && operation.bookings && operation.bookings.length > 0) {
+    const Booking = mongoose.model('Booking');
+    const b: any = await Booking.findById(operation.bookings[0]);
+    if (b?.package) packageId = b.package;
+  }
+  if (!packageId && (operation as any).booking) {
+    const Booking = mongoose.model('Booking');
+    const b: any = await Booking.findById((operation as any).booking);
+    if (b?.package) packageId = b.package;
+  }
+  if (!packageId) throw new AppError('This operation has no linked package/itinerary', 400);
 
   // Fetch full package data
-  const pkg = await Package.findById(operation.package).lean() as any;
+  const pkg = await Package.findById(packageId).lean() as any;
   if (!pkg) throw new AppError('Linked package not found', 404);
 
   // Check what already exists to avoid duplicates
@@ -294,23 +319,40 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
     return 'road';
   };
 
-  // ── TRANSPORTS: flights + transfers → new vendor-group + legs[] format ──
+  // ── TRANSPORTS: ONLY FLIGHTS & TRAINS ──
+  // Road / local transfers now move directly under itinerary days (activities)
+  const roadTransfersByDay: Record<number, any[]> = {};
+
   if (existingTransports > 0) {
     skipped.push('transport');
   } else {
     const transportDocs: object[] = [];
 
-    // From pkg.flights[] — each flight becomes its own vendor group with one leg
-    for (const flight of (pkg.flights || [])) {
+    // From pkg.flights[] (Custom Itinerary Flights tab & Package Flights)
+    const validFlights = (pkg.flights || []).filter((f: any) => f && (f.airline || f.from || f.to || f.flightNumber));
+    for (const flight of validFlights) {
       const legNotes = [
         flight.flightNumber ? `Flight: ${flight.flightNumber}` : '',
         flight.class ? `Class: ${flight.class}` : '',
         flight.notes || '',
       ].filter(Boolean).join(' · ');
 
+      const isTrain = (flight.airline || '').toLowerCase().includes('train') ||
+                      (flight.airline || '').toLowerCase().includes('rail') ||
+                      (flight.airline || '').toLowerCase().includes('express') ||
+                      (flight.notes || '').toLowerCase().includes('train') ||
+                      (flight.notes || '').toLowerCase().includes('rail') ||
+                      (flight.flightNumber || '').toLowerCase().includes('train');
+
+      const mappedType = isTrain ? 'train' : 'flight';
+      const defaultTitle = isTrain 
+        ? (flight.airline ? (flight.airline.toLowerCase().includes('train') || flight.airline.toLowerCase().includes('express') ? flight.airline : `${flight.airline} Train`) : 'Train Journey')
+        : (flight.airline ? `${flight.airline} Flight` : (flight.flightNumber ? `Flight ${flight.flightNumber}` : 'Flight'));
+
       transportDocs.push({
         operation: opId,
-        type: 'flight',
+        type: mappedType,
+        title: defaultTitle,
         vendorName: flight.airline || '',
         vendorContact: '',
         vendorEmail: '',
@@ -323,7 +365,7 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
           to:          flight.to || '',
           date:        computeDate(flight.day),
           tripDay:     flight.day ? `Day ${flight.day}` : '',
-          vehicleType: 'Flight',
+          vehicleType: isTrain ? 'Train' : 'Flight',
           notes:       legNotes,
           pnr:         flight.pnr || '',
           departureTime: flight.departure || '',
@@ -332,46 +374,77 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
       });
     }
 
-    // From pkg.transfers[] — multi-leg transfers map directly to legs[]
+    // From pkg.transfers[] — ONLY trains and flights go to transports; all road transfers go to itinerary days
     for (const transfer of (pkg.transfers || [])) {
-      let legs: object[];
-
-      if (transfer.legs && transfer.legs.length > 0) {
-        // Itinerary already has leg breakdown — map each leg individually
-        legs = transfer.legs.map((leg: any, legIdx: number) => ({
-          from:        leg.from || '',
-          to:          leg.to || '',
-          date:        computeDate(transfer.day),
-          tripDay:     transfer.day ? `Day ${transfer.day}` : '',
-          vehicleType: leg.vehicleType || leg.transferType || '',
-          notes:       leg.stops && leg.stops.length > 0 ? `Stops: ${leg.stops.join(', ')}` : '',
-        }));
-      } else {
-        // Simple single-point transfer
-        legs = [{
-          from:        transfer.from || '',
-          to:          transfer.to || '',
-          date:        computeDate(transfer.day),
-          tripDay:     transfer.day ? `Day ${transfer.day}` : '',
-          vehicleType: transfer.vehicleType || transfer.transferType || '',
-          notes:       [transfer.description || '', ...(transfer.details || []), transfer.stops?.length ? `Stops: ${transfer.stops.join(', ')}` : ''].filter(Boolean).join(' · '),
-        }];
-      }
-
       const tType = transfer.legs && transfer.legs.length > 0 ? (transfer.legs[0]?.transferType || transfer.transferType) : transfer.transferType;
+      const mappedType = mapTransferType(tType || transfer.vehicleType);
 
-      transportDocs.push({
-        operation: opId,
-        type:          mapTransferType(tType || transfer.vehicleType),
-        vendorName:    transfer.title || '',
-        vendorContact: '',
-        vendorEmail:   '',
-        vendorCost:    0,
-        sellingPrice:  0,
-        paymentStatus: 'pending',
-        remarks:       transfer.description || '',
-        legs,
-      });
+      if (mappedType === 'flight' || mappedType === 'train') {
+        let legs: object[];
+        if (transfer.legs && transfer.legs.length > 0) {
+          legs = transfer.legs.map((leg: any) => ({
+            from:        leg.from || '',
+            to:          leg.to || '',
+            date:        computeDate(transfer.day),
+            tripDay:     transfer.day ? `Day ${transfer.day}` : '',
+            vehicleType: leg.vehicleType || leg.transferType || (mappedType === 'train' ? 'Train' : 'Flight'),
+            notes:       leg.stops && leg.stops.length > 0 ? `Stops: ${leg.stops.join(', ')}` : '',
+          }));
+        } else {
+          legs = [{
+            from:        transfer.from || '',
+            to:          transfer.to || '',
+            date:        computeDate(transfer.day),
+            tripDay:     transfer.day ? `Day ${transfer.day}` : '',
+            vehicleType: transfer.vehicleType || transfer.transferType || (mappedType === 'train' ? 'Train' : 'Flight'),
+            notes:       [transfer.description || '', ...(transfer.details || []), transfer.stops?.length ? `Stops: ${transfer.stops.join(', ')}` : ''].filter(Boolean).join(' · '),
+          }];
+        }
+
+        transportDocs.push({
+          operation: opId,
+          type:          mappedType,
+          title:         transfer.title || (mappedType === 'train' ? 'Train Journey' : 'Flight'),
+          vendorName:    '',
+          vendorContact: '',
+          vendorEmail:   '',
+          vendorCost:    0,
+          sellingPrice:  0,
+          paymentStatus: 'pending',
+          remarks:       transfer.description || '',
+          legs,
+        });
+      } else {
+        // Road transfers (car, bus, coach, taxi, etc.) — map to day itinerary
+        const dayNum = Number(transfer.day) || 1;
+        if (!roadTransfersByDay[dayNum]) roadTransfersByDay[dayNum] = [];
+
+        if (transfer.legs && transfer.legs.length > 0) {
+          for (const leg of transfer.legs) {
+            roadTransfersByDay[dayNum].push({
+              title:       transfer.title || '',
+              from:        leg.from || '',
+              to:          leg.to || '',
+              vehicleType: leg.vehicleType || leg.transferType || transfer.vehicleType || 'Car',
+              notes:       leg.stops && leg.stops.length > 0 ? `Stops: ${leg.stops.join(', ')}` : (transfer.description || ''),
+              hasPricing:  false,
+              vendorCost:  0,
+              sellingPrice: 0,
+            });
+          }
+        } else {
+          roadTransfersByDay[dayNum].push({
+            title:       transfer.title || '',
+            from:        transfer.from || '',
+            to:          transfer.to || '',
+            vehicleType: transfer.vehicleType || transfer.transferType || 'Car',
+            notes:       [transfer.description || '', ...(transfer.details || []), transfer.stops?.length ? `Stops: ${transfer.stops.join(', ')}` : ''].filter(Boolean).join(' · '),
+            hasPricing:  false,
+            vendorCost:  0,
+            sellingPrice: 0,
+          });
+        }
+      }
     }
 
     if (transportDocs.length > 0) {
@@ -421,13 +494,14 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
     }
   }
 
-  // ── ACTIVITIES: itinerary[] (day-wise entries for expenses) ──
+  // ── ACTIVITIES: itinerary[] + Road Transfers ──
   if (existingActivities > 0) {
     skipped.push('activities');
   } else {
     const actDocs: object[] = [];
 
     for (const day of (pkg.itinerary || [])) {
+      const dayTransfers = roadTransfersByDay[day.day] || [];
       actDocs.push({
         operation: opId,
         title: day.title || `Day ${day.day}`,
@@ -435,6 +509,7 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
         date: computeDate(day.day),
         tripDay: `Day ${day.day}`,
         paymentStatus: 'pending',
+        transfers: dayTransfers,
       });
     }
 

@@ -21,7 +21,8 @@ export interface ITransferLeg {
 export interface IOperationTransport extends Document {
   operation: mongoose.Types.ObjectId;
   type: string;
-  vendorName: string;
+  title: string;           // e.g. "Airport Transfer - Day 1" (auto-filled from itinerary)
+  vendorName: string;      // e.g. "Ravi Travels" (filled manually by ops team)
   vendorContact: string;
   vendorEmail: string;
   vendorCost: number;
@@ -63,6 +64,7 @@ const schema = new Schema<IOperationTransport>(
   {
     operation:     { type: Schema.Types.ObjectId, ref: 'Operation', required: true, index: true },
     type:          { type: String, default: 'other' },
+    title:         { type: String, default: '' },
     vendorName:    { type: String, default: '' },
     vendorContact: { type: String, default: '' },
     vendorEmail:   { type: String, default: '' },
