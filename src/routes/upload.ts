@@ -259,15 +259,23 @@ router.get(
         });
 
       const publicIds = filteredResources.map((r: { public_id: string }) => r.public_id);
-      const mediaDocs = await MediaImage.find({ publicId: { $in: publicIds } }).lean();
+      const urls = filteredResources.map((r: { secure_url: string }) => r.secure_url);
+      const mediaDocs = await MediaImage.find({
+        $or: [
+          { publicId: { $in: publicIds } },
+          { url: { $in: urls } },
+        ],
+      }).lean();
       const mediaMap = new Map<string, string>();
       for (const m of mediaDocs) {
-        if (m.name) mediaMap.set(m.publicId, m.name);
+        if (m.name) {
+          if (m.publicId) mediaMap.set(m.publicId, m.name);
+          if (m.url) mediaMap.set(m.url, m.name);
+        }
       }
 
       const images = filteredResources.map((r: { secure_url: string; public_id: string; width: number; height: number; created_at: string; bytes: number; format: string }) => {
-        // Only return name if set in database; old/existing images without names remain unnamed ('')
-        const customName = mediaMap.get(r.public_id) || '';
+        const customName = mediaMap.get(r.public_id) || mediaMap.get(r.secure_url) || '';
 
         return {
           url: r.secure_url,
@@ -466,42 +474,54 @@ router.post(
   })
 );
 
-// @desc    Update image location name
-// @route   PATCH /api/upload/:publicId/name
+// @desc    Update image location name (supports /name with body, or /:publicId/name)
+// @route   PATCH /api/upload/name or PATCH /api/upload/:publicId/name
 // @access  Staff+
-router.patch(
-  '/:publicId/name',
-  protect,
-  requirePermission('packages.create'),
-  asyncHandler(async (req: Request, res: Response) => {
-    const publicId = decodeURIComponent(req.params.publicId as string);
-    const name = (req.body.name || '').trim();
+const handleUpdateImageName = asyncHandler(async (req: Request, res: Response) => {
+  const publicId = decodeURIComponent((req.params.publicId || req.body.publicId || '') as string);
+  const name = (req.body.name || '').trim();
 
-    let media = await MediaImage.findOne({ publicId });
-    if (!media) {
-      try {
-        const resource = await cloudinary.api.resource(publicId);
-        media = await MediaImage.create({
-          publicId,
-          url: resource.secure_url,
-          name,
-          folder: publicId.split('/').slice(0, -1).join('/') || 'letslivetours',
-          width: resource.width,
-          height: resource.height,
-          format: resource.format,
-          size: resource.bytes,
-        });
-      } catch {
-        throw new AppError('Image not found in Cloudinary or database', 404);
-      }
-    } else {
-      media.name = name;
-      await media.save();
+  if (!publicId) {
+    throw new AppError('No image publicId provided', 400);
+  }
+
+  let media = await MediaImage.findOne({ publicId });
+  if (!media && req.body.url) {
+    media = await MediaImage.findOne({ url: req.body.url });
+  }
+
+  if (!media) {
+    try {
+      const resource = await cloudinary.api.resource(publicId);
+      media = await MediaImage.create({
+        publicId,
+        url: resource.secure_url,
+        name,
+        folder: publicId.split('/').slice(0, -1).join('/') || 'letslivetours',
+        width: resource.width,
+        height: resource.height,
+        format: resource.format,
+        size: resource.bytes,
+      });
+    } catch {
+      // If Cloudinary lookup fails, still create or update local record with provided info
+      media = await MediaImage.create({
+        publicId,
+        url: req.body.url || `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/${publicId}`,
+        name,
+        folder: publicId.split('/').slice(0, -1).join('/') || 'letslivetours',
+      });
     }
+  } else {
+    media.name = name;
+    await media.save();
+  }
 
-    res.status(200).json({ status: 'success', data: media });
-  })
-);
+  res.status(200).json({ status: 'success', data: media });
+});
+
+router.patch('/name', protect, requirePermission('packages.create'), handleUpdateImageName);
+router.patch('/:publicId/name', protect, requirePermission('packages.create'), handleUpdateImageName);
 
 // @desc    Delete image from Cloudinary & Database
 // @route   DELETE /api/upload/:publicId
