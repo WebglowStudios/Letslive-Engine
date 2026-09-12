@@ -332,7 +332,16 @@ const packageSchema = new Schema<IPackage>(
 // Auto-generate slug from name only when slug isn't already explicitly provided
 packageSchema.pre('validate', function () {
   if (!this.slug) {
-    this.slug = slugify(this.name, { lower: true, strict: true });
+    const base = slugify(this.name, { lower: true, strict: true });
+    // Custom itineraries are always private — append a short random suffix to
+    // guarantee uniqueness even when two custom itineraries share the same name
+    // (e.g. multiple clients booking the same template).
+    if (this.isCustom) {
+      const uid = Math.random().toString(36).slice(2, 8); // 6 random alphanumeric chars
+      this.slug = `${base}-${uid}`;
+    } else {
+      this.slug = base;
+    }
   }
 });
 
