@@ -64,9 +64,10 @@ export interface IActivity {
 }
 
 export interface IFlight {
+  type?: 'flight' | 'train'; // optional; existing records without this field default to 'flight'
   day: number;
-  airline: string;
-  flightNumber: string;
+  airline: string;       // airline name for flights, railway name for trains
+  flightNumber: string;  // flight number for flights, train number for trains
   from: string;
   to: string;
   departure: string;
@@ -269,6 +270,7 @@ const packageSchema = new Schema<IPackage>(
     keyPoints: [{ type: String }],
     flights: [
       {
+        type: { type: String, enum: ['flight', 'train'], default: 'flight' }, // new field; existing records without it are treated as 'flight'
         day: { type: Number },
         airline: { type: String },
         flightNumber: { type: String },
