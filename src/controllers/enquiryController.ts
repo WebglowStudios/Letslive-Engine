@@ -396,9 +396,10 @@ export const getEnquiryById = asyncHandler(async (req: Request, res: Response) =
     throw new AppError('Enquiry not found', 404);
   }
 
-  // Staff can only view their own assigned enquiries
+  // Staff can only view enquiries assigned to them (or unassigned)
   const user = req.user!;
-  if ((user.role === 'staff' || user.role === 'sales-staff') && enquiry.assignedTo?.toString() !== user._id.toString()) {
+  const restrictedRoles = ['staff', 'sales-staff'];
+  if (restrictedRoles.includes(user.role) && enquiry.assignedTo && enquiry.assignedTo.toString() !== user._id.toString()) {
     throw new AppError('Access denied', 403);
   }
 
@@ -431,9 +432,9 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
     throw new AppError('Enquiry not found', 404);
   }
 
-  // Staff can only update their own assigned enquiries
+  // Staff can only update enquiries assigned to them (or unassigned)
   const user = req.user!;
-  if ((user.role === 'staff' || user.role === 'sales-staff') && enquiry.assignedTo?.toString() !== user._id.toString()) {
+  if ((user.role === 'staff' || user.role === 'sales-staff') && enquiry.assignedTo && enquiry.assignedTo.toString() !== user._id.toString()) {
     throw new AppError('Access denied. This enquiry is not assigned to you.', 403);
   }
 
