@@ -399,8 +399,11 @@ export const getEnquiryById = asyncHandler(async (req: Request, res: Response) =
   // Staff can only view enquiries assigned to them (or unassigned)
   const user = req.user!;
   const restrictedRoles = ['staff', 'sales-staff'];
-  if (restrictedRoles.includes(user.role) && enquiry.assignedTo && enquiry.assignedTo.toString() !== user._id.toString()) {
-    throw new AppError('Access denied', 403);
+  if (restrictedRoles.includes(user.role) && enquiry.assignedTo) {
+    const assignedId = (enquiry.assignedTo as any)._id ? (enquiry.assignedTo as any)._id.toString() : enquiry.assignedTo.toString();
+    if (assignedId !== user._id.toString()) {
+      throw new AppError('Access denied', 403);
+    }
   }
 
   // Fetch all packages linked to this enquiry and past activity logs
@@ -434,8 +437,11 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
 
   // Staff can only update enquiries assigned to them (or unassigned)
   const user = req.user!;
-  if ((user.role === 'staff' || user.role === 'sales-staff') && enquiry.assignedTo && enquiry.assignedTo.toString() !== user._id.toString()) {
-    throw new AppError('Access denied. This enquiry is not assigned to you.', 403);
+  if ((user.role === 'staff' || user.role === 'sales-staff') && enquiry.assignedTo) {
+    const assignedId = (enquiry.assignedTo as any)._id ? (enquiry.assignedTo as any)._id.toString() : enquiry.assignedTo.toString();
+    if (assignedId !== user._id.toString()) {
+      throw new AppError('Access denied. This enquiry is not assigned to you.', 403);
+    }
   }
 
   const prevStatus = enquiry.status;
