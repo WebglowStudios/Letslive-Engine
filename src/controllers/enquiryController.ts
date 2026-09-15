@@ -686,8 +686,11 @@ export const logCall = asyncHandler(async (req: Request, res: Response) => {
 
   // Staff can only log calls on their assigned enquiries
   const user = req.user!;
-  if ((user.role === 'staff' || user.role === 'sales-staff') && enquiry.assignedTo?.toString() !== user._id.toString()) {
-    throw new AppError('Access denied', 403);
+  if ((user.role === 'staff' || user.role === 'sales-staff') && enquiry.assignedTo) {
+    const assignedId = (enquiry.assignedTo as any)._id ? (enquiry.assignedTo as any)._id.toString() : enquiry.assignedTo.toString();
+    if (assignedId !== user._id.toString()) {
+      throw new AppError('Access denied', 403);
+    }
   }
 
   const { outcome, notes, duration } = req.body;
