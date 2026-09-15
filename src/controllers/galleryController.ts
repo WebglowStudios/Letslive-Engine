@@ -21,8 +21,22 @@ export const getGalleryImages = async (req: Request, res: Response) => {
 // @access  Private/Admin
 export const addGalleryImage = async (req: Request, res: Response) => {
   try {
-    const { url, caption, sortOrder, isActive } = req.body;
+    const { url, urls, caption, sortOrder, isActive } = req.body;
     
+    if (Array.isArray(urls) && urls.length > 0) {
+      const startOrder = typeof sortOrder === 'number' ? sortOrder : 0;
+      const docs = urls
+        .filter((u: any) => typeof u === 'string' && u.trim().length > 0)
+        .map((u: string, idx: number) => ({
+          url: u.trim(),
+          caption: caption || '',
+          sortOrder: startOrder + idx,
+          isActive: isActive !== undefined ? isActive : true,
+        }));
+      const images = await GalleryImage.insertMany(docs);
+      return res.status(201).json({ status: 'success', data: images });
+    }
+
     if (!url) {
       return res.status(400).json({ status: 'error', message: 'Image URL is required' });
     }
