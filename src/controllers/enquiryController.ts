@@ -409,7 +409,7 @@ export const getEnquiryById = asyncHandler(async (req: Request, res: Response) =
   // Fetch all packages linked to this enquiry and past activity logs
   const [linkedItineraries, activityLogs] = await Promise.all([
     Package.find({ enquiryId: enquiry._id })
-      .select('_id name slug price')
+      .select('_id name slug price isInternational')
       .lean(),
     ActivityLog.find({ entity: 'enquiry', entityId: String(enquiry._id) })
       .sort({ createdAt: -1 })

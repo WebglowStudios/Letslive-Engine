@@ -292,16 +292,12 @@ export const createManualBooking = asyncHandler(async (req: Request, res: Respon
   }
 
   const paid = offlinePayment?.paidAmount || 0;
-  const paymentStatus: 'pending' | 'partial' | 'paid' =
-    paid <= 0 ? 'pending' : paid >= totalAmount ? 'paid' : 'partial';
 
-  const paymentHistory = paid > 0 ? [{
-    amount: paid,
-    method: offlinePayment?.mode || 'cash',
-    transactionId: offlinePayment?.transactionId || '',
-    date: new Date(),
-    status: 'completed',
-  }] : [];
+  // If a payment amount was entered, route it through Finance Approval
+  // (same flow as the ops payment tab — admin must approve before paidAmount is updated)
+  const needsApproval = paid > 0;
+
+  const paymentHistory: any[] = []; // stays empty until finance approval
 
   const booking = await Booking.create({
     user: customerId,
@@ -314,19 +310,20 @@ export const createManualBooking = asyncHandler(async (req: Request, res: Respon
     travellersDetails: sanitizedTravellers || [],
     primaryTraveller: primaryTraveller || {},
     totalAmount,
-    paidAmount: paid,
-    paymentStatus,
+    paidAmount: 0,                          // stays 0 until finance approves
+    paymentStatus: 'pending',               // stays pending until finance approves
+    paymentFinanceStatus: needsApproval ? 'pending_approval' : 'none',
     bookingStatus: 'staff-confirmed',
     bookingSource: 'admin_manual',
     specialRequests,
     contactEmail: customer.email,
     contactPhone: customer.phone || '',
     paymentHistory,
-    financeDetails: paid > 0 ? {
+    financeDetails: needsApproval ? {
       paidAmount: paid,
       mode: offlinePayment?.mode || 'cash',
       transactionId: offlinePayment?.transactionId || '-',
-      remarks: offlinePayment?.remarks || 'Offline payment recorded by staff',
+      remarks: offlinePayment?.remarks || `Offline payment recorded by staff — awaiting finance approval`,
       requestedBy: staffId,
     } : undefined,
   });
@@ -339,6 +336,9 @@ export const createManualBooking = asyncHandler(async (req: Request, res: Respon
     const staff = await User.findById(staffId).select('firstName lastName').lean();
     const staffName = staff ? `${staff.firstName} ${staff.lastName}` : 'Staff';
     const refCode = booking.bookingId || String(booking._id).slice(-6).toUpperCase();
+    const paymentNote = needsApproval
+      ? `₹${paid.toLocaleString('en-IN')} via ${offlinePayment?.mode || 'cash'} — pending finance approval`
+      : 'No payment recorded';
     await Enquiry.findByIdAndUpdate(enquiryId, {
       status: 'converted',
       user: customerId,
@@ -346,18 +346,18 @@ export const createManualBooking = asyncHandler(async (req: Request, res: Respon
       conversionValue: totalAmount,
       $push: {
         notes: {
-          text: `Manual/offline booking created by ${staffName}. Payment: ₹${paid.toLocaleString('en-IN')} via ${offlinePayment?.mode || 'cash'}. Booking Ref: ${refCode}`,
+          text: `Manual/offline booking created by ${staffName}. Payment: ${paymentNote}. Booking Ref: ${refCode}`,
           date: new Date(),
           by: staffId,
         },
         timeline: {
           type: 'converted',
           title: `Lead converted! Booking #${refCode}`,
-          description: `Manual booking created by ${staffName}. Paid ₹${paid.toLocaleString('en-IN')} via ${offlinePayment?.mode || 'cash'} (Total: ₹${totalAmount.toLocaleString('en-IN')})`,
+          description: `Manual booking created by ${staffName}. ${paymentNote} (Total: ₹${totalAmount.toLocaleString('en-IN')})`,
           by: staffId,
           byName: staffName,
           date: new Date(),
-          meta: { bookingId: booking._id, totalAmount, paid, mode: offlinePayment?.mode },
+          meta: { bookingId: booking._id, totalAmount, paid, mode: offlinePayment?.mode, pendingApproval: needsApproval },
         },
       },
     });
