@@ -538,7 +538,11 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
     enquiry.followUpDate = req.body.followUpDate ? new Date(req.body.followUpDate) : undefined;
     
     if (req.body.followUpDate) {
-      const fDate = new Date(req.body.followUpDate).toLocaleDateString('en-IN');
+      const dateObj = new Date(req.body.followUpDate);
+      const hasTime = dateObj.getHours() !== 0 || dateObj.getMinutes() !== 0;
+      const fDate = hasTime
+        ? dateObj.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
+        : dateObj.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
       const fNotes = req.body.followUpNotes ? ` (Notes: ${req.body.followUpNotes})` : '';
       enquiry.notes.push({
         text: `Scheduled follow-up for ${fDate}${fNotes}`,

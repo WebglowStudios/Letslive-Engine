@@ -204,7 +204,7 @@ cron.schedule('30 3 * * *', async () => {
     }
 
     // Group by staff member
-    const byStaff = new Map<string, { email: string; name: string; items: { customerName: string; phone: string; notes?: string }[] }>();
+    const byStaff = new Map<string, { email: string; name: string; items: { customerName: string; phone: string; time?: string; notes?: string }[] }>();
 
     for (const enq of enquiries) {
       const staff = enq.assignedTo as unknown as { _id: string; firstName: string; lastName?: string; email: string } | null;
@@ -213,9 +213,15 @@ cron.schedule('30 3 * * *', async () => {
       if (!byStaff.has(key)) {
         byStaff.set(key, { email: staff.email, name: `${staff.firstName} ${staff.lastName || ''}`.trim(), items: [] });
       }
+      const d = enq.followUpDate ? new Date(enq.followUpDate) : null;
+      const timeStr = d && (d.getHours() !== 0 || d.getMinutes() !== 0)
+        ? d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })
+        : undefined;
+
       byStaff.get(key)!.items.push({
         customerName: `${enq.firstName} ${enq.lastName || ''}`.trim(),
         phone: enq.phone,
+        time: timeStr,
         notes: enq.followUpNotes,
       });
     }

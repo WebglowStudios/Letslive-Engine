@@ -364,12 +364,13 @@ export async function sendConversionCongrats(
 export async function sendFollowUpReminder(
   staffEmail: string,
   staffName: string,
-  followUps: { customerName: string; phone: string; notes?: string }[]
+  followUps: { customerName: string; phone: string; time?: string; notes?: string }[]
 ): Promise<void> {
   const rows = followUps.map((f) => `
     <tr>
       <td style="padding:10px 16px;font-size:14px;color:#1a1a1a;font-weight:600;border-bottom:1px solid #f0f0f0;">${f.customerName}</td>
       <td style="padding:10px 16px;font-size:14px;color:#444;border-bottom:1px solid #f0f0f0;">${f.phone}</td>
+      <td style="padding:10px 16px;font-size:13px;color:#7c3aed;font-weight:600;border-bottom:1px solid #f0f0f0;">${f.time || 'Anytime'}</td>
       <td style="padding:10px 16px;font-size:13px;color:#888;border-bottom:1px solid #f0f0f0;">${f.notes || '—'}</td>
     </tr>`).join('');
 
@@ -383,6 +384,7 @@ export async function sendFollowUpReminder(
         <tr style="background:#004d5e;">
           <th style="padding:12px 16px;font-size:12px;color:rgba(255,255,255,.8);text-align:left;">Customer</th>
           <th style="padding:12px 16px;font-size:12px;color:rgba(255,255,255,.8);text-align:left;">Phone</th>
+          <th style="padding:12px 16px;font-size:12px;color:rgba(255,255,255,.8);text-align:left;">Time</th>
           <th style="padding:12px 16px;font-size:12px;color:rgba(255,255,255,.8);text-align:left;">Notes</th>
         </tr>
       </thead>
