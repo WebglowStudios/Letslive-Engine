@@ -47,7 +47,9 @@ export const processApproval = asyncHandler(async (req: Request, res: Response) 
     }
 
     if (action === 'approve') {
-      const approvedAmount = booking.financeDetails?.paidAmount || (booking.totalAmount - booking.paidAmount);
+      const approvedAmount = (booking.financeDetails?.paidAmount !== undefined && booking.financeDetails?.paidAmount !== null && booking.financeDetails?.paidAmount > 0)
+        ? booking.financeDetails.paidAmount
+        : (booking.totalAmount - booking.paidAmount);
 
       booking.paymentFinanceStatus = 'approved';
       booking.paidAmount += approvedAmount;

@@ -12,7 +12,9 @@ export async function syncBookingPaymentToOperation(
   transactionId: string
 ) {
   try {
-    const op = await Operation.findOne({ booking: bookingId });
+    const op = await Operation.findOne({
+      $or: [{ bookings: bookingId }, { booking: bookingId }],
+    });
     if (!op) return; // No operation exists yet, auto-create will handle initial payments if needed
 
     // Find all unpaid installments

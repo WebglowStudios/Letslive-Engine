@@ -406,7 +406,7 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
 // @route   GET /api/enquiries/:id
 export const getEnquiryById = asyncHandler(async (req: Request, res: Response) => {
   const enquiry = await Enquiry.findById(req.params.id)
-    .populate('package', 'name slug')
+    .populate('package', 'name slug price isInternational')
     .populate('assignedTo', 'firstName lastName email avatar')
     .populate('notes.by', 'firstName lastName')
     .populate('callLog.by', 'firstName lastName')
@@ -430,7 +430,7 @@ export const getEnquiryById = asyncHandler(async (req: Request, res: Response) =
   // Fetch all packages linked to this enquiry and past activity logs
   const [linkedItineraries, activityLogs] = await Promise.all([
     Package.find({ enquiryId: enquiry._id })
-      .select('_id name slug price isInternational')
+      .select('_id name slug price isInternational duration')
       .lean(),
     ActivityLog.find({ entity: 'enquiry', entityId: String(enquiry._id) })
       .sort({ createdAt: -1 })

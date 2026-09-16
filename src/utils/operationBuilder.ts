@@ -67,6 +67,7 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
     if (!op) {
       // Create new Operation (Private Tour, OR First booking of a Group Tour)
       op = await Operation.create({
+        booking: populatedBooking._id,
         bookings: [populatedBooking._id],
         departureId: populatedBooking.departureId || undefined,
         operationId: `OP${String(populatedBooking._id).slice(-6).toUpperCase()}`,
