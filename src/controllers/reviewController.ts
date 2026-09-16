@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Request, Response } from 'express';
 import Review from '../models/Review.js';
 import Package from '../models/Package.js';
@@ -11,53 +12,71 @@ import ActivityLog from '../models/ActivityLog.js';
 
 // Helper: Recalculate ratings for a package and its destination
 const recalculateRatings = async (packageId: unknown, destinationId?: unknown) => {
-  const packageStats = await Review.aggregate([
-    { $match: { package: packageId, isApproved: true } },
-    {
-      $group: {
-        _id: '$package',
-        avgRating: { $avg: '$rating' },
-        count: { $sum: 1 },
-      },
-    },
-  ]);
+  try {
+    if (!packageId) return null;
 
-  if (packageStats.length > 0) {
-    await Package.findByIdAndUpdate(packageId, {
-      rating: Math.round(packageStats[0].avgRating * 10) / 10,
-      reviewCount: packageStats[0].count,
-    });
-  } else {
-    await Package.findByIdAndUpdate(packageId, {
-      rating: 0,
-      reviewCount: 0,
-    });
-  }
+    const pkgObjId = new mongoose.Types.ObjectId(String(packageId));
 
-  // Also update destination rating if destinationId provided
-  if (destinationId) {
-    const destStats = await Review.aggregate([
-      { $match: { destination: destinationId, isApproved: true } },
+    const packageStats = await Review.aggregate([
+      { $match: { package: pkgObjId, isApproved: true } },
       {
         $group: {
-          _id: '$destination',
+          _id: '$package',
           avgRating: { $avg: '$rating' },
           count: { $sum: 1 },
         },
       },
     ]);
 
-    if (destStats.length > 0) {
-      await Destination.findByIdAndUpdate(destinationId, {
-        rating: Math.round(destStats[0].avgRating * 10) / 10,
-        reviewCount: destStats[0].count,
-      });
+    const updatedRating = packageStats.length > 0 ? Math.round(packageStats[0].avgRating * 10) / 10 : 0;
+    const updatedReviewCount = packageStats.length > 0 ? packageStats[0].count : 0;
+
+    await Package.findByIdAndUpdate(pkgObjId, {
+      rating: updatedRating,
+      reviewCount: updatedReviewCount,
+    });
+
+    // Resolve destinationId if not provided
+    let destObjId: mongoose.Types.ObjectId | undefined;
+    if (destinationId) {
+      destObjId = new mongoose.Types.ObjectId(String(destinationId));
     } else {
-      await Destination.findByIdAndUpdate(destinationId, {
-        rating: 0,
-        reviewCount: 0,
-      });
+      const pkgDoc = await Package.findById(pkgObjId).select('destination');
+      if (pkgDoc?.destination) {
+        destObjId = new mongoose.Types.ObjectId(String(pkgDoc.destination));
+      }
     }
+
+    // Also update destination rating if destinationId found
+    if (destObjId) {
+      const destStats = await Review.aggregate([
+        { $match: { destination: destObjId, isApproved: true } },
+        {
+          $group: {
+            _id: '$destination',
+            avgRating: { $avg: '$rating' },
+            count: { $sum: 1 },
+          },
+        },
+      ]);
+
+      if (destStats.length > 0) {
+        await Destination.findByIdAndUpdate(destObjId, {
+          rating: Math.round(destStats[0].avgRating * 10) / 10,
+          reviewCount: destStats[0].count,
+        });
+      } else {
+        await Destination.findByIdAndUpdate(destObjId, {
+          rating: 0,
+          reviewCount: 0,
+        });
+      }
+    }
+
+    return { rating: updatedRating, reviewCount: updatedReviewCount };
+  } catch (err) {
+    console.error('Error in recalculateRatings:', err);
+    return null;
   }
 };
 
@@ -119,10 +138,14 @@ export const getAdminReviewsByPackage = asyncHandler(async (req: Request, res: R
     .populate('user', 'firstName lastName avatar')
     .sort({ createdAt: -1 });
 
+  // Sync ratings to ensure package ratings stay consistent
+  const packageStats = await recalculateRatings(req.params.packageId);
+
   res.status(200).json({
     status: 'success',
     results: reviews.length,
     data: reviews,
+    packageStats,
   });
 });
 
@@ -229,11 +252,12 @@ export const createManualReview = asyncHandler(async (req: Request, res: Respons
   });
 
   // Recalculate ratings
-  await recalculateRatings(packageId, pkg.destination);
+  const packageStats = await recalculateRatings(packageId, pkg.destination);
 
   res.status(201).json({
     status: 'success',
     data: review,
+    packageStats,
   });
 });
 
@@ -257,11 +281,12 @@ export const updateReview = asyncHandler(async (req: Request, res: Response) => 
   });
 
   // Recalculate ratings
-  await recalculateRatings(review.package, review.destination);
+  const packageStats = await recalculateRatings(review.package, review.destination);
 
   res.status(200).json({
     status: 'success',
     data: updatedReview,
+    packageStats,
   });
 });
 
@@ -285,11 +310,12 @@ export const deleteReview = asyncHandler(async (req: Request, res: Response) => 
   await Review.findByIdAndDelete(req.params.id);
 
   // Recalculate ratings
-  await recalculateRatings(review.package, review.destination);
+  const packageStats = await recalculateRatings(review.package, review.destination);
 
-  res.status(204).json({
+  res.status(200).json({
     status: 'success',
     data: null,
+    packageStats,
   });
 });
 
@@ -307,11 +333,12 @@ export const approveReview = asyncHandler(async (req: Request, res: Response) =>
   }
 
   // Recalculate ratings since approval status changed
-  await recalculateRatings(review.package, review.destination);
+  const packageStats = await recalculateRatings(review.package, review.destination);
 
   res.status(200).json({
     status: 'success',
     data: review,
+    packageStats,
   });
 });
 
