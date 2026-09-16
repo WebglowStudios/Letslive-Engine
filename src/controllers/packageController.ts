@@ -46,7 +46,12 @@ export const getPackages = asyncHandler(async (req: Request, res: Response) => {
   }
 
   if (destination) {
-    query.destination = destination;
+    if (String(destination).match(/^[0-9a-fA-F]{24}$/)) {
+      query.destination = destination;
+    } else {
+      const destDoc = await Destination.findOne({ slug: String(destination) });
+      if (destDoc) query.destination = destDoc._id;
+    }
   }
 
   if (category) {
@@ -59,7 +64,20 @@ export const getPackages = asyncHandler(async (req: Request, res: Response) => {
 
   if (search) {
     const searchRegex = new RegExp(search as string, 'i');
-    query.$or = [{ name: searchRegex }, { description: searchRegex }];
+    const matchingDests = await Destination.find({
+      $or: [{ name: searchRegex }, { region: searchRegex }, { country: searchRegex }]
+    }).select('_id');
+    const destIds = matchingDests.map((d) => d._id);
+
+    query.$or = [
+      { name: searchRegex },
+      { description: searchRegex },
+      { shortDescription: searchRegex },
+      { customDestinationText: searchRegex },
+      { category: searchRegex },
+      { badge: searchRegex },
+      { destination: { $in: destIds } },
+    ];
   }
 
   if (minPrice || maxPrice) {

@@ -43,7 +43,9 @@ export const getDestinations = asyncHandler(async (req: Request, res: Response) 
     query.$or = [
       { name: searchRegex },
       { region: searchRegex },
+      { country: searchRegex },
       { description: searchRegex },
+      { shortDescription: searchRegex },
     ];
   }
 
