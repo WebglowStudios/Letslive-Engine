@@ -36,6 +36,26 @@ export const createEnquiry = asyncHandler(async (req: Request, res: Response) =>
   // Auto-determine priority — no auto-assignment
   const priority = determinePriority(req.body.type || 'general', req.body.travelDate);
 
+  // Auto-fetch destination & package details if package or packageName is provided
+  let destination = req.body.destination;
+  let packageName = req.body.packageName;
+  let packageId = req.body.package;
+  let pkgObj: any = null;
+
+  if (packageId) {
+    pkgObj = await Package.findById(packageId).populate('destination', 'name');
+  } else if (packageName) {
+    pkgObj = await Package.findOne({ name: packageName }).populate('destination', 'name');
+  }
+
+  if (pkgObj) {
+    if (!packageName) packageName = pkgObj.name;
+    if (!packageId) packageId = pkgObj._id;
+    if (!destination) {
+      destination = pkgObj.destination?.name || pkgObj.customDestinationText || undefined;
+    }
+  }
+
   // Resolve linked user:
   // 1. If optionalProtect set req.user (logged-in user), use them directly.
   // 2. Otherwise fall back to email lookup (anonymous/guest submitting with an existing email).
@@ -60,7 +80,7 @@ export const createEnquiry = asyncHandler(async (req: Request, res: Response) =>
     },
   ];
 
-  if (req.body.destination || req.body.travelDate || req.body.travellerCount || req.body.adultCount || req.body.childCount || req.body.infantCount || req.body.budget) {
+  if (destination || req.body.travelDate || req.body.travellerCount || req.body.adultCount || req.body.childCount || req.body.infantCount || req.body.budget) {
     const totalPax = req.body.travellerCount ?? ((Number(req.body.adultCount) || 0) + (Number(req.body.childCount) || 0) + (Number(req.body.infantCount) || 0) || undefined);
     const paxParts: string[] = [];
     if (req.body.adultCount) paxParts.push(`${req.body.adultCount} Adult${req.body.adultCount === 1 ? '' : 's'}`);
@@ -69,7 +89,7 @@ export const createEnquiry = asyncHandler(async (req: Request, res: Response) =>
     const paxBreakdown = paxParts.length > 0 ? ` (${paxParts.join(', ')})` : '';
 
     const details = [
-      req.body.destination ? `Destination: ${req.body.destination}` : null,
+      destination ? `Destination: ${destination}` : null,
       totalPax ? `Travellers: ${totalPax} pax${paxBreakdown}` : null,
       req.body.budget ? `Budget: ₹${Number(req.body.budget).toLocaleString('en-IN')}` : null,
       req.body.travelDate ? `Travel Date: ${new Date(req.body.travelDate).toLocaleDateString('en-IN')}` : null,
@@ -81,7 +101,7 @@ export const createEnquiry = asyncHandler(async (req: Request, res: Response) =>
       description: details,
       date: new Date(Date.now() + 100),
       meta: {
-        destination: req.body.destination,
+        destination,
         travelDate: req.body.travelDate,
         travellerCount: totalPax,
         adultCount: req.body.adultCount,
@@ -92,12 +112,12 @@ export const createEnquiry = asyncHandler(async (req: Request, res: Response) =>
     });
   }
 
-  if (req.body.packageName) {
+  if (packageName) {
     initialTimeline.push({
       type: 'system',
-      title: `Package of interest: ${req.body.packageName}`,
+      title: `Package of interest: ${packageName}`,
       date: new Date(Date.now() + 200),
-      meta: { packageName: req.body.packageName, package: req.body.package },
+      meta: { packageName, package: packageId },
     });
   }
 
@@ -112,6 +132,9 @@ export const createEnquiry = asyncHandler(async (req: Request, res: Response) =>
 
   const enquiry = await Enquiry.create({
     ...req.body,
+    destination: destination || undefined,
+    packageName: packageName || undefined,
+    package: packageId || undefined,
     user: linkedUserId,
     assignedTo: undefined,   // always unassigned — admin will assign manually
     status: 'new',
@@ -172,6 +195,25 @@ export const manualCreateEnquiry = asyncHandler(async (req: Request, res: Respon
   const assignedToId = assignedTo || req.user?._id || undefined;
   const priority = manualPriority || determinePriority(type || 'general', travelDate);
 
+  let resolvedDestination = destination;
+  let resolvedPackageName = packageName;
+  let packageId = req.body.package;
+  let pkgObj: any = null;
+
+  if (packageId) {
+    pkgObj = await Package.findById(packageId).populate('destination', 'name');
+  } else if (resolvedPackageName) {
+    pkgObj = await Package.findOne({ name: resolvedPackageName }).populate('destination', 'name');
+  }
+
+  if (pkgObj) {
+    if (!resolvedPackageName) resolvedPackageName = pkgObj.name;
+    if (!packageId) packageId = pkgObj._id;
+    if (!resolvedDestination) {
+      resolvedDestination = pkgObj.destination?.name || pkgObj.customDestinationText || undefined;
+    }
+  }
+
   const existingUser = await User.findOne({ email: email?.toLowerCase().trim() });
 
   const creatorName = req.user ? `${req.user.firstName} ${req.user.lastName || ''}`.trim() : 'Staff';
@@ -194,9 +236,9 @@ export const manualCreateEnquiry = asyncHandler(async (req: Request, res: Respon
   if (infantCount) paxParts.push(`${infantCount} Infant${Number(infantCount) === 1 ? '' : 's'}`);
   const paxBreakdown = paxParts.length > 0 ? ` (${paxParts.join(', ')})` : '';
 
-  if (destination || travelDate || totalPax || budget) {
+  if (resolvedDestination || travelDate || totalPax || budget) {
     const details = [
-      destination ? `Destination: ${destination}` : null,
+      resolvedDestination ? `Destination: ${resolvedDestination}` : null,
       totalPax ? `Travellers: ${totalPax} pax${paxBreakdown}` : null,
       budget ? `Budget: ₹${Number(budget).toLocaleString('en-IN')}` : null,
       travelDate ? `Travel Date: ${new Date(travelDate).toLocaleDateString('en-IN')}` : null,
@@ -209,14 +251,14 @@ export const manualCreateEnquiry = asyncHandler(async (req: Request, res: Respon
       by: req.user?._id,
       byName: creatorName,
       date: new Date(Date.now() + 100),
-      meta: { destination, travelDate, travellerCount: totalPax, adultCount, childCount, infantCount, budget },
+      meta: { destination: resolvedDestination, travelDate, travellerCount: totalPax, adultCount, childCount, infantCount, budget },
     });
   }
 
-  if (packageName) {
+  if (resolvedPackageName) {
     initialTimeline.push({
       type: 'system',
-      title: `Package of interest: ${packageName}`,
+      title: `Package of interest: ${resolvedPackageName}`,
       by: req.user?._id,
       byName: creatorName,
       date: new Date(Date.now() + 200),
@@ -251,8 +293,9 @@ export const manualCreateEnquiry = asyncHandler(async (req: Request, res: Respon
     firstName, lastName, email, phone,
     type: type || 'general',
     message,
-    packageName,
-    destination,
+    packageName: resolvedPackageName || undefined,
+    package: packageId || undefined,
+    destination: resolvedDestination || undefined,
     travelDate,
     travellerCount: totalPax,
     adultCount: adultCount ? Number(adultCount) : undefined,
@@ -406,7 +449,11 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
 // @route   GET /api/enquiries/:id
 export const getEnquiryById = asyncHandler(async (req: Request, res: Response) => {
   const enquiry = await Enquiry.findById(req.params.id)
-    .populate('package', 'name slug price isInternational')
+    .populate({
+      path: 'package',
+      select: 'name slug price isInternational duration destination customDestinationText',
+      populate: { path: 'destination', select: 'name' },
+    })
     .populate('assignedTo', 'firstName lastName email avatar')
     .populate('notes.by', 'firstName lastName')
     .populate('callLog.by', 'firstName lastName')
@@ -430,12 +477,27 @@ export const getEnquiryById = asyncHandler(async (req: Request, res: Response) =
   // Fetch all packages linked to this enquiry and past activity logs
   const [linkedItineraries, activityLogs] = await Promise.all([
     Package.find({ enquiryId: enquiry._id })
-      .select('_id name slug price isInternational duration')
+      .select('_id name slug price isInternational duration destination customDestinationText')
+      .populate('destination', 'name')
       .lean(),
     ActivityLog.find({ entity: 'enquiry', entityId: String(enquiry._id) })
       .sort({ createdAt: -1 })
       .lean(),
   ]);
+
+  // Auto-heal and persist destination if enquiry.destination is empty
+  if (!enquiry.destination) {
+    const pkg: any = enquiry.package;
+    let resolvedDest = pkg?.destination?.name || pkg?.customDestinationText;
+    if (!resolvedDest && linkedItineraries && linkedItineraries.length > 0) {
+      const firstLinked: any = linkedItineraries[0];
+      resolvedDest = firstLinked?.destination?.name || firstLinked?.customDestinationText;
+    }
+    if (resolvedDest) {
+      enquiry.destination = resolvedDest;
+      await Enquiry.findByIdAndUpdate(enquiry._id, { destination: resolvedDest });
+    }
+  }
 
   res.status(200).json({
     status: 'success',
