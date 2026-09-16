@@ -314,7 +314,7 @@ export const createManualBooking = asyncHandler(async (req: Request, res: Respon
     paidAmount: 0,                          // stays 0 until finance approves
     paymentStatus: 'pending',               // stays pending until finance approves
     paymentFinanceStatus: needsApproval ? 'pending_approval' : 'none',
-    bookingStatus: 'staff-confirmed',
+    bookingStatus: needsApproval ? 'pending' : 'staff-confirmed',
     bookingSource: 'admin_manual',
     specialRequests,
     contactEmail: customer.email,
@@ -329,8 +329,11 @@ export const createManualBooking = asyncHandler(async (req: Request, res: Respon
     } : undefined,
   });
 
-  // Auto-create Operation
-  await autoCreateOperationFromBooking(String(booking._id));
+  // Auto-create Operation only if payment does not require finance approval
+  // (If payment needs approval, Operation is created upon approval in /finance/approvals)
+  if (!needsApproval) {
+    await autoCreateOperationFromBooking(String(booking._id));
+  }
 
   // Update linked enquiry if provided
   if (enquiryId) {
@@ -340,42 +343,64 @@ export const createManualBooking = asyncHandler(async (req: Request, res: Respon
     const paymentNote = needsApproval
       ? `₹${paid.toLocaleString('en-IN')} via ${offlinePayment?.mode || 'cash'} — pending finance approval`
       : 'No payment recorded';
-    await Enquiry.findByIdAndUpdate(enquiryId, {
-      status: 'converted',
+
+    const updateDoc: any = {
       user: customerId,
       bookingRef: booking._id,
-      conversionValue: totalAmount,
-      $push: {
-        notes: {
-          text: `Manual/offline booking created by ${staffName}. Payment: ${paymentNote}. Booking Ref: ${refCode}`,
-          date: new Date(),
+    };
+
+    if (!needsApproval) {
+      updateDoc.status = 'converted';
+      updateDoc.conversionValue = totalAmount;
+    }
+
+    const timelineEvent = needsApproval
+      ? {
+          type: 'status_change',
+          title: `Booking #${refCode} Created (Pending Finance)`,
+          description: `Manual booking created by ${staffName}. ${paymentNote} (Total: ₹${totalAmount.toLocaleString('en-IN')}). Awaiting finance approval before converting lead.`,
           by: staffId,
-        },
-        timeline: {
+          byName: staffName,
+          date: new Date(),
+          meta: { bookingId: booking._id, totalAmount, paid, mode: offlinePayment?.mode, pendingApproval: true },
+        }
+      : {
           type: 'converted',
           title: `Lead converted! Booking #${refCode}`,
           description: `Manual booking created by ${staffName}. ${paymentNote} (Total: ₹${totalAmount.toLocaleString('en-IN')})`,
           by: staffId,
           byName: staffName,
           date: new Date(),
-          meta: { bookingId: booking._id, totalAmount, paid, mode: offlinePayment?.mode, pendingApproval: needsApproval },
+          meta: { bookingId: booking._id, totalAmount, paid, mode: offlinePayment?.mode, pendingApproval: false },
+        };
+
+    await Enquiry.findByIdAndUpdate(enquiryId, {
+      ...updateDoc,
+      $push: {
+        notes: {
+          text: `Manual/offline booking created by ${staffName}. Payment: ${paymentNote}. Booking Ref: ${refCode}`,
+          date: new Date(),
+          by: staffId,
         },
+        timeline: timelineEvent,
       },
     });
   }
 
-  // Send booking confirmation email (fire-and-forget)
-  sendBookingConfirmation(
-    customer.email,
-    customer.firstName,
-    {
-      packageName: pkg.name,
-      travelDate: new Date(booking.travelDate).toLocaleDateString('en-IN'),
-      amount: totalAmount,
-      travellers: String((booking.travellers?.adults || 1) + (booking.travellers?.children || 0) + (booking.travellers?.infants || 0)),
-      bookingId: String(booking.bookingId || booking._id)
-    }
-  ).catch(console.error);
+  // Send booking confirmation email only if already confirmed (otherwise sent upon finance approval)
+  if (!needsApproval) {
+    sendBookingConfirmation(
+      customer.email,
+      customer.firstName,
+      {
+        packageName: pkg.name,
+        travelDate: new Date(booking.travelDate).toLocaleDateString('en-IN'),
+        amount: totalAmount,
+        travellers: String((booking.travellers?.adults || 1) + (booking.travellers?.children || 0) + (booking.travellers?.infants || 0)),
+        bookingId: String(booking.bookingId || booking._id)
+      }
+    ).catch(console.error);
+  }
 
   // Activity log
   ActivityLog.create({

@@ -12,6 +12,7 @@ export interface ICallLog {
   notes?: string;
   by: mongoose.Types.ObjectId;
   duration?: number; // call duration in seconds
+  callbackDate?: Date;
 }
 
 export interface ITimelineEvent {
@@ -175,6 +176,7 @@ const enquirySchema = new Schema<IEnquiry>(
         notes: { type: String },
         by: { type: Schema.Types.ObjectId, ref: 'User', required: true },
         duration: { type: Number }, // seconds
+        callbackDate: { type: Date },
       },
     ],
     lastContactedAt: { type: Date },

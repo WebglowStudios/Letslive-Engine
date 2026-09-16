@@ -4,7 +4,12 @@ import { AppError } from '../middleware/errorHandler.js';
 import Booking from '../models/Booking.js';
 import CustomerPayment from '../models/CustomerPayment.js';
 import Operation from '../models/Operation.js';
+import Enquiry from '../models/Enquiry.js';
+import User from '../models/User.js';
+import Package from '../models/Package.js';
 import { syncBookingPaymentToOperation } from '../utils/paymentSync.js';
+import { autoCreateOperationFromBooking } from '../utils/operationBuilder.js';
+import { sendBookingConfirmation } from '../services/emailService.js';
 
 // @desc    Get all pending finance approvals
 // @route   GET /api/finance/approvals
@@ -52,6 +57,7 @@ export const processApproval = asyncHandler(async (req: Request, res: Response) 
         : (booking.totalAmount - booking.paidAmount);
 
       booking.paymentFinanceStatus = 'approved';
+      booking.bookingStatus = 'staff-confirmed';
       booking.paidAmount += approvedAmount;
       booking.paymentStatus = booking.paidAmount >= booking.totalAmount ? 'paid' : 'partial';
       
@@ -69,12 +75,93 @@ export const processApproval = asyncHandler(async (req: Request, res: Response) 
       
       // Clear finance details payload after successful approval
       booking.financeDetails = undefined;
+
+      // Auto-create Operation now that payment has been approved
+      await autoCreateOperationFromBooking(String(booking._id));
       
-      // Sync this manual payment down to the Operation's installments if it exists
+      // Sync this manual payment down to the Operation's installments
       await syncBookingPaymentToOperation(booking._id, approvedAmount, method, transactionId);
+
+      // Convert linked enquiry now that payment is approved
+      if (booking.enquiry) {
+        const staffName = req.user ? `${req.user.firstName} ${req.user.lastName}` : 'Finance';
+        const refCode = booking.bookingId || String(booking._id).slice(-6).toUpperCase();
+        await Enquiry.findByIdAndUpdate(booking.enquiry, {
+          status: 'converted',
+          conversionValue: booking.totalAmount,
+          bookingRef: booking._id,
+          $push: {
+            notes: {
+              text: `Finance approved offline payment of ₹${approvedAmount.toLocaleString('en-IN')}. Booking #${refCode} confirmed and lead marked as converted.`,
+              date: new Date(),
+              by: req.user!._id,
+            },
+            timeline: {
+              type: 'converted',
+              title: `Lead converted! Booking #${refCode}`,
+              description: `Finance approved payment of ₹${approvedAmount.toLocaleString('en-IN')}. Booking confirmed.`,
+              by: req.user!._id,
+              byName: staffName,
+              date: new Date(),
+              meta: { bookingId: booking._id, totalAmount: booking.totalAmount, approvedAmount },
+            },
+          },
+        });
+      }
+
+      // Send booking confirmation email to customer (fire-and-forget)
+      const customer = await User.findById(booking.user).select('email firstName');
+      const pkg = await Package.findById(booking.package).select('name');
+      if (customer?.email && pkg?.name) {
+        sendBookingConfirmation(
+          customer.email,
+          customer.firstName,
+          {
+            packageName: pkg.name,
+            travelDate: new Date(booking.travelDate).toLocaleDateString('en-IN'),
+            amount: booking.totalAmount,
+            travellers: String((booking.travellers?.adults || 1) + (booking.travellers?.children || 0) + (booking.travellers?.infants || 0)),
+            bookingId: String(booking.bookingId || booking._id),
+          }
+        ).catch(console.error);
+      }
     } else {
       booking.paymentFinanceStatus = 'rejected';
-      // Do not clear financeDetails so requestedBy can see why/what was rejected
+      booking.bookingStatus = 'cancelled';
+
+      const rejectedAmount = booking.financeDetails?.paidAmount || 0;
+      const staffName = req.user ? `${req.user.firstName} ${req.user.lastName}` : 'Finance';
+      const refCode = booking.bookingId || String(booking._id).slice(-6).toUpperCase();
+
+      // If linked to an enquiry, revert lead status to in-progress (do NOT keep converted)
+      if (booking.enquiry) {
+        await Enquiry.findByIdAndUpdate(booking.enquiry, {
+          status: 'in-progress',
+          $unset: { conversionValue: 1 },
+          $push: {
+            notes: {
+              text: `Finance disapproved/rejected offline payment of ₹${rejectedAmount.toLocaleString('en-IN')}. Booking #${refCode} cancelled. Lead returned to In-Progress.`,
+              date: new Date(),
+              by: req.user!._id,
+            },
+            timeline: {
+              type: 'status_change',
+              title: `Finance Disapproved Payment - Booking Cancelled`,
+              description: `Finance rejected payment of ₹${rejectedAmount.toLocaleString('en-IN')}. Booking #${refCode} cancelled. Lead status returned to In-Progress.`,
+              by: req.user!._id,
+              byName: staffName,
+              date: new Date(),
+              meta: { bookingId: booking._id, rejectedAmount },
+            },
+          },
+        });
+      }
+
+      // If an operation was already created for this booking, mark it cancelled
+      await Operation.findOneAndUpdate(
+        { $or: [{ bookings: booking._id }, { booking: booking._id }] },
+        { status: 'cancelled' }
+      );
     }
 
     await booking.save();

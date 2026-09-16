@@ -740,8 +740,25 @@ export const logCall = asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
-  const { outcome, notes, duration } = req.body;
+  const { outcome, notes, duration, callbackDate } = req.body;
   if (!outcome) throw new AppError('outcome is required', 400);
+
+  let parsedCallbackDate: Date | undefined;
+  if (outcome === 'callback-scheduled') {
+    if (!callbackDate) {
+      throw new AppError('Date and time are required for scheduling a callback', 400);
+    }
+    parsedCallbackDate = new Date(callbackDate);
+    if (isNaN(parsedCallbackDate.getTime())) {
+      throw new AppError('Invalid callback date and time', 400);
+    }
+    // Update enquiry follow-up tracking
+    enquiry.followUpDate = parsedCallbackDate;
+    enquiry.followUpNotes = notes ? `Callback: ${notes}` : 'Customer requested callback';
+    if (enquiry.status !== 'converted' && enquiry.status !== 'closed' && enquiry.status !== 'resolved') {
+      enquiry.status = 'follow-up';
+    }
+  }
 
   // Push call log entry
   enquiry.callLog.push({
@@ -750,6 +767,7 @@ export const logCall = asyncHandler(async (req: Request, res: Response) => {
     notes: notes || undefined,
     by: req.user!._id,
     duration: duration || undefined,
+    callbackDate: parsedCallbackDate,
   });
 
   const prevDnp = enquiry.dnpCount;
@@ -772,14 +790,39 @@ export const logCall = asyncHandler(async (req: Request, res: Response) => {
 
   const actorName = user ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Staff';
   enquiry.timeline = enquiry.timeline || [];
+
+  const formattedCallback = parsedCallbackDate
+    ? parsedCallbackDate.toLocaleString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      })
+    : '';
+
   enquiry.timeline.push({
     type: 'call',
-    title: `Call logged: ${outcome.replace('-', ' ')}${duration ? ` (${duration}s)` : ''}`,
-    description: notes ? `"${notes}"` : undefined,
+    title:
+      outcome === 'callback-scheduled' && formattedCallback
+        ? `Callback Scheduled: ${formattedCallback}`
+        : `Call logged: ${outcome.replace('-', ' ')}${duration ? ` (${duration}s)` : ''}`,
+    description: notes
+      ? `"${notes}"`
+      : outcome === 'callback-scheduled' && formattedCallback
+      ? `Customer requested a callback on ${formattedCallback}`
+      : undefined,
     by: user._id,
     byName: actorName,
     date: new Date(),
-    meta: { outcome, duration, notes, dnpCount: enquiry.dnpCount },
+    meta: {
+      outcome,
+      duration,
+      notes,
+      callbackDate: parsedCallbackDate,
+      dnpCount: enquiry.dnpCount,
+    },
   });
 
   await enquiry.save();
@@ -791,8 +834,11 @@ export const logCall = asyncHandler(async (req: Request, res: Response) => {
     entity: 'enquiry',
     entityId: String(enquiry._id),
     entityName: `${enquiry.firstName} ${enquiry.lastName || ''}`.trim(),
-    description: `Call logged for ${enquiry.firstName}: ${outcome}${notes ? ` — "${notes}"` : ''}`,
-    meta: { outcome, dnpCount: enquiry.dnpCount, duration },
+    description:
+      outcome === 'callback-scheduled' && formattedCallback
+        ? `Callback scheduled for ${enquiry.firstName} on ${formattedCallback}${notes ? ` — "${notes}"` : ''}`
+        : `Call logged for ${enquiry.firstName}: ${outcome}${notes ? ` — "${notes}"` : ''}`,
+    meta: { outcome, dnpCount: enquiry.dnpCount, duration, callbackDate: parsedCallbackDate },
   });
 
   // DNP escalation emails (fire-and-forget)

@@ -139,7 +139,7 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
           await op.save();
         }
 
-        if (linkedEnquiry.status !== 'converted') {
+        if (populatedBooking.paymentFinanceStatus !== 'pending_approval' && linkedEnquiry.status !== 'converted') {
           linkedEnquiry.status = 'converted';
           linkedEnquiry.conversionValue = populatedBooking.totalAmount || 0;
           linkedEnquiry.bookingRef = populatedBooking._id as unknown as mongoose.Types.ObjectId;
