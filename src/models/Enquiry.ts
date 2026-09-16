@@ -71,6 +71,9 @@ export interface IEnquiry extends Document {
   conversionValue?: number;                    // ₹ value when status → converted
   bookingRef?: mongoose.Types.ObjectId;        // Linked booking once converted
   travellerCount?: number;                     // Pax count
+  adultCount?: number;                         // Adults count
+  childCount?: number;                         // Child count
+  infantCount?: number;                        // Infant count
   budget?: number;                             // Customer's stated budget
   tags: string[];                              // Free-form: 'honeymoon', 'family', etc.
   channel?: string;                            // Lead acquisition channel
@@ -152,6 +155,9 @@ const enquirySchema = new Schema<IEnquiry>(
     conversionValue: { type: Number },
     bookingRef: { type: Schema.Types.ObjectId, ref: 'Booking' },
     travellerCount: { type: Number },
+    adultCount: { type: Number },
+    childCount: { type: Number },
+    infantCount: { type: Number },
     budget: { type: Number },
     tags: [{ type: String }],
     channel: {

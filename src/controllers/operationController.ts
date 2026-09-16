@@ -861,12 +861,12 @@ export const addOperationPassenger = asyncHandler(async (req: Request, res: Resp
   const pkg = operation.package as any;
   const price = pkg?.price || 0;
 
-  // Sanitize passenger data: ensure age is number or undefined, dob is Date or undefined, and auto-calculate age if dob is provided
+  const rawAge = (passengerData?.age !== '' && passengerData?.age !== undefined && passengerData?.age !== null)
+    ? Number(passengerData.age)
+    : undefined;
   const sanitizedPassenger: any = {
     ...passengerData,
-    age: (passengerData?.age !== '' && passengerData?.age !== undefined && passengerData?.age !== null)
-      ? Number(passengerData.age)
-      : undefined,
+    age: (rawAge !== undefined && !isNaN(rawAge)) ? rawAge : undefined,
     dob: passengerData?.dob ? new Date(passengerData.dob) : undefined,
   };
   if (sanitizedPassenger.age === undefined && sanitizedPassenger.dob && !isNaN(sanitizedPassenger.dob.getTime())) {

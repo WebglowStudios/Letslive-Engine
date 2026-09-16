@@ -19,7 +19,8 @@ import { generateAccessToken, generateRefreshToken, setTokenCookies } from '../u
 const sanitizeTravellersDetails = (details?: any[]): any[] => {
   if (!details || !Array.isArray(details)) return [];
   return details.map((t: any) => {
-    let age = (t.age !== '' && t.age !== undefined && t.age !== null) ? Number(t.age) : undefined;
+    const rawAge = (t.age !== '' && t.age !== undefined && t.age !== null) ? Number(t.age) : undefined;
+    let age = (rawAge !== undefined && !isNaN(rawAge)) ? rawAge : undefined;
     let dob = t.dob ? new Date(t.dob) : undefined;
     if (age === undefined && dob && !isNaN(dob.getTime())) {
       const today = new Date();

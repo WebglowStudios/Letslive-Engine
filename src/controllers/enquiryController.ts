@@ -60,10 +60,17 @@ export const createEnquiry = asyncHandler(async (req: Request, res: Response) =>
     },
   ];
 
-  if (req.body.destination || req.body.travelDate || req.body.travellerCount || req.body.budget) {
+  if (req.body.destination || req.body.travelDate || req.body.travellerCount || req.body.adultCount || req.body.childCount || req.body.infantCount || req.body.budget) {
+    const totalPax = req.body.travellerCount ?? ((Number(req.body.adultCount) || 0) + (Number(req.body.childCount) || 0) + (Number(req.body.infantCount) || 0) || undefined);
+    const paxParts: string[] = [];
+    if (req.body.adultCount) paxParts.push(`${req.body.adultCount} Adult${req.body.adultCount === 1 ? '' : 's'}`);
+    if (req.body.childCount) paxParts.push(`${req.body.childCount} Child${req.body.childCount === 1 ? '' : 'ren'}`);
+    if (req.body.infantCount) paxParts.push(`${req.body.infantCount} Infant${req.body.infantCount === 1 ? '' : 's'}`);
+    const paxBreakdown = paxParts.length > 0 ? ` (${paxParts.join(', ')})` : '';
+
     const details = [
       req.body.destination ? `Destination: ${req.body.destination}` : null,
-      req.body.travellerCount ? `Travellers: ${req.body.travellerCount} pax` : null,
+      totalPax ? `Travellers: ${totalPax} pax${paxBreakdown}` : null,
       req.body.budget ? `Budget: ₹${Number(req.body.budget).toLocaleString('en-IN')}` : null,
       req.body.travelDate ? `Travel Date: ${new Date(req.body.travelDate).toLocaleDateString('en-IN')}` : null,
     ].filter(Boolean).join(' • ');
@@ -76,7 +83,10 @@ export const createEnquiry = asyncHandler(async (req: Request, res: Response) =>
       meta: {
         destination: req.body.destination,
         travelDate: req.body.travelDate,
-        travellerCount: req.body.travellerCount,
+        travellerCount: totalPax,
+        adultCount: req.body.adultCount,
+        childCount: req.body.childCount,
+        infantCount: req.body.infantCount,
         budget: req.body.budget,
       },
     });
@@ -150,6 +160,7 @@ export const manualCreateEnquiry = asyncHandler(async (req: Request, res: Respon
   const {
     firstName, lastName, email, phone, type, message,
     packageName, destination, travelDate, travellerCount, budget,
+    adultCount, childCount, infantCount,
     tags, channel, assignedTo, priority: manualPriority, departureId,
   } = req.body;
 
@@ -176,10 +187,17 @@ export const manualCreateEnquiry = asyncHandler(async (req: Request, res: Respon
     },
   ];
 
-  if (destination || travelDate || travellerCount || budget) {
+  const totalPax = travellerCount ?? ((Number(adultCount) || 0) + (Number(childCount) || 0) + (Number(infantCount) || 0) || undefined);
+  const paxParts: string[] = [];
+  if (adultCount) paxParts.push(`${adultCount} Adult${Number(adultCount) === 1 ? '' : 's'}`);
+  if (childCount) paxParts.push(`${childCount} Child${Number(childCount) === 1 ? '' : 'ren'}`);
+  if (infantCount) paxParts.push(`${infantCount} Infant${Number(infantCount) === 1 ? '' : 's'}`);
+  const paxBreakdown = paxParts.length > 0 ? ` (${paxParts.join(', ')})` : '';
+
+  if (destination || travelDate || totalPax || budget) {
     const details = [
       destination ? `Destination: ${destination}` : null,
-      travellerCount ? `Travellers: ${travellerCount} pax` : null,
+      totalPax ? `Travellers: ${totalPax} pax${paxBreakdown}` : null,
       budget ? `Budget: ₹${Number(budget).toLocaleString('en-IN')}` : null,
       travelDate ? `Travel Date: ${new Date(travelDate).toLocaleDateString('en-IN')}` : null,
     ].filter(Boolean).join(' • ');
@@ -191,7 +209,7 @@ export const manualCreateEnquiry = asyncHandler(async (req: Request, res: Respon
       by: req.user?._id,
       byName: creatorName,
       date: new Date(Date.now() + 100),
-      meta: { destination, travelDate, travellerCount, budget },
+      meta: { destination, travelDate, travellerCount: totalPax, adultCount, childCount, infantCount, budget },
     });
   }
 
@@ -236,7 +254,10 @@ export const manualCreateEnquiry = asyncHandler(async (req: Request, res: Respon
     packageName,
     destination,
     travelDate,
-    travellerCount,
+    travellerCount: totalPax,
+    adultCount: adultCount ? Number(adultCount) : undefined,
+    childCount: childCount ? Number(childCount) : undefined,
+    infantCount: infantCount ? Number(infantCount) : undefined,
     budget,
     departureId,
     tags: tags || [],
@@ -449,6 +470,9 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
   const prevAssignedTo = enquiry.assignedTo ? String(enquiry.assignedTo) : undefined;
   const prevDestination = enquiry.destination;
   const prevTravellerCount = enquiry.travellerCount;
+  const prevAdultCount = enquiry.adultCount;
+  const prevChildCount = enquiry.childCount;
+  const prevInfantCount = enquiry.infantCount;
   const prevBudget = enquiry.budget;
   const prevTravelDate = enquiry.travelDate ? new Date(enquiry.travelDate).toISOString() : undefined;
   const prevTags = [...(enquiry.tags || [])];
@@ -562,7 +586,14 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
     }
   }
   if (req.body.followUpNotes !== undefined) enquiry.followUpNotes = req.body.followUpNotes;
-  if (req.body.travellerCount !== undefined) enquiry.travellerCount = req.body.travellerCount;
+  if (req.body.adultCount !== undefined) enquiry.adultCount = req.body.adultCount;
+  if (req.body.childCount !== undefined) enquiry.childCount = req.body.childCount;
+  if (req.body.infantCount !== undefined) enquiry.infantCount = req.body.infantCount;
+  if (req.body.travellerCount !== undefined) {
+    enquiry.travellerCount = req.body.travellerCount;
+  } else if (req.body.adultCount !== undefined || req.body.childCount !== undefined || req.body.infantCount !== undefined) {
+    enquiry.travellerCount = (enquiry.adultCount || 0) + (enquiry.childCount || 0) + (enquiry.infantCount || 0);
+  }
   if (req.body.budget !== undefined) enquiry.budget = req.body.budget;
   if (req.body.tags !== undefined) enquiry.tags = req.body.tags;
   if (req.body.channel !== undefined) enquiry.channel = req.body.channel;
@@ -603,7 +634,19 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
   // ── Trip Requirements changes ─────────────────────────────────────────────
   const reqDiffs: string[] = [];
   if (req.body.destination !== undefined && req.body.destination !== prevDestination) reqDiffs.push(`Destination: ${req.body.destination}`);
-  if (req.body.travellerCount !== undefined && req.body.travellerCount !== prevTravellerCount) reqDiffs.push(`Travellers: ${req.body.travellerCount} pax`);
+  if (
+    (req.body.travellerCount !== undefined && req.body.travellerCount !== prevTravellerCount) ||
+    (req.body.adultCount !== undefined && req.body.adultCount !== prevAdultCount) ||
+    (req.body.childCount !== undefined && req.body.childCount !== prevChildCount) ||
+    (req.body.infantCount !== undefined && req.body.infantCount !== prevInfantCount)
+  ) {
+    const parts: string[] = [];
+    if (enquiry.adultCount != null) parts.push(`${enquiry.adultCount} Adult${enquiry.adultCount === 1 ? '' : 's'}`);
+    if (enquiry.childCount != null && enquiry.childCount > 0) parts.push(`${enquiry.childCount} Child${enquiry.childCount === 1 ? '' : 'ren'}`);
+    if (enquiry.infantCount != null && enquiry.infantCount > 0) parts.push(`${enquiry.infantCount} Infant${enquiry.infantCount === 1 ? '' : 's'}`);
+    const details = parts.length > 0 ? ` (${parts.join(', ')})` : '';
+    reqDiffs.push(`Travellers: ${enquiry.travellerCount ?? 0} pax${details}`);
+  }
   if (req.body.budget !== undefined && req.body.budget !== prevBudget) reqDiffs.push(`Budget: ₹${Number(req.body.budget).toLocaleString('en-IN')}`);
   if (req.body.travelDate !== undefined && (req.body.travelDate ? new Date(req.body.travelDate).toISOString() : undefined) !== prevTravelDate) {
     reqDiffs.push(`Travel Date: ${req.body.travelDate ? new Date(req.body.travelDate).toLocaleDateString('en-IN') : 'Cleared'}`);
