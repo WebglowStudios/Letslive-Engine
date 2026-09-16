@@ -156,6 +156,7 @@ export interface IPackage extends Document {
     balanceDueDays?: number;            // days before travel by which balance must be paid
   };
   imageMap?: Record<string, string>;
+  preparedBy?: string;
   createdAt: Date;
   updatedAt: Date;
 }

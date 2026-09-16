@@ -133,16 +133,24 @@ export const getPackageBySlug = asyncHandler(async (req: Request, res: Response)
   const param = req.params.slug as string;
 
   // Try by slug first, then by _id
-  let pkg = await Package.findOne({ slug: param }).populate(
-    'destination',
-    'name slug country region'
-  );
+  let pkg = await Package.findOne({ slug: param })
+    .populate('destination', 'name slug country region')
+    .populate('createdBy', 'firstName lastName email')
+    .populate({
+      path: 'enquiryId',
+      select: 'assignedTo',
+      populate: { path: 'assignedTo', select: 'firstName lastName email' },
+    });
 
   if (!pkg && param.match(/^[0-9a-fA-F]{24}$/)) {
-    pkg = await Package.findById(param).populate(
-      'destination',
-      'name slug country region'
-    );
+    pkg = await Package.findById(param)
+      .populate('destination', 'name slug country region')
+      .populate('createdBy', 'firstName lastName email')
+      .populate({
+        path: 'enquiryId',
+        select: 'assignedTo',
+        populate: { path: 'assignedTo', select: 'firstName lastName email' },
+      });
   }
 
   if (!pkg) {
@@ -177,6 +185,19 @@ export const getPackageBySlug = asyncHandler(async (req: Request, res: Response)
 
   const pkgObj = pkg.toObject();
   pkgObj.imageMap = imageMap;
+
+  // Resolve handler/preparedBy name from enquiry assignment or creator
+  let handlerName = '';
+  const enquiryAssigned = (pkgObj.enquiryId as any)?.assignedTo;
+  if (enquiryAssigned) {
+    handlerName = `${enquiryAssigned.firstName || ''} ${enquiryAssigned.lastName || ''}`.trim() || enquiryAssigned.name || '';
+  } else if (pkgObj.createdBy) {
+    const creator = pkgObj.createdBy as any;
+    handlerName = `${creator.firstName || ''} ${creator.lastName || ''}`.trim() || creator.name || '';
+  }
+  if (handlerName) {
+    pkgObj.preparedBy = handlerName;
+  }
 
   res.status(200).json({
     status: 'success',
