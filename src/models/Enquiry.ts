@@ -62,7 +62,8 @@ export interface IEnquiry extends Document {
   assignedTo?: mongoose.Types.ObjectId;
   notes: INote[];
   timeline: ITimelineEvent[];
-  source: 'website' | 'whatsapp' | 'phone' | 'walk-in' | 'instagram' | 'google' | 'referral' | 'other';
+  source: 'website' | 'whatsapp' | 'phone' | 'walk-in' | 'instagram' | 'facebook' | 'google' | 'referral' | 'other';
+  externalLeadId?: string;                     // External lead identifier (e.g., Meta Lead ID or CSV lead ID)
   // ─── CRM fields ───────────────────────────────────────────────────────────
   dnpCount: number;                            // 0–6+, incremented each unanswered call attempt
   followUpDate?: Date;                         // Scheduled next contact date
@@ -138,9 +139,10 @@ const enquirySchema = new Schema<IEnquiry>(
         meta: { type: Schema.Types.Mixed },
       },
     ],
+    externalLeadId: { type: String, sparse: true, index: true },
     source: {
       type: String,
-      enum: ['website', 'whatsapp', 'phone', 'walk-in', 'instagram', 'google', 'referral', 'other'],
+      enum: ['website', 'whatsapp', 'phone', 'walk-in', 'instagram', 'facebook', 'google', 'referral', 'other'],
       default: 'website',
     },
 
@@ -163,7 +165,7 @@ const enquirySchema = new Schema<IEnquiry>(
     tags: [{ type: String }],
     channel: {
       type: String,
-      enum: ['instagram', 'google', 'referral', 'repeat', 'walk-in', 'website', 'whatsapp', 'phone', 'other'],
+      enum: ['instagram', 'facebook', 'google', 'referral', 'repeat', 'walk-in', 'website', 'whatsapp', 'phone', 'other'],
     },
     callLog: [
       {
@@ -191,6 +193,7 @@ const enquirySchema = new Schema<IEnquiry>(
 );
 
 // CRM-specific indexes for fast queries
+enquirySchema.index({ externalLeadId: 1 });
 enquirySchema.index({ followUpDate: 1, status: 1 });
 enquirySchema.index({ assignedTo: 1, status: 1 });
 enquirySchema.index({ dnpCount: 1 });

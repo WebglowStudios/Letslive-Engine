@@ -11,6 +11,7 @@ import {
   getEnquiryStats,
   getFollowUpsToday,
   exportEnquiries,
+  importEnquiries,
   sendBookingLinkHandler,
   deleteEnquiry,
   getCustomerEnquiries,
@@ -56,6 +57,9 @@ router.get('/stats', protect, requirePermission('enquiries.view'), getEnquirySta
 
 // Export to CSV
 router.get('/export', protect, requirePermission('enquiries.view'), exportEnquiries);
+
+// Import from CSV
+router.post('/import', protect, requirePermission('enquiries.respond'), importEnquiries);
 
 // Bulk actions (reassign / close / mark follow-up)
 router.post('/bulk', protect, requirePermission('enquiries.respond'), bulkUpdateEnquiries);

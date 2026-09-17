@@ -1402,3 +1402,356 @@ export const submitEnquiryFeedback = asyncHandler(async (req: Request, res: Resp
     data: enquiry.feedback,
   });
 });
+
+// @desc    Import enquiries via CSV (bulk import with duplicate ID skipping & Meta Ads parser support)
+// @route   POST /api/enquiries/import
+export const importEnquiries = asyncHandler(async (req: Request, res: Response) => {
+  const {
+    leads = [],
+    defaultAssignedTo,
+    defaultChannel,
+    defaultSource,
+    skipDuplicates = true,
+    skipTestLeads = true,
+  } = req.body;
+
+  if (!Array.isArray(leads) || leads.length === 0) {
+    throw new AppError('No leads provided for import', 400);
+  }
+
+  // Pre-fetch assigned staff info if assigned
+  let assignedStaffName = 'Staff';
+  let assignedStaffId: mongoose.Types.ObjectId | undefined = undefined;
+  if (defaultAssignedTo) {
+    const staffDoc = await User.findById(defaultAssignedTo).select('firstName lastName email');
+    if (staffDoc) {
+      assignedStaffId = staffDoc._id;
+      assignedStaffName = `${staffDoc.firstName} ${staffDoc.lastName || ''}`.trim();
+    }
+  }
+
+  const creatorName = req.user ? `${req.user.firstName} ${req.user.lastName || ''}`.trim() : 'Admin';
+
+  // 1. Collect all non-empty externalLeadIds from the incoming batch
+  const incomingExternalIds = leads
+    .map((l: any) => (l.externalLeadId || l.id || l.leadId || '').toString().trim())
+    .filter((id: string) => id.length > 0);
+
+  // 2. Query database for existing externalLeadIds
+  let existingExternalIdsSet = new Set<string>();
+  if (incomingExternalIds.length > 0) {
+    const existingLeadDocs = await Enquiry.find({
+      externalLeadId: { $in: incomingExternalIds },
+    })
+      .select('externalLeadId')
+      .lean();
+
+    existingExternalIdsSet = new Set(
+      existingLeadDocs.map((doc: any) => doc.externalLeadId?.toString().trim()).filter(Boolean)
+    );
+  }
+
+  // Also pre-fetch existing phones/emails for duplicate detection if skipDuplicates is enabled
+  let existingPhonesSet = new Set<string>();
+  let existingEmailsSet = new Set<string>();
+  if (skipDuplicates) {
+    const incomingPhones = leads
+      .map((l: any) => (l.phone || l.phone_number || '').toString().replace(/\D/g, '').slice(-10))
+      .filter((p: string) => p.length >= 7);
+
+    const incomingEmails = leads
+      .map((l: any) => (l.email || '').toString().toLowerCase().trim())
+      .filter((e: string) => e.length > 0 && !e.includes('meta.com'));
+
+    if (incomingPhones.length > 0 || incomingEmails.length > 0) {
+      const orConditions: any[] = [];
+      if (incomingPhones.length > 0) {
+        orConditions.push({ phone: { $in: incomingPhones.map((p: string) => new RegExp(`${p}$`)) } });
+      }
+      if (incomingEmails.length > 0) {
+        orConditions.push({ email: { $in: incomingEmails } });
+      }
+
+      if (orConditions.length > 0) {
+        const existingContacts = await Enquiry.find({ $or: orConditions })
+          .select('phone email')
+          .lean();
+
+        existingContacts.forEach((doc: any) => {
+          if (doc.phone) {
+            const digits = doc.phone.replace(/\D/g, '').slice(-10);
+            if (digits) existingPhonesSet.add(digits);
+          }
+          if (doc.email) {
+            existingEmailsSet.add(doc.email.toLowerCase().trim());
+          }
+        });
+      }
+    }
+  }
+
+  const seenExternalIdsInBatch = new Set<string>();
+  const seenPhonesInBatch = new Set<string>();
+  const seenEmailsInBatch = new Set<string>();
+
+  let importedCount = 0;
+  let duplicatesSkipped = 0;
+  let testLeadsSkipped = 0;
+  const errorList: { row: number; reason: string; lead?: any }[] = [];
+  const createdEnquiries: any[] = [];
+
+  for (let index = 0; index < leads.length; index++) {
+    const lead = leads[index];
+    const rowNum = index + 1;
+
+    // Check if test lead
+    const isTest =
+      lead.isTestLead ||
+      lead.lead_status === 'test' ||
+      (lead.email && lead.email.toLowerCase().includes('test@meta.com')) ||
+      (lead.full_name && lead.full_name.includes('<test lead')) ||
+      (lead.firstName && lead.firstName.includes('<test lead')) ||
+      (lead.phone && lead.phone.includes('<test lead')) ||
+      (lead.phone_number && lead.phone_number.includes('<test lead'));
+
+    if (skipTestLeads && isTest) {
+      testLeadsSkipped++;
+      continue;
+    }
+
+    // Resolve external lead ID
+    const rawExternalId = (lead.externalLeadId || lead.id || lead.leadId || '').toString().trim();
+
+    // DUPLICATE ID CHECK: If ID already exists in MongoDB, skip row
+    if (rawExternalId) {
+      if (existingExternalIdsSet.has(rawExternalId) || seenExternalIdsInBatch.has(rawExternalId)) {
+        duplicatesSkipped++;
+        continue;
+      }
+      seenExternalIdsInBatch.add(rawExternalId);
+    }
+
+    // Clean phone number (strip 'p:' prefix commonly added by Meta Lead Ads)
+    let rawPhone = (lead.phone || lead.phone_number || '').toString().trim();
+    if (rawPhone.startsWith('p:')) {
+      rawPhone = rawPhone.substring(2).trim();
+    }
+    const phoneDigits = rawPhone.replace(/\D/g, '').slice(-10);
+
+    // Duplicate check by phone or email
+    if (skipDuplicates) {
+      const emailLower = (lead.email || '').toString().toLowerCase().trim();
+      if (phoneDigits && (existingPhonesSet.has(phoneDigits) || seenPhonesInBatch.has(phoneDigits))) {
+        duplicatesSkipped++;
+        continue;
+      }
+      if (emailLower && emailLower !== 'test@meta.com' && (existingEmailsSet.has(emailLower) || seenEmailsInBatch.has(emailLower))) {
+        duplicatesSkipped++;
+        continue;
+      }
+
+      if (phoneDigits) seenPhonesInBatch.add(phoneDigits);
+      if (emailLower) seenEmailsInBatch.add(emailLower);
+    }
+
+    // Extract names
+    let firstName = (lead.firstName || '').toString().trim();
+    let lastName = (lead.lastName || '').toString().trim();
+
+    if (!firstName && (lead.full_name || lead.name)) {
+      const fullName = (lead.full_name || lead.name).toString().trim();
+      const parts = fullName.split(/\s+/);
+      firstName = parts[0] || '';
+      lastName = parts.slice(1).join(' ') || '';
+    }
+
+    // Validate minimum requirements
+    if (!firstName && !rawPhone) {
+      errorList.push({ row: rowNum, reason: 'Missing both name and phone number', lead });
+      continue;
+    }
+
+    if (!firstName) {
+      firstName = rawPhone ? `Lead ${rawPhone.slice(-4)}` : 'Valued Customer';
+    }
+
+    if (!rawPhone) {
+      errorList.push({ row: rowNum, reason: 'Missing phone number', lead });
+      continue;
+    }
+
+    // Ensure email is valid and present (schema requirement)
+    let email = (lead.email || '').toString().trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      const safeId = rawExternalId ? rawExternalId.replace(/[^a-zA-Z0-9]/g, '') : phoneDigits;
+      email = `lead_${safeId || Date.now()}@imported.letslivetours.com`;
+    }
+
+    // Destination formatting
+    let destination = (
+      lead.destination ||
+      lead['which_destination_are_you_interested_in?'] ||
+      lead.which_destination_are_you_interested_in ||
+      ''
+    ).toString().trim();
+
+    if (destination === 'not_decided_yet') {
+      destination = 'Not Decided Yet';
+    } else if (destination.length > 0 && !destination.includes('<test')) {
+      // Capitalize words in slug (e.g., "rajasthan" -> "Rajasthan")
+      destination = destination
+        .split(/[_\s]+/)
+        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ');
+    } else if (destination.includes('<test')) {
+      destination = '';
+    }
+
+    // Determine platform / source / channel
+    const platformRaw = (lead.platform || lead.source || lead.channel || '').toString().toLowerCase().trim();
+    let resolvedSource: 'website' | 'whatsapp' | 'phone' | 'walk-in' | 'instagram' | 'facebook' | 'google' | 'referral' | 'other' = 'other';
+    let resolvedChannel = defaultChannel || 'other';
+
+    if (platformRaw === 'ig' || platformRaw.includes('instagram')) {
+      resolvedSource = 'instagram';
+      resolvedChannel = 'instagram';
+    } else if (platformRaw === 'fb' || platformRaw.includes('facebook')) {
+      resolvedSource = 'facebook';
+      resolvedChannel = 'facebook';
+    } else if (platformRaw.includes('google')) {
+      resolvedSource = 'google';
+      resolvedChannel = 'google';
+    } else if (platformRaw.includes('website')) {
+      resolvedSource = 'website';
+      resolvedChannel = 'website';
+    } else if (platformRaw.includes('whatsapp')) {
+      resolvedSource = 'whatsapp';
+      resolvedChannel = 'whatsapp';
+    } else if (defaultSource && ['website', 'whatsapp', 'phone', 'walk-in', 'instagram', 'facebook', 'google', 'referral', 'other'].includes(defaultSource)) {
+      resolvedSource = defaultSource as any;
+    }
+
+    // Campaign details and tags
+    const campaignName = (lead.campaign_name || lead.campaignName || '').toString().trim();
+    const adName = (lead.ad_name || lead.adName || '').toString().trim();
+    const formName = (lead.form_name || lead.formName || '').toString().trim();
+    const state = (lead.state || '').toString().trim();
+
+    const tags: string[] = Array.isArray(lead.tags) ? [...lead.tags] : [];
+    tags.push('csv-import');
+    if (resolvedChannel) tags.push(resolvedChannel);
+    if (campaignName && !tags.includes(campaignName)) tags.push(campaignName);
+    if (formName && !tags.includes(formName)) tags.push(formName);
+
+    // Build message
+    const messageParts: string[] = [];
+    if (lead.message) messageParts.push(lead.message);
+    if (campaignName) messageParts.push(`Campaign: ${campaignName}`);
+    if (adName) messageParts.push(`Ad: ${adName}`);
+    if (formName) messageParts.push(`Form: ${formName}`);
+    if (state && !state.includes('<test')) messageParts.push(`State: ${state}`);
+    const message = messageParts.join(' | ');
+
+    // Timeline creation
+    const timeline: any[] = [
+      {
+        type: 'acquisition',
+        title: `Lead imported via CSV (${resolvedChannel})`,
+        description: `Ingested by ${creatorName}${campaignName ? ` • Campaign: ${campaignName}` : ''}${rawExternalId ? ` • Lead ID: ${rawExternalId}` : ''}`,
+        by: req.user?._id,
+        byName: creatorName,
+        date: lead.created_time ? new Date(lead.created_time) : new Date(),
+        meta: {
+          externalLeadId: rawExternalId || undefined,
+          campaignName: campaignName || undefined,
+          adName: adName || undefined,
+          formName: formName || undefined,
+          source: resolvedSource,
+          channel: resolvedChannel,
+          platform: lead.platform,
+        },
+      },
+    ];
+
+    if (destination) {
+      timeline.push({
+        type: 'requirements',
+        title: 'Trip interest recorded',
+        description: `Destination: ${destination}`,
+        by: req.user?._id,
+        byName: creatorName,
+        date: new Date(Date.now() + 100),
+        meta: { destination },
+      });
+    }
+
+    if (assignedStaffId) {
+      timeline.push({
+        type: 'assignment',
+        title: `Assigned to ${assignedStaffName}`,
+        description: `Assigned during CSV bulk import by ${creatorName}`,
+        by: req.user?._id,
+        byName: creatorName,
+        date: new Date(Date.now() + 200),
+      });
+    }
+
+    try {
+      const newEnquiry = await Enquiry.create({
+        firstName,
+        lastName: lastName || undefined,
+        email,
+        phone: rawPhone,
+        destination: destination || undefined,
+        message: message || undefined,
+        source: resolvedSource,
+        channel: resolvedChannel,
+        status: assignedStaffId ? 'assigned' : 'new',
+        priority: 'medium',
+        assignedTo: assignedStaffId,
+        externalLeadId: rawExternalId || undefined,
+        tags: Array.from(new Set(tags)),
+        timeline,
+        createdAt: lead.created_time && !isNaN(new Date(lead.created_time).getTime()) ? new Date(lead.created_time) : new Date(),
+      });
+
+      importedCount++;
+      createdEnquiries.push(newEnquiry._id);
+    } catch (err: any) {
+      errorList.push({
+        row: rowNum,
+        reason: err.message || 'Failed to save lead to database',
+        lead: { firstName, phone: rawPhone, email },
+      });
+    }
+  }
+
+  // Activity log for audit trail
+  if (importedCount > 0) {
+    logActivity({
+      req,
+      action: 'create',
+      entity: 'enquiry',
+      description: `Imported ${importedCount} leads via CSV (${duplicatesSkipped} duplicates skipped, ${testLeadsSkipped} test leads skipped)`,
+      meta: {
+        total: leads.length,
+        importedCount,
+        duplicatesSkipped,
+        testLeadsSkipped,
+        errorCount: errorList.length,
+        assignedTo: defaultAssignedTo,
+      },
+    }).catch(console.error);
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      total: leads.length,
+      imported: importedCount,
+      duplicatesSkipped,
+      testLeadsSkipped,
+      errors: errorList,
+    },
+  });
+});
