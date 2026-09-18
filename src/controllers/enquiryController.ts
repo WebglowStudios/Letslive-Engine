@@ -553,18 +553,11 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
   if (req.body.source        !== undefined) enquiry.source        = req.body.source;
   if (req.body.departureId   !== undefined) enquiry.departureId   = req.body.departureId;
 
-  // ── Sync contact changes to linked User account (if one exists) ────────────
-  const hasContactChange = ['firstName', 'lastName', 'email', 'phone'].some(
-    (f) => req.body[f] !== undefined
-  );
-  if (hasContactChange && enquiry.user) {
-    const userUpdate: Record<string, string> = {};
-    if (req.body.firstName !== undefined) userUpdate.firstName = req.body.firstName;
-    if (req.body.lastName  !== undefined) userUpdate.lastName  = req.body.lastName || '';
-    if (req.body.email     !== undefined) userUpdate.email     = req.body.email.toLowerCase().trim();
-    if (req.body.phone     !== undefined) userUpdate.phone     = req.body.phone;
-    await User.findByIdAndUpdate(enquiry.user, userUpdate).catch(console.error);
-  }
+  // NOTE: Enquiry contact fields (firstName, email, phone, etc.) are intentionally
+  // NOT synced back to the linked User account. The enquiry document is lead-capture
+  // data that belongs to the CRM; the User document controls login credentials and
+  // account identity. Auto-propagating enquiry edits to user accounts would allow
+  // accidental or malicious mutation of customer/admin account details.
 
   // ── Status changes ─────────────────────────────────────────────────────────
   if (req.body.status) enquiry.status = req.body.status;

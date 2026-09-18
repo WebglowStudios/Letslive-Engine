@@ -61,10 +61,15 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
 
     userId = user._id;
 
-    // Implicitly log the user in so subsequent /create-order calls work
-    const accessToken = generateAccessToken(String(userId));
-    const refreshToken = generateRefreshToken(String(userId));
-    setTokenCookies(res, accessToken, refreshToken);
+    // Only issue session cookies for true public guest checkouts.
+    // If this request already carries an authenticated user (admin/staff acting
+    // on behalf of a customer), NEVER overwrite their session — that would be a
+    // session-hijack / account-switch vulnerability.
+    if (!req.user) {
+      const accessToken = generateAccessToken(String(userId));
+      const refreshToken = generateRefreshToken(String(userId));
+      setTokenCookies(res, accessToken, refreshToken);
+    }
   }
 
   const { package: packageId, travellers } = req.body;
