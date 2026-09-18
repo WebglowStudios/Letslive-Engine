@@ -57,7 +57,20 @@ export interface IEnquiry extends Document {
   package?: mongoose.Types.ObjectId;
   departureId?: mongoose.Types.ObjectId;   // Links to a specific group tour departure
   user?: mongoose.Types.ObjectId;          // Linked customer account (if created)
-  status: 'new' | 'assigned' | 'in-progress' | 'follow-up' | 'converted' | 'resolved' | 'closed';
+  status:
+    | 'new'
+    | 'begin'
+    | 'assigned'
+    | 'responded'
+    | 'dnp'
+    | 'busy'
+    | 'callback-scheduled'
+    | 'in-progress'
+    | 'follow-up'
+    | 'whatsapp-sent'
+    | 'converted'
+    | 'resolved'
+    | 'closed';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   assignedTo?: mongoose.Types.ObjectId;
   notes: INote[];
@@ -110,9 +123,22 @@ const enquirySchema = new Schema<IEnquiry>(
     departureId: { type: Schema.Types.ObjectId }, // Internal ref to package.departures._id
     user: { type: Schema.Types.ObjectId, ref: 'User' },   // linked customer account
     status: {
-
       type: String,
-      enum: ['new', 'assigned', 'in-progress', 'follow-up', 'converted', 'resolved', 'closed'],
+      enum: [
+        'new',
+        'begin',
+        'assigned',
+        'responded',
+        'dnp',
+        'busy',
+        'callback-scheduled',
+        'in-progress',
+        'follow-up',
+        'whatsapp-sent',
+        'converted',
+        'resolved',
+        'closed',
+      ],
       default: 'new',
     },
     priority: {

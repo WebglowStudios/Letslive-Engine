@@ -359,7 +359,26 @@ export const getMyEnquiries = asyncHandler(async (req: Request, res: Response) =
   const skip = (page - 1) * limit;
 
   const filter: Record<string, unknown> = { assignedTo: userId };
-  if (req.query.status) filter.status = req.query.status;
+  if (req.query.status && req.query.status !== 'all') {
+    if (req.query.status === 'new' || req.query.status === 'begin') {
+      filter.status = { $in: ['new', 'begin'] };
+    } else {
+      filter.status = req.query.status;
+    }
+  }
+
+  if (req.query.dnp) {
+    const dnpVal = String(req.query.dnp).toLowerCase().trim();
+    if (dnpVal === 'any' || dnpVal === 'all' || dnpVal === 'true') {
+      filter.dnpCount = { $gt: 0 };
+    } else if (dnpVal === '6+' || dnpVal === '6plus') {
+      filter.dnpCount = { $gte: 6 };
+    } else if (dnpVal === '0' || dnpVal === 'none') {
+      filter.dnpCount = { $in: [0, null] };
+    } else if (!isNaN(Number(dnpVal))) {
+      filter.dnpCount = Number(dnpVal);
+    }
+  }
 
   const [enquiries, total] = await Promise.all([
     Enquiry.find(filter)
@@ -390,7 +409,26 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
   const skip = (page - 1) * limit;
 
   const filter: Record<string, unknown> = {};
-  if (req.query.status) filter.status = req.query.status;
+  if (req.query.status && req.query.status !== 'all') {
+    if (req.query.status === 'new' || req.query.status === 'begin') {
+      filter.status = { $in: ['new', 'begin'] };
+    } else {
+      filter.status = req.query.status;
+    }
+  }
+
+  if (req.query.dnp) {
+    const dnpVal = String(req.query.dnp).toLowerCase().trim();
+    if (dnpVal === 'any' || dnpVal === 'all' || dnpVal === 'true') {
+      filter.dnpCount = { $gt: 0 };
+    } else if (dnpVal === '6+' || dnpVal === '6plus') {
+      filter.dnpCount = { $gte: 6 };
+    } else if (dnpVal === '0' || dnpVal === 'none') {
+      filter.dnpCount = { $in: [0, null] };
+    } else if (!isNaN(Number(dnpVal))) {
+      filter.dnpCount = Number(dnpVal);
+    }
+  }
   if (req.query.type) filter.type = req.query.type;
   
   const fullAccessRoles = ['admin', 'manager', 'sales-manager'];
@@ -810,7 +848,7 @@ export const logCall = asyncHandler(async (req: Request, res: Response) => {
     enquiry.followUpDate = parsedCallbackDate;
     enquiry.followUpNotes = notes ? `Callback: ${notes}` : 'Customer requested callback';
     if (enquiry.status !== 'converted' && enquiry.status !== 'closed' && enquiry.status !== 'resolved') {
-      enquiry.status = 'follow-up';
+      enquiry.status = 'callback-scheduled';
     }
   }
 
@@ -826,18 +864,39 @@ export const logCall = asyncHandler(async (req: Request, res: Response) => {
 
   const prevDnp = enquiry.dnpCount;
 
-  // DNP logic: increment counter and move to follow-up
+  // DNP logic: increment counter and set status to 'dnp'
   if (outcome === 'dnp') {
     enquiry.dnpCount = (enquiry.dnpCount || 0) + 1;
-    if (enquiry.status === 'assigned' || enquiry.status === 'in-progress') {
-      enquiry.status = 'follow-up';
+    if (enquiry.status !== 'converted' && enquiry.status !== 'closed' && enquiry.status !== 'resolved') {
+      enquiry.status = 'dnp';
     }
   }
 
-  // Answered: record contact time, move back from follow-up to in-progress
+  // Answered: record contact time, set status to 'responded'
   if (outcome === 'answered') {
     enquiry.lastContactedAt = new Date();
-    if (enquiry.status === 'follow-up') {
+    if (enquiry.status !== 'converted' && enquiry.status !== 'closed' && enquiry.status !== 'resolved') {
+      enquiry.status = 'responded';
+    }
+  }
+
+  // Busy: set status to 'busy'
+  if (outcome === 'busy') {
+    if (enquiry.status !== 'converted' && enquiry.status !== 'closed' && enquiry.status !== 'resolved') {
+      enquiry.status = 'busy';
+    }
+  }
+
+  // WhatsApp sent: set status to 'whatsapp-sent'
+  if (outcome === 'whatsapp-sent') {
+    if (enquiry.status !== 'converted' && enquiry.status !== 'closed' && enquiry.status !== 'resolved' && enquiry.status !== 'responded') {
+      enquiry.status = 'whatsapp-sent';
+    }
+  }
+
+  // Email sent
+  if (outcome === 'email-sent') {
+    if (enquiry.status !== 'converted' && enquiry.status !== 'closed' && enquiry.status !== 'resolved' && enquiry.status !== 'responded') {
       enquiry.status = 'in-progress';
     }
   }
@@ -1187,7 +1246,26 @@ export const getFollowUpsToday = asyncHandler(async (req: Request, res: Response
 // @route   GET /api/enquiries/export
 export const exportEnquiries = asyncHandler(async (req: Request, res: Response) => {
   const filter: Record<string, unknown> = {};
-  if (req.query.status) filter.status = req.query.status;
+  if (req.query.status && req.query.status !== 'all') {
+    if (req.query.status === 'new' || req.query.status === 'begin') {
+      filter.status = { $in: ['new', 'begin'] };
+    } else {
+      filter.status = req.query.status;
+    }
+  }
+
+  if (req.query.dnp) {
+    const dnpVal = String(req.query.dnp).toLowerCase().trim();
+    if (dnpVal === 'any' || dnpVal === 'all' || dnpVal === 'true') {
+      filter.dnpCount = { $gt: 0 };
+    } else if (dnpVal === '6+' || dnpVal === '6plus') {
+      filter.dnpCount = { $gte: 6 };
+    } else if (dnpVal === '0' || dnpVal === 'none') {
+      filter.dnpCount = { $in: [0, null] };
+    } else if (!isNaN(Number(dnpVal))) {
+      filter.dnpCount = Number(dnpVal);
+    }
+  }
   if (req.user?.role !== 'admin') {
     filter.assignedTo = req.user?._id;
   } else if (req.query.assignedTo) {
