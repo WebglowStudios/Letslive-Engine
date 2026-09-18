@@ -193,7 +193,6 @@ const enquirySchema = new Schema<IEnquiry>(
 );
 
 // CRM-specific indexes for fast queries
-enquirySchema.index({ externalLeadId: 1 });
 enquirySchema.index({ followUpDate: 1, status: 1 });
 enquirySchema.index({ assignedTo: 1, status: 1 });
 enquirySchema.index({ dnpCount: 1 });

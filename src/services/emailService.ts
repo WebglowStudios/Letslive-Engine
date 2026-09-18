@@ -90,12 +90,16 @@ export async function sendEmail({ to, subject, html }: SendEmailOptions): Promis
     return;
   }
 
-  await transporter.sendMail({
-    from: `"LetsLive Tours" <${env.SMTP_USER}>`,
-    to,
-    subject,
-    html,
-  });
+  try {
+    await transporter.sendMail({
+      from: `"LetsLive Tours" <${env.SMTP_USER}>`,
+      to,
+      subject,
+      html,
+    });
+  } catch (error: any) {
+    console.error(`[EMAIL ERROR] Could not send email to ${to} ("${subject}"):`, error?.message || error);
+  }
 }
 
 // ─── Customer Emails ─────────────────────────────────────────────────────────

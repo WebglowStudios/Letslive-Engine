@@ -666,22 +666,21 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
     enquiry.assignedTo = req.body.assignedTo;
     if (enquiry.status === 'new') enquiry.status = 'assigned';
 
-    // Notify the newly assigned staff member (fire-and-forget)
-    User.findById(req.body.assignedTo).then((staffMember) => {
+    if (isNewAssignment) {
+      const staffMember = await User.findById(req.body.assignedTo);
       if (staffMember) {
         const targetStaffName = `${staffMember.firstName} ${staffMember.lastName || ''}`.trim();
-        if (isNewAssignment) {
-          enquiry.timeline.push({
-            type: 'assignment',
-            title: `Lead assigned to ${targetStaffName}`,
-            description: `Assigned by ${actorName}`,
-            by: req.user!._id,
-            byName: actorName,
-            date: new Date(),
-            meta: { assignedTo: req.body.assignedTo, staffName: targetStaffName },
-          });
-          enquiry.save().catch(console.error);
-        }
+        enquiry.timeline.push({
+          type: 'assignment',
+          title: `Lead assigned to ${targetStaffName}`,
+          description: `Assigned by ${actorName}`,
+          by: req.user!._id,
+          byName: actorName,
+          date: new Date(),
+          meta: { assignedTo: req.body.assignedTo, staffName: targetStaffName },
+        });
+
+        // Notify the newly assigned staff member (fire-and-forget)
         sendStaffEnquiryAssigned(
           staffMember.email,
           staffMember.firstName,
@@ -690,7 +689,7 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
           enquiry.packageName,
         ).catch(console.error);
       }
-    }).catch(console.error);
+    }
   }
 
   // ── Trip Requirements changes ─────────────────────────────────────────────

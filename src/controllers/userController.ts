@@ -119,7 +119,7 @@ export const addToWishlist = asyncHandler(async (req: Request, res: Response) =>
   const user = await User.findByIdAndUpdate(
     req.user!._id,
     { $addToSet: { wishlist: req.params.packageId } },
-    { new: true }
+    { returnDocument: 'after' }
   ).select('-password');
 
   res.status(200).json({
