@@ -119,6 +119,7 @@ export interface IPackage extends Document {
   isFeatured: boolean;
   approvalStatus: 'pending' | 'approved' | 'rejected';
   flightsIncluded: boolean;
+  trainsIncluded: boolean;
   travellerCount?: string;
   adultCount?: number;
   childCount?: number;
@@ -286,6 +287,7 @@ const packageSchema = new Schema<IPackage>(
     ],
     badge: { type: String },
     flightsIncluded: { type: Boolean, default: false },
+    trainsIncluded: { type: Boolean, default: false },
     travellerCount: { type: String },
     adultCount: { type: Number },
     childCount: { type: Number },
