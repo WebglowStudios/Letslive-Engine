@@ -160,7 +160,12 @@ export const updateStaff = asyncHandler(async (req: Request, res: Response) => {
   if (avatar !== undefined) updateData.avatar = avatar;
   if (description !== undefined) updateData.description = description;
   if (customPermissions !== undefined && Array.isArray(customPermissions)) {
-    updateData.customPermissions = customPermissions;
+    updateData.customPermissions = customPermissions.map((cp: { permission: string; action?: string; granted?: boolean; expiresAt?: string | Date }) => ({
+      permission: cp.permission,
+      action: cp.action === 'revoke' || cp.granted === false ? 'revoke' : 'grant',
+      granted: !(cp.action === 'revoke' || cp.granted === false),
+      expiresAt: cp.expiresAt ? new Date(cp.expiresAt) : undefined,
+    }));
   }
 
   const user = await User.findById(req.params.id);

@@ -24,6 +24,8 @@ export interface IUser extends Document {
   updatedAt: Date;
   customPermissions?: {
     permission: string;
+    action?: 'grant' | 'revoke';
+    granted?: boolean;
     expiresAt?: Date;
   }[];
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -61,6 +63,8 @@ const userSchema = new Schema<IUser>(
     customPermissions: [
       {
         permission: { type: String, required: true },
+        action: { type: String, enum: ['grant', 'revoke'], default: 'grant' },
+        granted: { type: Boolean, default: true },
         expiresAt: { type: Date },
       },
     ],
