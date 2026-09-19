@@ -65,9 +65,11 @@ export interface IEnquiry extends Document {
     | 'dnp'
     | 'busy'
     | 'callback-scheduled'
+    | 'callback-requested'
     | 'in-progress'
     | 'follow-up'
     | 'whatsapp-sent'
+    | 'negotiation'
     | 'converted'
     | 'resolved'
     | 'closed';
@@ -132,9 +134,11 @@ const enquirySchema = new Schema<IEnquiry>(
         'dnp',
         'busy',
         'callback-scheduled',
+        'callback-requested',
         'in-progress',
         'follow-up',
         'whatsapp-sent',
+        'negotiation',
         'converted',
         'resolved',
         'closed',
