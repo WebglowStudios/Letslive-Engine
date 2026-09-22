@@ -9,6 +9,7 @@ import {
   logCall,
   bulkUpdateEnquiries,
   getEnquiryStats,
+  getPipelineStaffMatrix,
   getFollowUpsToday,
   exportEnquiries,
   importEnquiries,
@@ -54,6 +55,9 @@ router.get('/', protect, requirePermission('enquiries.view'), getAllEnquiries);
 
 // CRM pipeline stats / funnel metrics
 router.get('/stats', protect, requirePermission('enquiries.view'), getEnquiryStats);
+
+// Sales staff pipeline matrix / breakdown (leads per rep in DNP, Follow-Up, etc.)
+router.get('/pipeline/matrix', protect, requirePermission('enquiries.view'), getPipelineStaffMatrix);
 
 // Export to CSV
 router.get('/export', protect, requirePermission('enquiries.view'), exportEnquiries);

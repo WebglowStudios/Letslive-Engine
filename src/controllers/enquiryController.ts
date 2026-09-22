@@ -434,8 +434,12 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
   const fullAccessRoles = ['admin', 'manager', 'sales-manager'];
   if (!fullAccessRoles.includes(req.user?.role || '')) {
     filter.assignedTo = req.user?._id;
-  } else if (req.query.assignedTo) {
-    filter.assignedTo = req.query.assignedTo;
+  } else if (req.query.assignedTo && req.query.assignedTo !== 'all') {
+    if (req.query.assignedTo === 'unassigned' || req.query.assignedTo === 'none') {
+      filter.assignedTo = { $in: [null, undefined] };
+    } else {
+      filter.assignedTo = req.query.assignedTo;
+    }
   }
   if (req.query.priority) filter.priority = req.query.priority;
   if (req.query.channel) filter.channel = req.query.channel;
@@ -1210,6 +1214,235 @@ export const getEnquiryStats = asyncHandler(async (req: Request, res: Response) 
       byChannel,
       byStaff: staffData,
       followUpsDueToday,
+    },
+  });
+});
+
+// @desc    Get sales staff pipeline matrix / breakdown (leads per salesperson across statuses)
+// @route   GET /api/enquiries/pipeline/matrix
+export const getPipelineStaffMatrix = asyncHandler(async (req: Request, res: Response) => {
+  const fullAccessRoles = ['admin', 'manager', 'sales-manager'];
+  const isFullAccess = fullAccessRoles.includes(req.user?.role || '');
+
+  // 1. Fetch sales staff members
+  let staffMembers: any[] = [];
+  if (isFullAccess) {
+    staffMembers = await User.find({
+      role: { $in: ['admin', 'manager', 'sales-manager', 'sales-staff', 'staff'] },
+      isActive: { $ne: false },
+    })
+      .select('_id firstName lastName email role')
+      .sort({ firstName: 1 })
+      .lean();
+  } else {
+    staffMembers = await User.find({ _id: req.user?._id })
+      .select('_id firstName lastName email role')
+      .lean();
+  }
+
+  // 2. Active enquiries query (exclude closed & resolved from active pipeline)
+  const matchFilter: any = {
+    status: { $nin: ['closed', 'resolved'] },
+  };
+
+  if (!isFullAccess) {
+    matchFilter.assignedTo = req.user?._id;
+  }
+
+  // Optional date filter
+  if (req.query.from || req.query.to) {
+    const dateFilter: Record<string, Date> = {};
+    if (req.query.from) dateFilter.$gte = new Date(req.query.from as string);
+    if (req.query.to) dateFilter.$lte = new Date(req.query.to as string);
+    matchFilter.createdAt = dateFilter;
+  }
+
+  // 3. Aggregate by assignedTo and status
+  const aggregateResult = await Enquiry.aggregate([
+    { $match: matchFilter },
+    {
+      $group: {
+        _id: {
+          assignedTo: '$assignedTo',
+          status: '$status',
+        },
+        count: { $sum: 1 },
+        totalValue: { $sum: { $ifNull: ['$budget', '$conversionValue', 0] } },
+      },
+    },
+  ]);
+
+  // 4. Aggregate extra DNP and today's follow-up stats
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+  const extraStats = await Enquiry.aggregate([
+    { $match: matchFilter },
+    {
+      $group: {
+        _id: '$assignedTo',
+        dnpAny: { $sum: { $cond: [{ $gt: ['$dnpCount', 0] }, 1, 0] } },
+        followUpToday: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  { $ne: ['$followUpDate', null] },
+                  { $gte: ['$followUpDate', startOfDay] },
+                  { $lte: ['$followUpDate', endOfDay] },
+                ],
+              },
+              1,
+              0,
+            ],
+          },
+        },
+      },
+    },
+  ]);
+
+  const extraMap = new Map<string, { dnpAny: number; followUpToday: number }>();
+  for (const item of extraStats) {
+    const key = item._id ? item._id.toString() : 'unassigned';
+    extraMap.set(key, {
+      dnpAny: item.dnpAny || 0,
+      followUpToday: item.followUpToday || 0,
+    });
+  }
+
+  // Initialize per-staff container
+  const staffMap = new Map<string, any>();
+  for (const staff of staffMembers) {
+    const sId = staff._id.toString();
+    staffMap.set(sId, {
+      _id: sId,
+      firstName: staff.firstName,
+      lastName: staff.lastName || '',
+      fullName: `${staff.firstName} ${staff.lastName || ''}`.trim(),
+      email: staff.email,
+      role: staff.role,
+      total: 0,
+      byStatus: {
+        new: 0,
+        begin: 0,
+        assigned: 0,
+        responded: 0,
+        'in-progress': 0,
+        'follow-up': 0,
+        dnp: 0,
+        busy: 0,
+        'callback-scheduled': 0,
+        'callback-requested': 0,
+        'whatsapp-sent': 0,
+        negotiation: 0,
+        converted: 0,
+      },
+      dnpCount: 0,
+      followUpTodayCount: 0,
+      pipelineValue: 0,
+    });
+  }
+
+  // Unassigned leads bucket (visible to managers)
+  let unassignedBucket: any = null;
+  if (isFullAccess) {
+    unassignedBucket = {
+      _id: 'unassigned',
+      firstName: 'Unassigned',
+      lastName: '',
+      fullName: 'Unassigned Leads',
+      email: '',
+      role: 'unassigned',
+      total: 0,
+      byStatus: {
+        new: 0,
+        begin: 0,
+        assigned: 0,
+        responded: 0,
+        'in-progress': 0,
+        'follow-up': 0,
+        dnp: 0,
+        busy: 0,
+        'callback-scheduled': 0,
+        'callback-requested': 0,
+        'whatsapp-sent': 0,
+        negotiation: 0,
+        converted: 0,
+      },
+      dnpCount: 0,
+      followUpTodayCount: 0,
+      pipelineValue: 0,
+    };
+  }
+
+  // Distribute grouped numbers
+  for (const row of aggregateResult) {
+    const assignedId = row._id.assignedTo ? row._id.assignedTo.toString() : 'unassigned';
+    const status = row._id.status;
+    const count = row.count || 0;
+    const value = row.totalValue || 0;
+
+    let target = staffMap.get(assignedId);
+    if (!target && assignedId === 'unassigned' && unassignedBucket) {
+      target = unassignedBucket;
+    }
+
+    if (target) {
+      target.total += count;
+      target.pipelineValue += value;
+      if (target.byStatus[status] !== undefined) {
+        target.byStatus[status] += count;
+      } else {
+        target.byStatus[status] = count;
+      }
+    }
+  }
+
+  // Attach DNP and followUpToday counts
+  for (const [sId, target] of staffMap.entries()) {
+    const extra = extraMap.get(sId);
+    target.dnpCount = target.byStatus['dnp'] || extra?.dnpAny || 0;
+    target.followUpTodayCount = extra?.followUpToday || 0;
+  }
+  if (unassignedBucket) {
+    const extra = extraMap.get('unassigned');
+    unassignedBucket.dnpCount = unassignedBucket.byStatus['dnp'] || extra?.dnpAny || 0;
+    unassignedBucket.followUpTodayCount = extra?.followUpToday || 0;
+  }
+
+  const staffList = Array.from(staffMap.values());
+  // Sort staff members by active lead count descending
+  staffList.sort((a, b) => b.total - a.total);
+
+  if (unassignedBucket && unassignedBucket.total > 0) {
+    staffList.unshift(unassignedBucket);
+  }
+
+  // Overall pipeline totals across all displayed staff
+  const totals = {
+    totalLeads: staffList.reduce((acc, s) => acc + s.total, 0),
+    dnp: staffList.reduce((acc, s) => acc + (s.byStatus['dnp'] || 0), 0),
+    followUp: staffList.reduce((acc, s) => acc + (s.byStatus['follow-up'] || 0), 0),
+    inProgress: staffList.reduce((acc, s) => acc + (s.byStatus['in-progress'] || 0), 0),
+    negotiation: staffList.reduce((acc, s) => acc + (s.byStatus['negotiation'] || 0), 0),
+    converted: staffList.reduce((acc, s) => acc + (s.byStatus['converted'] || 0), 0),
+    newOrAssigned: staffList.reduce(
+      (acc, s) =>
+        acc +
+        (s.byStatus['new'] || 0) +
+        (s.byStatus['begin'] || 0) +
+        (s.byStatus['assigned'] || 0),
+      0
+    ),
+    pipelineValue: staffList.reduce((acc, s) => acc + s.pipelineValue, 0),
+  };
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      staff: staffList,
+      totals,
     },
   });
 });
