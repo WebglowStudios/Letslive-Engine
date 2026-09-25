@@ -73,15 +73,15 @@ export const getOperationById = asyncHandler(async (req: Request, res: Response)
     path: 'bookings',
     select: 'bookingId totalAmount paidAmount paymentStatus travellersDetails primaryTraveller dateChangeHistory package',
     populate: [
-      { path: 'package', select: 'name slug isCustom description itinerary adultCount childCount isInternational visaIncluded flightsIncluded trainsIncluded flights' }
+      { path: 'package', select: 'name slug isCustom description itinerary adultCount childCount isInternational visaIncluded flightsIncluded trainsIncluded hideTrainInfo flightPrice landCost flights' }
     ]
   }).populate({
     path: 'booking',
     select: 'bookingId totalAmount paidAmount paymentStatus travellersDetails primaryTraveller dateChangeHistory package',
     populate: [
-      { path: 'package', select: 'name slug isCustom description itinerary adultCount childCount isInternational visaIncluded flightsIncluded trainsIncluded flights' }
+      { path: 'package', select: 'name slug isCustom description itinerary adultCount childCount isInternational visaIncluded flightsIncluded trainsIncluded hideTrainInfo flightPrice landCost flights' }
     ]
-  }).populate('package', 'name slug description itinerary isInternational visaIncluded flightsIncluded trainsIncluded flights').populate('assignedTo', 'firstName lastName email');
+  }).populate('package', 'name slug description itinerary isInternational visaIncluded flightsIncluded trainsIncluded hideTrainInfo flightPrice landCost flights').populate('assignedTo', 'firstName lastName email');
   if (!operation) throw new AppError('Operation not found', 404);
   if ((req.user!.role === 'staff' || req.user!.role === 'ops-staff') && operation.assignedTo?.toString() !== req.user!._id.toString()) throw new AppError('Access denied', 403);
 

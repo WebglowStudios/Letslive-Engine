@@ -428,7 +428,7 @@ export const createManualBooking = asyncHandler(async (req: Request, res: Respon
 
 export const getUserBookings = asyncHandler(async (req: Request, res: Response) => {
   const bookings = await Booking.find({ user: req.user!._id })
-    .populate('package', 'name slug images duration isInternational visaIncluded flightsIncluded trainsIncluded')
+    .populate('package', 'name slug images duration isInternational visaIncluded flightsIncluded trainsIncluded hideTrainInfo')
     .populate('destination', 'name slug')
     .sort({ createdAt: -1 })
     .lean();
@@ -667,6 +667,7 @@ export const getBookingVoucherData = asyncHandler(async (req: Request, res: Resp
     visaIncluded: pkg?.visaIncluded,
     flightsIncluded: pkg?.flightsIncluded,
     trainsIncluded: pkg?.trainsIncluded,
+    hideTrainInfo: pkg?.hideTrainInfo,
     flights: pdfFlights,
     accommodations,
     transports: pdfTransports,

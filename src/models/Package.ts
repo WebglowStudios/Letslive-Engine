@@ -95,6 +95,8 @@ export interface IPackage extends Document {
   category?: string;
   originalPrice?: number;
   price: number;
+  flightPrice?: number;
+  landCost?: number;
   priceUnit: 'person' | 'couple' | 'family' | 'group';
   discount?: number;
   discountType?: 'percent' | 'amount';
@@ -120,6 +122,7 @@ export interface IPackage extends Document {
   approvalStatus: 'pending' | 'approved' | 'rejected';
   flightsIncluded: boolean;
   trainsIncluded: boolean;
+  hideTrainInfo?: boolean;
   travellerCount?: string;
   adultCount?: number;
   childCount?: number;
@@ -193,6 +196,8 @@ const packageSchema = new Schema<IPackage>(
     },
     originalPrice: { type: Number },
     price: { type: Number, required: true },
+    flightPrice: { type: Number },
+    landCost: { type: Number },
     priceUnit: {
       type: String,
       enum: ['person', 'couple', 'family', 'group'],
@@ -288,6 +293,7 @@ const packageSchema = new Schema<IPackage>(
     badge: { type: String },
     flightsIncluded: { type: Boolean, default: false },
     trainsIncluded: { type: Boolean, default: false },
+    hideTrainInfo: { type: Boolean, default: false },
     travellerCount: { type: String },
     adultCount: { type: Number },
     childCount: { type: Number },
