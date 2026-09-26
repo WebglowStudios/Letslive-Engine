@@ -47,11 +47,11 @@ app.set('trust proxy', 1);
 // Connect to MongoDB
 await connectDB();
 
-// Clean up any historical closed/resolved/converted enquiries that still hold positive dnpCount
+// Clean up any historical enquiries that are not in 'dnp' status but still hold positive dnpCount
 Enquiry.updateMany(
-  { status: { $in: ['closed', 'resolved', 'converted'] }, dnpCount: { $gt: 0 } },
+  { status: { $ne: 'dnp' }, dnpCount: { $gt: 0 } },
   { $set: { dnpCount: 0 } }
-).catch((err) => console.error('[DB Cleanup] Error resetting dnpCount for closed enquiries:', err));
+).catch((err) => console.error('[DB Cleanup] Error resetting dnpCount for non-DNP enquiries:', err));
 
 // 1. Security HTTP headers
 app.use(helmet());

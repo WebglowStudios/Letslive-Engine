@@ -412,19 +412,12 @@ export const getMyEnquiries = asyncHandler(async (req: Request, res: Response) =
 
   if (req.query.dnp) {
     const dnpVal = String(req.query.dnp).toLowerCase().trim();
-    if (dnpVal === 'any' || dnpVal === 'all' || dnpVal === 'true') {
-      filter.dnpCount = { $gt: 0 };
-    } else if (dnpVal === '6+' || dnpVal === '6plus') {
-      filter.dnpCount = { $gte: 6 };
-    } else if (dnpVal === '0' || dnpVal === 'none') {
-      filter.dnpCount = { $in: [0, null] };
-    } else if (!isNaN(Number(dnpVal))) {
-      filter.dnpCount = Number(dnpVal);
-    }
-
-    if (dnpVal !== '0' && dnpVal !== 'none') {
-      if (!filter.status && (!req.query.status || req.query.status === 'all')) {
-        filter.status = { $nin: ['closed', 'resolved', 'converted'] };
+    if (dnpVal === '0' || dnpVal === 'none' || dnpVal === 'false') {
+      filter.status = { $ne: 'dnp' };
+    } else if (dnpVal && dnpVal !== 'all-leads' && dnpVal !== 'off') {
+      // Overall DNP filter: show all clients whose current status is DNP
+      if (!filter.status || req.query.status === 'all') {
+        filter.status = 'dnp';
       }
     }
   }
@@ -479,19 +472,12 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
 
   if (req.query.dnp) {
     const dnpVal = String(req.query.dnp).toLowerCase().trim();
-    if (dnpVal === 'any' || dnpVal === 'all' || dnpVal === 'true') {
-      filter.dnpCount = { $gt: 0 };
-    } else if (dnpVal === '6+' || dnpVal === '6plus') {
-      filter.dnpCount = { $gte: 6 };
-    } else if (dnpVal === '0' || dnpVal === 'none') {
-      filter.dnpCount = { $in: [0, null] };
-    } else if (!isNaN(Number(dnpVal))) {
-      filter.dnpCount = Number(dnpVal);
-    }
-
-    if (dnpVal !== '0' && dnpVal !== 'none') {
-      if (!filter.status && (!req.query.status || req.query.status === 'all')) {
-        filter.status = { $nin: ['closed', 'resolved', 'converted'] };
+    if (dnpVal === '0' || dnpVal === 'none' || dnpVal === 'false') {
+      filter.status = { $ne: 'dnp' };
+    } else if (dnpVal && dnpVal !== 'all-leads' && dnpVal !== 'off') {
+      // Overall DNP filter: show all clients whose current status is DNP
+      if (!filter.status || req.query.status === 'all') {
+        filter.status = 'dnp';
       }
     }
   }
@@ -698,10 +684,8 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
 
   // ── Status changes ─────────────────────────────────────────────────────────
   if (req.body.status) {
-    if (['closed', 'resolved', 'converted'].includes(req.body.status)) {
-      enquiry.dnpCount = 0; // Clear DNP count when closed/lost, resolved, or converted
-    } else if (req.body.status !== 'dnp' && prevStatus === 'dnp') {
-      enquiry.dnpCount = 0; // Clear DNP count when moving away from DNP stage
+    if (req.body.status !== 'dnp') {
+      enquiry.dnpCount = 0; // Clear DNP count whenever status changes away from DNP
     }
     enquiry.status = req.body.status;
   }
@@ -995,6 +979,9 @@ export const logCall = asyncHandler(async (req: Request, res: Response) => {
       enquiry.dnpCount = (enquiry.dnpCount || 0) + 1;
       enquiry.status = 'dnp';
     }
+  } else {
+    // If answered, busy, whatsapp-sent, or any other outcome, clear DNP count
+    enquiry.dnpCount = 0;
   }
 
   // Answered: record contact time, reset DNP counter, set status to 'responded'
@@ -1150,7 +1137,7 @@ export const bulkUpdateEnquiries = asyncHandler(async (req: Request, res: Respon
     };
   } else if (action === 'mark-follow-up') {
     const fDate = payload?.followUpDate ? new Date(payload.followUpDate).toLocaleDateString('en-IN') : 'Scheduled';
-    setOp = { status: 'follow-up', followUpDate: payload?.followUpDate ? new Date(payload.followUpDate) : undefined };
+    setOp = { status: 'follow-up', followUpDate: payload?.followUpDate ? new Date(payload.followUpDate) : undefined, dnpCount: 0 };
     pushEvent = {
       type: 'follow_up',
       title: `Follow-up scheduled for ${fDate}`,
@@ -1635,19 +1622,12 @@ export const exportEnquiries = asyncHandler(async (req: Request, res: Response) 
 
   if (req.query.dnp) {
     const dnpVal = String(req.query.dnp).toLowerCase().trim();
-    if (dnpVal === 'any' || dnpVal === 'all' || dnpVal === 'true') {
-      filter.dnpCount = { $gt: 0 };
-    } else if (dnpVal === '6+' || dnpVal === '6plus') {
-      filter.dnpCount = { $gte: 6 };
-    } else if (dnpVal === '0' || dnpVal === 'none') {
-      filter.dnpCount = { $in: [0, null] };
-    } else if (!isNaN(Number(dnpVal))) {
-      filter.dnpCount = Number(dnpVal);
-    }
-
-    if (dnpVal !== '0' && dnpVal !== 'none') {
-      if (!filter.status && (!req.query.status || req.query.status === 'all')) {
-        filter.status = { $nin: ['closed', 'resolved', 'converted'] };
+    if (dnpVal === '0' || dnpVal === 'none' || dnpVal === 'false') {
+      filter.status = { $ne: 'dnp' };
+    } else if (dnpVal && dnpVal !== 'all-leads' && dnpVal !== 'off') {
+      // Overall DNP filter: show all clients whose current status is DNP
+      if (!filter.status || req.query.status === 'all') {
+        filter.status = 'dnp';
       }
     }
   }
