@@ -360,10 +360,53 @@ export const getMyEnquiries = asyncHandler(async (req: Request, res: Response) =
 
   const filter: Record<string, unknown> = { assignedTo: userId };
   if (req.query.status && req.query.status !== 'all') {
-    if (req.query.status === 'new' || req.query.status === 'begin') {
+    const rawStatuses = String(req.query.status).split(',').map((s) => s.trim()).filter(Boolean);
+    if (rawStatuses.length > 1) {
+      const expanded: string[] = [];
+      for (const st of rawStatuses) {
+        if (st === 'new' || st === 'begin') expanded.push('new', 'begin');
+        else expanded.push(st);
+      }
+      filter.status = { $in: Array.from(new Set(expanded)) };
+    } else if (rawStatuses[0] === 'new' || rawStatuses[0] === 'begin') {
       filter.status = { $in: ['new', 'begin'] };
-    } else {
-      filter.status = req.query.status;
+    } else if (rawStatuses[0]) {
+      filter.status = rawStatuses[0];
+    }
+  }
+
+  if (req.query.leadAge && req.query.leadAge !== 'all') {
+    const now = new Date();
+    switch (req.query.leadAge) {
+      case 'today':
+        filter.createdAt = { $gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) };
+        break;
+      case 'new':
+      case '3days':
+        filter.createdAt = { $gte: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000) };
+        break;
+      case '7days':
+        filter.createdAt = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
+        break;
+      case 'old':
+      case 'older7days':
+        filter.createdAt = { $lte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
+        break;
+      case 'older14days':
+        filter.createdAt = { $lte: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000) };
+        break;
+      case 'older30days':
+        filter.createdAt = { $lte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
+        break;
+    }
+  }
+
+  if (req.query.channel && req.query.channel !== 'all') {
+    const rawChannels = String(req.query.channel).split(',').map((c) => c.trim()).filter(Boolean);
+    if (rawChannels.length > 1) {
+      filter.channel = { $in: rawChannels };
+    } else if (rawChannels.length === 1) {
+      filter.channel = rawChannels[0];
     }
   }
 
@@ -453,7 +496,14 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
     }
   }
   if (req.query.priority) filter.priority = req.query.priority;
-  if (req.query.channel) filter.channel = req.query.channel;
+  if (req.query.channel && req.query.channel !== 'all') {
+    const rawChannels = String(req.query.channel).split(',').map((c) => c.trim()).filter(Boolean);
+    if (rawChannels.length > 1) {
+      filter.channel = { $in: rawChannels };
+    } else if (rawChannels.length === 1) {
+      filter.channel = rawChannels[0];
+    }
+  }
   if (req.query.destination) filter.destination = new RegExp(req.query.destination as string, 'i');
   if (req.query.travellerCount) filter.travellerCount = parseInt(req.query.travellerCount as string);
 
