@@ -37,6 +37,7 @@ import aboutRoutes from './routes/about.js';
 import galleryRoutes from './routes/gallery.js';
 import dayTemplateRoutes from './routes/dayTemplateRoutes.js';
 import approvalRoutes from './routes/approvals.js';
+import Enquiry from './models/Enquiry.js';
 
 const app = express();
 
@@ -45,6 +46,12 @@ app.set('trust proxy', 1);
 
 // Connect to MongoDB
 await connectDB();
+
+// Clean up any historical closed/resolved/converted enquiries that still hold positive dnpCount
+Enquiry.updateMany(
+  { status: { $in: ['closed', 'resolved', 'converted'] }, dnpCount: { $gt: 0 } },
+  { $set: { dnpCount: 0 } }
+).catch((err) => console.error('[DB Cleanup] Error resetting dnpCount for closed enquiries:', err));
 
 // 1. Security HTTP headers
 app.use(helmet());
@@ -181,7 +188,6 @@ app.listen(PORT, () => {
 });
 
 import { sendFollowUpReminder } from './services/emailService.js';
-import Enquiry from './models/Enquiry.js';
 
 // ─── Daily Follow-Up Reminder Cron ───────────────────────────────────────────
 // Runs every day at 9:00 AM IST (03:30 UTC)

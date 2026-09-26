@@ -421,6 +421,12 @@ export const getMyEnquiries = asyncHandler(async (req: Request, res: Response) =
     } else if (!isNaN(Number(dnpVal))) {
       filter.dnpCount = Number(dnpVal);
     }
+
+    if (dnpVal !== '0' && dnpVal !== 'none') {
+      if (!filter.status && (!req.query.status || req.query.status === 'all')) {
+        filter.status = { $nin: ['closed', 'resolved', 'converted'] };
+      }
+    }
   }
 
   const [enquiries, total] = await Promise.all([
@@ -481,6 +487,12 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
       filter.dnpCount = { $in: [0, null] };
     } else if (!isNaN(Number(dnpVal))) {
       filter.dnpCount = Number(dnpVal);
+    }
+
+    if (dnpVal !== '0' && dnpVal !== 'none') {
+      if (!filter.status && (!req.query.status || req.query.status === 'all')) {
+        filter.status = { $nin: ['closed', 'resolved', 'converted'] };
+      }
     }
   }
   if (req.query.type) filter.type = req.query.type;
@@ -686,7 +698,9 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
 
   // ── Status changes ─────────────────────────────────────────────────────────
   if (req.body.status) {
-    if (req.body.status !== 'dnp' && prevStatus === 'dnp') {
+    if (['closed', 'resolved', 'converted'].includes(req.body.status)) {
+      enquiry.dnpCount = 0; // Clear DNP count when closed/lost, resolved, or converted
+    } else if (req.body.status !== 'dnp' && prevStatus === 'dnp') {
       enquiry.dnpCount = 0; // Clear DNP count when moving away from DNP stage
     }
     enquiry.status = req.body.status;
@@ -977,8 +991,8 @@ export const logCall = asyncHandler(async (req: Request, res: Response) => {
 
   // DNP logic: increment counter and set status to 'dnp'
   if (outcome === 'dnp') {
-    enquiry.dnpCount = (enquiry.dnpCount || 0) + 1;
     if (enquiry.status !== 'converted' && enquiry.status !== 'closed' && enquiry.status !== 'resolved') {
+      enquiry.dnpCount = (enquiry.dnpCount || 0) + 1;
       enquiry.status = 'dnp';
     }
   }
@@ -1115,7 +1129,7 @@ export const bulkUpdateEnquiries = asyncHandler(async (req: Request, res: Respon
     if (!payload?.assignedTo) throw new AppError('payload.assignedTo is required for reassign', 400);
     const targetStaff = await User.findById(payload.assignedTo);
     const targetStaffName = targetStaff ? `${targetStaff.firstName} ${targetStaff.lastName || ''}`.trim() : 'Staff';
-    setOp = { assignedTo: payload.assignedTo, status: 'new' };
+    setOp = { assignedTo: payload.assignedTo, status: 'new', dnpCount: 0 };
     pushEvent = {
       type: 'assignment',
       title: `Bulk reassigned to ${targetStaffName} (New Lead)`,
@@ -1125,7 +1139,7 @@ export const bulkUpdateEnquiries = asyncHandler(async (req: Request, res: Respon
       date: new Date(),
     };
   } else if (action === 'close') {
-    setOp = { status: 'closed', lostReason: payload?.lostReason || 'other' };
+    setOp = { status: 'closed', lostReason: payload?.lostReason || 'other', dnpCount: 0 };
     pushEvent = {
       type: 'closed',
       title: 'Bulk closed / marked lost',
@@ -1146,7 +1160,7 @@ export const bulkUpdateEnquiries = asyncHandler(async (req: Request, res: Respon
       date: new Date(),
     };
   } else if (action === 'unassign') {
-    setOp = { assignedTo: null, status: 'new' };
+    setOp = { assignedTo: null, status: 'new', dnpCount: 0 };
     pushEvent = {
       type: 'assignment',
       title: 'Bulk unassigned (returned to lead pool)',
@@ -1222,7 +1236,7 @@ export const getEnquiryStats = asyncHandler(async (req: Request, res: Response) 
 
     // DNP breakdown
     Enquiry.aggregate([
-      { $match: { ...dateFilter, dnpCount: { $gt: 0 } } },
+      { $match: { ...dateFilter, dnpCount: { $gt: 0 }, status: { $nin: ['closed', 'resolved', 'converted'] } } },
       {
         $group: {
           _id: null,
@@ -1401,7 +1415,20 @@ export const getPipelineStaffMatrix = asyncHandler(async (req: Request, res: Res
     {
       $group: {
         _id: '$assignedTo',
-        dnpAny: { $sum: { $cond: [{ $gt: ['$dnpCount', 0] }, 1, 0] } },
+        dnpAny: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  { $gt: ['$dnpCount', 0] },
+                  { $nin: ['$status', ['closed', 'resolved', 'converted']] },
+                ],
+              },
+              1,
+              0,
+            ],
+          },
+        },
         followUpToday: {
           $sum: {
             $cond: [
@@ -1616,6 +1643,12 @@ export const exportEnquiries = asyncHandler(async (req: Request, res: Response) 
       filter.dnpCount = { $in: [0, null] };
     } else if (!isNaN(Number(dnpVal))) {
       filter.dnpCount = Number(dnpVal);
+    }
+
+    if (dnpVal !== '0' && dnpVal !== 'none') {
+      if (!filter.status && (!req.query.status || req.query.status === 'all')) {
+        filter.status = { $nin: ['closed', 'resolved', 'converted'] };
+      }
     }
   }
   if (req.user?.role !== 'admin') {
