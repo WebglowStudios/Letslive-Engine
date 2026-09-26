@@ -35,20 +35,45 @@ export const getStaffList = asyncHandler(async (req: Request, res: Response) => 
   let roles: any[] = ['admin', 'manager', 'sales-manager', 'sales-staff', 'ops-manager', 'ops-staff', 'staff'];
   
   if (req.query.department === 'sales') {
-    roles = ['admin', 'manager', 'sales-manager', 'sales-staff'];
+    roles = ['admin', 'manager', 'sales-manager', 'sales-staff', 'staff'];
   } else if (req.query.department === 'ops') {
     roles = ['admin', 'manager', 'ops-manager', 'ops-staff'];
   }
 
-  const staff = await User.find({
-    role: { $in: roles },
-  })
-    .select('_id firstName lastName email role')
-    .sort({ firstName: 1 });
+  const [staff, activeCounts, unassignedCount] = await Promise.all([
+    User.find({
+      role: { $in: roles },
+      isActive: { $ne: false },
+    })
+      .select('_id firstName lastName email role')
+      .sort({ firstName: 1 })
+      .lean(),
+    Enquiry.aggregate([
+      { $match: { status: { $nin: ['closed', 'resolved'] }, assignedTo: { $ne: null } } },
+      { $group: { _id: '$assignedTo', count: { $sum: 1 } } },
+    ]),
+    Enquiry.countDocuments({
+      status: { $nin: ['closed', 'resolved'] },
+      $or: [{ assignedTo: null }, { assignedTo: { $exists: false } }],
+    }),
+  ]);
+
+  const countMap = new Map<string, number>();
+  for (const c of activeCounts) {
+    if (c._id) countMap.set(c._id.toString(), c.count);
+  }
+
+  const staffWithCounts = staff.map((s) => ({
+    ...s,
+    activeLeadsCount: countMap.get(s._id.toString()) || 0,
+  }));
 
   res.status(200).json({
     status: 'success',
-    data: staff,
+    data: staffWithCounts,
+    meta: {
+      unassignedActiveLeads: unassignedCount,
+    },
   });
 });
 

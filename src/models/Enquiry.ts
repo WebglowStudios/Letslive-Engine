@@ -60,6 +60,7 @@ export interface IEnquiry extends Document {
   status:
     | 'new'
     | 'begin'
+    | 'ytc'
     | 'assigned'
     | 'responded'
     | 'dnp'
@@ -129,6 +130,7 @@ const enquirySchema = new Schema<IEnquiry>(
       enum: [
         'new',
         'begin',
+        'ytc',
         'assigned',
         'responded',
         'dnp',

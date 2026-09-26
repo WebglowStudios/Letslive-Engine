@@ -410,10 +410,21 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
 
   const filter: Record<string, unknown> = {};
   if (req.query.status && req.query.status !== 'all') {
-    if (req.query.status === 'new' || req.query.status === 'begin') {
+    const rawStatuses = String(req.query.status).split(',').map((s) => s.trim()).filter(Boolean);
+    if (rawStatuses.length > 1) {
+      const expanded: string[] = [];
+      for (const st of rawStatuses) {
+        if (st === 'new' || st === 'begin') {
+          expanded.push('new', 'begin');
+        } else {
+          expanded.push(st);
+        }
+      }
+      filter.status = { $in: Array.from(new Set(expanded)) };
+    } else if (rawStatuses[0] === 'new' || rawStatuses[0] === 'begin') {
       filter.status = { $in: ['new', 'begin'] };
     } else {
-      filter.status = req.query.status;
+      filter.status = rawStatuses[0];
     }
   }
 
@@ -435,7 +446,7 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
   if (!fullAccessRoles.includes(req.user?.role || '')) {
     filter.assignedTo = req.user?._id;
   } else if (req.query.assignedTo && req.query.assignedTo !== 'all') {
-    if (req.query.assignedTo === 'unassigned' || req.query.assignedTo === 'none') {
+    if (req.query.assignedTo === 'unassigned' || req.query.assignedTo === 'none' || req.query.assignedTo === '') {
       filter.assignedTo = { $in: [null, undefined] };
     } else {
       filter.assignedTo = req.query.assignedTo;
@@ -458,11 +469,33 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
     ];
   }
 
-  // Date range filter
-  if (req.query.from || req.query.to) {
-    const dateFilter: Record<string, Date> = {};
-    if (req.query.from) dateFilter.$gte = new Date(req.query.from as string);
-    if (req.query.to) dateFilter.$lte = new Date(req.query.to as string);
+  // Lead Age / Freshness filter (stackable with employee & status)
+  const dateFilter: Record<string, Date> = {};
+  if (req.query.from) dateFilter.$gte = new Date(req.query.from as string);
+  if (req.query.to) dateFilter.$lte = new Date(req.query.to as string);
+
+  if (req.query.leadAge) {
+    const ageVal = String(req.query.leadAge).toLowerCase().trim();
+    const nowMs = Date.now();
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    if (ageVal === 'today') {
+      dateFilter.$gte = startOfToday;
+    } else if (ageVal === 'new' || ageVal === '3days' || ageVal === 'recent') {
+      dateFilter.$gte = new Date(nowMs - 3 * 24 * 60 * 60 * 1000);
+    } else if (ageVal === '7days') {
+      dateFilter.$gte = new Date(nowMs - 7 * 24 * 60 * 60 * 1000);
+    } else if (ageVal === 'old' || ageVal === 'older7days') {
+      dateFilter.$lte = new Date(nowMs - 7 * 24 * 60 * 60 * 1000);
+    } else if (ageVal === 'older14days') {
+      dateFilter.$lte = new Date(nowMs - 14 * 24 * 60 * 60 * 1000);
+    } else if (ageVal === 'older30days') {
+      dateFilter.$lte = new Date(nowMs - 30 * 24 * 60 * 60 * 1000);
+    }
+  }
+
+  if (Object.keys(dateFilter).length > 0) {
     filter.createdAt = dateFilter;
   }
 
@@ -602,7 +635,12 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
   // accidental or malicious mutation of customer/admin account details.
 
   // ── Status changes ─────────────────────────────────────────────────────────
-  if (req.body.status) enquiry.status = req.body.status;
+  if (req.body.status) {
+    if (req.body.status !== 'dnp' && prevStatus === 'dnp') {
+      enquiry.dnpCount = 0; // Clear DNP count when moving away from DNP stage
+    }
+    enquiry.status = req.body.status;
+  }
   if (req.body.priority) enquiry.priority = req.body.priority;
 
   if (req.body.status && req.body.status !== prevStatus) {
@@ -696,33 +734,52 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
   if (req.body.channel !== undefined) enquiry.channel = req.body.channel;
 
   // ── Staff assignment ───────────────────────────────────────────────────────
-  if (req.body.assignedTo) {
-    const isNewAssignment = String(req.body.assignedTo) !== prevAssignedTo;
-    enquiry.assignedTo = req.body.assignedTo;
-    if (enquiry.status === 'new') enquiry.status = 'assigned';
-
-    if (isNewAssignment) {
-      const staffMember = await User.findById(req.body.assignedTo);
-      if (staffMember) {
-        const targetStaffName = `${staffMember.firstName} ${staffMember.lastName || ''}`.trim();
+  if (req.body.assignedTo !== undefined) {
+    if (!req.body.assignedTo || req.body.assignedTo === 'unassigned' || req.body.assignedTo === 'none') {
+      const wasAssigned = Boolean(enquiry.assignedTo);
+      enquiry.assignedTo = undefined;
+      if (enquiry.status === 'assigned') enquiry.status = 'new';
+      if (wasAssigned) {
         enquiry.timeline.push({
           type: 'assignment',
-          title: `Lead assigned to ${targetStaffName}`,
-          description: `Assigned by ${actorName}`,
+          title: 'Lead unassigned',
+          description: `Unassigned by ${actorName}`,
           by: req.user!._id,
           byName: actorName,
           date: new Date(),
-          meta: { assignedTo: req.body.assignedTo, staffName: targetStaffName },
         });
+      }
+    } else {
+      const isNewAssignment = String(req.body.assignedTo) !== prevAssignedTo;
+      enquiry.assignedTo = req.body.assignedTo;
+      // When an inquiry is assigned to someone, it is marked as a new lead
+      if (isNewAssignment || enquiry.status === 'assigned') {
+        enquiry.status = 'new';
+      }
 
-        // Notify the newly assigned staff member (fire-and-forget)
-        sendStaffEnquiryAssigned(
-          staffMember.email,
-          staffMember.firstName,
-          `${enquiry.firstName} ${enquiry.lastName || ''}`.trim(),
-          enquiry.type,
-          enquiry.packageName,
-        ).catch(console.error);
+      if (isNewAssignment) {
+        const staffMember = await User.findById(req.body.assignedTo);
+        if (staffMember) {
+          const targetStaffName = `${staffMember.firstName} ${staffMember.lastName || ''}`.trim();
+          enquiry.timeline.push({
+            type: 'assignment',
+            title: `Lead assigned to ${targetStaffName}`,
+            description: `Assigned by ${actorName}`,
+            by: req.user!._id,
+            byName: actorName,
+            date: new Date(),
+            meta: { assignedTo: req.body.assignedTo, staffName: targetStaffName },
+          });
+
+          // Notify the newly assigned staff member (fire-and-forget)
+          sendStaffEnquiryAssigned(
+            staffMember.email,
+            staffMember.firstName,
+            `${enquiry.firstName} ${enquiry.lastName || ''}`.trim(),
+            enquiry.type,
+            enquiry.packageName,
+          ).catch(console.error);
+        }
       }
     }
   }
@@ -876,9 +933,10 @@ export const logCall = asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
-  // Answered: record contact time, set status to 'responded'
+  // Answered: record contact time, reset DNP counter, set status to 'responded'
   if (outcome === 'answered') {
     enquiry.lastContactedAt = new Date();
+    enquiry.dnpCount = 0; // Customer answered: reset DNP count so it turns green
     if (enquiry.status !== 'converted' && enquiry.status !== 'closed' && enquiry.status !== 'resolved') {
       enquiry.status = 'responded';
     }
@@ -1007,10 +1065,10 @@ export const bulkUpdateEnquiries = asyncHandler(async (req: Request, res: Respon
     if (!payload?.assignedTo) throw new AppError('payload.assignedTo is required for reassign', 400);
     const targetStaff = await User.findById(payload.assignedTo);
     const targetStaffName = targetStaff ? `${targetStaff.firstName} ${targetStaff.lastName || ''}`.trim() : 'Staff';
-    setOp = { assignedTo: payload.assignedTo, status: 'assigned' };
+    setOp = { assignedTo: payload.assignedTo, status: 'new' };
     pushEvent = {
       type: 'assignment',
-      title: `Bulk reassigned to ${targetStaffName}`,
+      title: `Bulk reassigned to ${targetStaffName} (New Lead)`,
       description: `Reassigned by ${staffName}`,
       by: req.user!._id,
       byName: staffName,
@@ -1037,8 +1095,18 @@ export const bulkUpdateEnquiries = asyncHandler(async (req: Request, res: Respon
       byName: staffName,
       date: new Date(),
     };
+  } else if (action === 'unassign') {
+    setOp = { assignedTo: null, status: 'new' };
+    pushEvent = {
+      type: 'assignment',
+      title: 'Bulk unassigned (returned to lead pool)',
+      description: `Unassigned by ${staffName}`,
+      by: req.user!._id,
+      byName: staffName,
+      date: new Date(),
+    };
   } else {
-    throw new AppError('Invalid action. Use: reassign | close | mark-follow-up', 400);
+    throw new AppError('Invalid action. Use: reassign | unassign | close | mark-follow-up', 400);
   }
 
   const updateOp: any = { $set: setOp };
@@ -1077,7 +1145,8 @@ export const getEnquiryStats = asyncHandler(async (req: Request, res: Response) 
 
   const dateFilter: any = { createdAt: { $gte: fromDate, $lte: toDate } };
 
-  if (req.user?.role !== 'admin') {
+  const fullAccessRoles = ['admin', 'manager', 'sales-manager'];
+  if (!fullAccessRoles.includes(req.user?.role || '')) {
     dateFilter.assignedTo = req.user?._id;
   }
 
