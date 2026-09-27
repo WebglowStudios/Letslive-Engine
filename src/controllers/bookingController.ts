@@ -788,8 +788,42 @@ export const getAllBookings = asyncHandler(async (req: Request, res: Response) =
   const skip = (page - 1) * limit;
 
   const filter: Record<string, unknown> = {};
-  if (req.query.bookingStatus) filter.bookingStatus = req.query.bookingStatus;
+
+  const statusParam = req.query.bookingStatus ? String(req.query.bookingStatus).trim() : "";
+  const includeInactive = req.query.includeInactive === "true" || req.query.showCancelledPending === "true";
+
+  if (statusParam && statusParam !== "all" && statusParam !== "all-active") {
+    if (statusParam === "active") {
+      filter.bookingStatus = { $nin: ["pending", "cancelled"] };
+    } else if (statusParam.includes(",")) {
+      filter.bookingStatus = { $in: statusParam.split(",").map((s) => s.trim()) };
+    } else {
+      filter.bookingStatus = statusParam;
+    }
+  } else if (!includeInactive) {
+    // Normally, exclude pending and cancelled bookings by default
+    filter.bookingStatus = { $nin: ["pending", "cancelled"] };
+  }
+
+  if (req.query.package) filter.package = req.query.package;
+  if (req.query.departureId) filter.departureId = req.query.departureId;
   if (req.query.paymentStatus) filter.paymentStatus = req.query.paymentStatus;
+
+  if (req.query.search) {
+    const q = String(req.query.search).trim();
+    if (q) {
+      const searchRegex = new RegExp(q, "i");
+      filter.$or = [
+        { bookingId: searchRegex },
+        { "customer.name": searchRegex },
+        { "customer.email": searchRegex },
+        { "customer.phone": searchRegex },
+        { "primaryTraveller.firstName": searchRegex },
+        { "primaryTraveller.lastName": searchRegex },
+        { "primaryTraveller.email": searchRegex },
+      ];
+    }
+  }
 
   const [bookings, total] = await Promise.all([
     Booking.find(filter)
