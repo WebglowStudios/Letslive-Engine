@@ -184,7 +184,7 @@ const enquirySchema = new Schema<IEnquiry>(
     followUpNotes: { type: String },
     lostReason: {
       type: String,
-      enum: ['no-budget', 'went-elsewhere', 'not-responding', 'not-interested', 'timing', 'other'],
+      enum: ['wrong-phone-number', 'wrong-phone', 'no-budget', 'went-elsewhere', 'not-responding', 'not-interested', 'timing', 'other'],
     },
     lostReasonOtherText: { type: String },
     conversionValue: { type: Number },

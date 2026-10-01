@@ -487,8 +487,28 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
   if (!fullAccessRoles.includes(req.user?.role || '')) {
     filter.assignedTo = req.user?._id;
   } else if (req.query.assignedTo && req.query.assignedTo !== 'all') {
-    if (req.query.assignedTo === 'unassigned' || req.query.assignedTo === 'none' || req.query.assignedTo === '') {
+    const isUnassigned = req.query.assignedTo === 'unassigned' || req.query.assignedTo === 'none' || req.query.assignedTo === '';
+    if (isUnassigned) {
       filter.assignedTo = { $in: [null, undefined] };
+      // Lost leads (status: 'closed') must not be visible in unassigned leads filter
+      if (!filter.status) {
+        filter.status = { $ne: 'closed' };
+      } else if (typeof filter.status === 'string') {
+        if (filter.status === 'closed') {
+          filter.status = { $in: [] };
+        }
+      } else if (typeof filter.status === 'object' && filter.status !== null) {
+        const statusObj = filter.status as Record<string, any>;
+        if (Array.isArray(statusObj.$in)) {
+          statusObj.$in = statusObj.$in.filter((s: string) => s !== 'closed');
+        } else if (statusObj.$ne) {
+          filter.status = { $nin: Array.from(new Set([statusObj.$ne, 'closed'])) };
+        } else if (Array.isArray(statusObj.$nin)) {
+          if (!statusObj.$nin.includes('closed')) {
+            statusObj.$nin.push('closed');
+          }
+        }
+      }
     } else {
       filter.assignedTo = req.query.assignedTo;
     }
@@ -1634,7 +1654,19 @@ export const exportEnquiries = asyncHandler(async (req: Request, res: Response) 
   if (req.user?.role !== 'admin') {
     filter.assignedTo = req.user?._id;
   } else if (req.query.assignedTo) {
-    filter.assignedTo = req.query.assignedTo;
+    if (req.query.assignedTo === 'unassigned' || req.query.assignedTo === 'none' || req.query.assignedTo === '') {
+      filter.assignedTo = { $in: [null, undefined] };
+      if (!filter.status) {
+        filter.status = { $ne: 'closed' };
+      } else if (typeof filter.status === 'object' && filter.status !== null) {
+        const statusObj = filter.status as Record<string, any>;
+        if (statusObj.$ne) {
+          filter.status = { $nin: Array.from(new Set([statusObj.$ne, 'closed'])) };
+        }
+      }
+    } else if (req.query.assignedTo !== 'all') {
+      filter.assignedTo = req.query.assignedTo;
+    }
   }
   if (req.query.destination) filter.destination = new RegExp(req.query.destination as string, 'i');
   if (req.query.travellerCount) filter.travellerCount = parseInt(req.query.travellerCount as string);
