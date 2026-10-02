@@ -578,13 +578,38 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
     Enquiry.countDocuments(filter),
   ]);
 
+  // Ensure latest linked itinerary name is resolved for each enquiry in list
+  const enquiryIds = enquiries.map((e) => e._id);
+  const linkedPackages = await Package.find({ enquiryId: { $in: enquiryIds } })
+    .select('_id name enquiryId createdAt')
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const latestPackageByEnquiry = new Map<string, { _id: any; name: string }>();
+  for (const lp of linkedPackages) {
+    const eid = String(lp.enquiryId);
+    if (!latestPackageByEnquiry.has(eid)) {
+      latestPackageByEnquiry.set(eid, { _id: lp._id, name: lp.name });
+    }
+  }
+
+  const sanitizedEnquiries = enquiries.map((e) => {
+    const obj = e.toObject();
+    const latest = latestPackageByEnquiry.get(String(e._id));
+    if (latest) {
+      obj.package = latest._id;
+      obj.packageName = latest.name;
+    }
+    return obj;
+  });
+
   res.status(200).json({
     status: 'success',
-    results: enquiries.length,
+    results: sanitizedEnquiries.length,
     total,
     page,
     pages: Math.ceil(total / limit),
-    data: enquiries,
+    data: sanitizedEnquiries,
   });
 });
 
@@ -617,16 +642,34 @@ export const getEnquiryById = asyncHandler(async (req: Request, res: Response) =
     }
   }
 
-  // Fetch all packages linked to this enquiry and past activity logs
+  // Fetch all packages linked to this enquiry (newest first) and past activity logs
   const [linkedItineraries, activityLogs] = await Promise.all([
     Package.find({ enquiryId: enquiry._id })
-      .select('_id name slug price isInternational duration destination customDestinationText')
+      .select('_id name slug price isInternational duration destination customDestinationText createdAt')
       .populate('destination', 'name')
+      .sort({ createdAt: -1 })
       .lean(),
     ActivityLog.find({ entity: 'enquiry', entityId: String(enquiry._id) })
       .sort({ createdAt: -1 })
       .lean(),
   ]);
+
+  // When multiple itineraries are linked, ensure enquiry.package and enquiry.packageName always reflect the latest linked itinerary
+  if (linkedItineraries && linkedItineraries.length > 0) {
+    const latestLinked: any = linkedItineraries[0];
+    if (latestLinked && latestLinked.name) {
+      const currentPkgId = (enquiry.package as any)?._id ? String((enquiry.package as any)._id) : String(enquiry.package || '');
+      const latestPkgId = String(latestLinked._id);
+      if (currentPkgId !== latestPkgId || enquiry.packageName !== latestLinked.name) {
+        enquiry.package = latestLinked._id;
+        enquiry.packageName = latestLinked.name;
+        await Enquiry.findByIdAndUpdate(enquiry._id, {
+          package: latestLinked._id,
+          packageName: latestLinked.name,
+        });
+      }
+    }
+  }
 
   // Auto-heal and persist destination if enquiry.destination is empty
   if (!enquiry.destination) {
@@ -646,6 +689,7 @@ export const getEnquiryById = asyncHandler(async (req: Request, res: Response) =
     status: 'success',
     data: {
       ...enquiry.toJSON(),
+      packageName: (linkedItineraries && linkedItineraries.length > 0) ? (linkedItineraries[0] as any).name : enquiry.packageName,
       linkedItineraries,
       activityLogs,
     },

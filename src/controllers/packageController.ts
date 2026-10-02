@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Package from '../models/Package.js';
 import Destination from '../models/Destination.js';
+import Enquiry from '../models/Enquiry.js';
 import ApprovalRequest from '../models/ApprovalRequest.js';
 import MediaImage from '../models/MediaImage.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
@@ -314,6 +315,25 @@ export const createPackage = asyncHandler(async (req: Request, res: Response) =>
     await Destination.findByIdAndUpdate(pkg.destination, { $inc: { packageCount: 1 } });
   }
 
+  if (pkg.enquiryId) {
+    const creatorName = req.user ? `${req.user.firstName} ${req.user.lastName || ''}`.trim() : 'Staff';
+    await Enquiry.findByIdAndUpdate(pkg.enquiryId, {
+      package: pkg._id,
+      packageName: pkg.name,
+      $push: {
+        timeline: {
+          type: 'itinerary_linked',
+          title: `Custom itinerary created: ${pkg.name}`,
+          description: `Custom proposal created by ${creatorName}${pkg.price ? ` • ₹${pkg.price.toLocaleString('en-IN')}` : ''}`,
+          by: req.user?._id,
+          byName: creatorName,
+          date: new Date(),
+          meta: { packageId: pkg._id, slug: pkg.slug, name: pkg.name, price: pkg.price },
+        },
+      },
+    });
+  }
+
   await logActivity({
     req,
     action: 'create',
@@ -363,6 +383,14 @@ export const updatePackage = asyncHandler(async (req: Request, res: Response) =>
 
   if (!pkg) {
     throw new AppError('Package not found', 404);
+  }
+
+  // If this package is linked to an enquiry and name was updated, keep enquiry.packageName in sync
+  if (pkg.enquiryId && req.body.name) {
+    await Enquiry.findByIdAndUpdate(pkg.enquiryId, {
+      package: pkg._id,
+      packageName: pkg.name,
+    });
   }
 
   // Detect approval status change
@@ -449,13 +477,18 @@ export const delinkPackage = asyncHandler(async (req: Request, res: Response) =>
   pkg.enquiryId = undefined;
   await pkg.save();
 
-  // 2. Remove legacy link from Enquiry if it points to this package and log timeline event
-  const Enquiry = mongoose.model('Enquiry'); // Using mongoose.model to avoid circular dep if any, or we can just import it
+  // 2. Remove link from Enquiry if it points to this package and roll over to remaining latest package
   const enquiry: any = await Enquiry.findById(enquiryId);
   if (enquiry) {
     if (String(enquiry.package) === String(pkg._id)) {
-      enquiry.package = undefined;
-      enquiry.packageName = undefined;
+      const nextLatest = await Package.findOne({ enquiryId, _id: { $ne: pkg._id } }).sort({ createdAt: -1 });
+      if (nextLatest) {
+        enquiry.package = nextLatest._id;
+        enquiry.packageName = nextLatest.name;
+      } else {
+        enquiry.package = undefined;
+        enquiry.packageName = undefined;
+      }
     }
     const staffName = req.user ? `${req.user.firstName} ${req.user.lastName || ''}`.trim() : 'Staff';
     enquiry.timeline = enquiry.timeline || [];

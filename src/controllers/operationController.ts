@@ -577,11 +577,12 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
       const checkInDate = computeDate(currentStayDay);
       const checkOutDate = computeDate(currentStayDay + nights);
       
+      const stayLocation = stay.address || (stay as any).location || (stay as any).city || '';
       accDocs.push({
         operation: opId,
         type: 'hotel',
         name: stay.name || '',
-        area: stay.address || '',
+        area: stayLocation,
         roomCategory: stay.roomType || '',
         checkIn: checkInDate,
         checkOut: checkOutDate,
@@ -592,7 +593,7 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
         remarks: [
           stay.remark || '',
           stay.rating ? `${stay.rating} property` : '',
-          stay.address || '',
+          stayLocation,
           stay.checkIn ? `Time In: ${stay.checkIn}` : '',
           stay.checkOut ? `Time Out: ${stay.checkOut}` : ''
         ].filter(Boolean).join(' | '),
