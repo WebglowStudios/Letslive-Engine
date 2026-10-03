@@ -111,7 +111,7 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
   }
 
   let totalAmount = basePrice * adults + basePrice * children;
-  if (pkg.priceUnit === 'group') {
+  if (pkg.priceUnit === 'group' || pkg.priceUnit === 'family') {
     const includedPax = (pkg.adultCount || 0) + (pkg.childCount || 0) || 1;
     const totalPax = adults + children;
     if (totalPax > includedPax && pkg.extraPersonPrice) {

@@ -10,6 +10,8 @@ import { logActivity } from '../utils/logActivity.js';
 export const getDestinations = asyncHandler(async (req: Request, res: Response) => {
   const {
     category,
+    tag,
+    tags,
     search,
     visaType,
     isFeatured,
@@ -26,8 +28,32 @@ export const getDestinations = asyncHandler(async (req: Request, res: Response) 
     query.approvalStatus = { $nin: ['pending', 'rejected'] };
   }
 
-  if (category) {
-    query.category = category;
+  const andConditions: any[] = [];
+
+  const targetCategory = (tag || category) as string;
+  if (targetCategory && targetCategory !== 'all') {
+    const catRegex = new RegExp(`^${targetCategory}$`, 'i');
+    andConditions.push({
+      $or: [
+        { category: catRegex },
+        { tags: catRegex },
+      ],
+    });
+  }
+
+  if (tags) {
+    const tagList = Array.isArray(tags)
+      ? (tags as string[])
+      : (tags as string).split(',').map((t: string) => t.trim()).filter(Boolean);
+    if (tagList.length > 0) {
+      const regexList = tagList.map((t: string) => new RegExp(`^${t}$`, 'i'));
+      andConditions.push({
+        $or: [
+          { category: { $in: regexList } },
+          { tags: { $in: regexList } },
+        ],
+      });
+    }
   }
 
   if (visaType) {
@@ -40,13 +66,21 @@ export const getDestinations = asyncHandler(async (req: Request, res: Response) 
 
   if (search) {
     const searchRegex = new RegExp(search as string, 'i');
-    query.$or = [
-      { name: searchRegex },
-      { region: searchRegex },
-      { country: searchRegex },
-      { description: searchRegex },
-      { shortDescription: searchRegex },
-    ];
+    andConditions.push({
+      $or: [
+        { name: searchRegex },
+        { region: searchRegex },
+        { country: searchRegex },
+        { description: searchRegex },
+        { shortDescription: searchRegex },
+        { tags: searchRegex },
+        { category: searchRegex },
+      ],
+    });
+  }
+
+  if (andConditions.length > 0) {
+    query.$and = andConditions;
   }
 
   // Sort options
@@ -124,9 +158,27 @@ export const getDestinationBySlug = asyncHandler(async (req: Request, res: Respo
   });
 });
 
+function normalizeDestinationTags(body: any) {
+  if (body.tags) {
+    if (typeof body.tags === 'string') {
+      body.tags = body.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+    } else if (Array.isArray(body.tags)) {
+      body.tags = body.tags.map((t: any) => String(t).trim()).filter(Boolean);
+    }
+    body.tags = Array.from(new Set(body.tags));
+    if (!body.category && body.tags.length > 0) {
+      body.category = body.tags[0].toLowerCase();
+    }
+  } else if (body.category) {
+    body.tags = [body.category];
+  }
+}
+
 // @desc    Create a destination
 // @route   POST /api/destinations
 export const createDestination = asyncHandler(async (req: Request, res: Response) => {
+  normalizeDestinationTags(req.body);
+
   const canDirectChange = req.user?.role === 'admin' || req.user?.role === 'manager';
 
   if (!canDirectChange) {
@@ -162,6 +214,8 @@ export const createDestination = asyncHandler(async (req: Request, res: Response
 // @desc    Update a destination
 // @route   PUT /api/destinations/:id
 export const updateDestination = asyncHandler(async (req: Request, res: Response) => {
+  normalizeDestinationTags(req.body);
+
   const destCheck = await Destination.findById(req.params.id);
   if (!destCheck) {
     throw new AppError('Destination not found', 404);

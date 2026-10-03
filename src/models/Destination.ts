@@ -21,7 +21,8 @@ export interface IDestination extends Document {
   shortDescription?: string;
   images: string[];
   heroImage?: string;
-  category?: 'beach' | 'city' | 'mountain' | 'adventure' | 'cultural' | 'wildlife' | 'tropical';
+  category?: string;
+  tags: string[];
   rating: number;
   reviewCount: number;
   packageCount: number;
@@ -59,8 +60,8 @@ const destinationSchema = new Schema<IDestination>(
     heroImage: { type: String },
     category: {
       type: String,
-      enum: ['beach', 'city', 'mountain', 'adventure', 'cultural', 'wildlife', 'tropical'],
     },
+    tags: [{ type: String, trim: true }],
     rating: { type: Number, default: 0, min: 0, max: 5 },
     reviewCount: { type: Number, default: 0 },
     packageCount: { type: Number, default: 0 },
@@ -101,6 +102,8 @@ const destinationSchema = new Schema<IDestination>(
   },
   { timestamps: true }
 );
+
+destinationSchema.index({ tags: 1 });
 
 // Auto-generate slug from name
 destinationSchema.pre('validate', function () {
