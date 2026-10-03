@@ -100,6 +100,14 @@ export interface IPackage extends Document {
   hotelPrice?: number;
   activityPrice?: number;
   transferPrice?: number;
+  activityAndTransportPrice?: number;
+  extraMealsIncluded?: boolean;
+  extraMealsCount?: number;
+  extraMealsPrice?: number;
+  visaPrice?: number;
+  trainPrice?: number;
+  cruiseIncluded?: boolean;
+  cruisePrice?: number;
   priceUnit: 'person' | 'couple' | 'family' | 'group';
   discount?: number;
   discountType?: 'percent' | 'amount';
@@ -204,6 +212,14 @@ const packageSchema = new Schema<IPackage>(
     hotelPrice: { type: Number },
     activityPrice: { type: Number },
     transferPrice: { type: Number },
+    activityAndTransportPrice: { type: Number },
+    extraMealsIncluded: { type: Boolean, default: false },
+    extraMealsCount: { type: Number },
+    extraMealsPrice: { type: Number },
+    visaPrice: { type: Number },
+    trainPrice: { type: Number },
+    cruiseIncluded: { type: Boolean, default: false },
+    cruisePrice: { type: Number },
     priceUnit: {
       type: String,
       enum: ['person', 'couple', 'family', 'group'],
