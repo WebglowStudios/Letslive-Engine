@@ -70,7 +70,7 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
         booking: populatedBooking._id,
         bookings: [populatedBooking._id],
         departureId: populatedBooking.departureId || undefined,
-        operationId: `OP${String(populatedBooking._id).slice(-6).toUpperCase()}`,
+        operationId: populatedBooking.bookingId || `OP${String(populatedBooking._id).slice(-6).toUpperCase()}`,
         package: pkg?._id || undefined,
         enquiry: populatedBooking.enquiry || undefined,
         customers: [customerObj],
@@ -143,6 +143,7 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
           linkedEnquiry.status = 'converted';
           linkedEnquiry.conversionValue = populatedBooking.totalAmount || 0;
           linkedEnquiry.bookingRef = populatedBooking._id as unknown as mongoose.Types.ObjectId;
+          linkedEnquiry.unifiedBookingId = populatedBooking.bookingId;
           await linkedEnquiry.save();
 
           // Congrats email to the staff who owned this enquiry (fire-and-forget)

@@ -80,6 +80,8 @@ export interface IEnquiry extends Document {
   timeline: ITimelineEvent[];
   source: 'website' | 'whatsapp' | 'phone' | 'walk-in' | 'instagram' | 'facebook' | 'google' | 'referral' | 'other';
   externalLeadId?: string;                     // External lead identifier (e.g., Meta Lead ID or CSV lead ID)
+  enquiryId?: string;                          // Unique human-friendly ID (e.g. ENQ-2026-00001)
+  unifiedBookingId?: string;                   // Master Unified Booking/Trip ID once converted (e.g. LLT-2026-00001)
   // ─── CRM fields ───────────────────────────────────────────────────────────
   dnpCount: number;                            // 0–6+, incremented each unanswered call attempt
   followUpDate?: Date;                         // Scheduled next contact date
@@ -172,6 +174,8 @@ const enquirySchema = new Schema<IEnquiry>(
         meta: { type: Schema.Types.Mixed },
       },
     ],
+    enquiryId: { type: String, unique: true, sparse: true, index: true },
+    unifiedBookingId: { type: String, sparse: true, index: true },
     externalLeadId: { type: String, sparse: true, index: true },
     source: {
       type: String,
@@ -237,6 +241,31 @@ enquirySchema.index({ assignedTo: 1, status: 1 });
 enquirySchema.index({ dnpCount: 1 });
 enquirySchema.index({ channel: 1 });
 enquirySchema.index({ createdAt: -1 });
+
+// Auto-generate enquiryId like "ENQ-2026-00001"
+enquirySchema.pre('save', async function (this: IEnquiry) {
+  if (!this.isNew || this.enquiryId) return;
+
+  const year = new Date().getFullYear();
+  const lastEnquiry = await mongoose
+    .model<IEnquiry>('Enquiry')
+    .findOne({ enquiryId: { $regex: `^ENQ-${year}-` } })
+    .sort({ enquiryId: -1 })
+    .lean();
+
+  let counter = 1;
+  if (lastEnquiry?.enquiryId) {
+    const parts = lastEnquiry.enquiryId.split('-');
+    if (parts.length >= 3) {
+      const lastCounter = parseInt(parts[2], 10);
+      if (!isNaN(lastCounter)) {
+        counter = lastCounter + 1;
+      }
+    }
+  }
+
+  this.enquiryId = `ENQ-${year}-${String(counter).padStart(5, '0')}`;
+});
 
 const Enquiry: Model<IEnquiry> = mongoose.model<IEnquiry>('Enquiry', enquirySchema);
 

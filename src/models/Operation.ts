@@ -87,9 +87,25 @@ export interface IOperation extends Document {
   { timestamps: true }
 );
 
-// Auto-generate operationId
+// Auto-generate operationId (unified with Booking ID if linked)
 operationSchema.pre('save', async function () {
   if (!this.isNew || this.operationId) return;
+
+  // 1. If linked to a Booking, adopt the Booking's bookingId as the unified master ID
+  const linkedBookingId = this.booking || (this.bookings && this.bookings.length > 0 ? this.bookings[0] : null);
+  if (linkedBookingId) {
+    const linkedBooking = await mongoose
+      .model('Booking')
+      .findById(linkedBookingId)
+      .select('bookingId')
+      .lean();
+    if (linkedBooking && (linkedBooking as any).bookingId) {
+      this.operationId = (linkedBooking as any).bookingId;
+      return;
+    }
+  }
+
+  // 2. Fallback for standalone operations without booking
   const year = new Date().getFullYear();
   const last = await mongoose
     .model<IOperation>('Operation')
@@ -98,8 +114,11 @@ operationSchema.pre('save', async function () {
     .lean();
   let counter = 1;
   if (last?.operationId) {
-    const lastNum = parseInt(last.operationId.split('-')[2], 10);
-    counter = lastNum + 1;
+    const parts = last.operationId.split('-');
+    if (parts.length >= 3) {
+      const lastNum = parseInt(parts[2], 10);
+      if (!isNaN(lastNum)) counter = lastNum + 1;
+    }
   }
   this.operationId = `OPS-${year}-${String(counter).padStart(4, '0')}`;
 });

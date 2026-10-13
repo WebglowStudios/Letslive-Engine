@@ -208,6 +208,7 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
       status: 'converted',
       user: userId,   // ← backfill the user link in case enquiry was submitted anonymously
       bookingRef: booking._id,
+      unifiedBookingId: booking.bookingId,
       conversionValue: totalAmount,
       $push: {
         notes: {
@@ -353,6 +354,7 @@ export const createManualBooking = asyncHandler(async (req: Request, res: Respon
     const updateDoc: any = {
       user: customerId,
       bookingRef: booking._id,
+      unifiedBookingId: booking.bookingId,
     };
 
     if (!needsApproval) {

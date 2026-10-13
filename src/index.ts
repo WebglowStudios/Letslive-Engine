@@ -38,6 +38,7 @@ import galleryRoutes from './routes/gallery.js';
 import dayTemplateRoutes from './routes/dayTemplateRoutes.js';
 import approvalRoutes from './routes/approvals.js';
 import targetRoutes from './routes/targets.js';
+import universalSearchRoutes from './routes/universalSearch.js';
 import Enquiry from './models/Enquiry.js';
 
 const app = express();
@@ -53,6 +54,33 @@ Enquiry.updateMany(
   { status: { $ne: 'dnp' }, dnpCount: { $gt: 0 } },
   { $set: { dnpCount: 0 } }
 ).catch((err) => console.error('[DB Cleanup] Error resetting dnpCount for non-DNP enquiries:', err));
+
+// Backfill unified IDs for historical enquiries and operations
+(async () => {
+  try {
+    const enquiriesWithoutId = await Enquiry.find({ $or: [{ enquiryId: { $exists: false } }, { enquiryId: null }] }).limit(200);
+    for (let i = 0; i < enquiriesWithoutId.length; i++) {
+      const enq = enquiriesWithoutId[i];
+      const year = enq.createdAt ? new Date(enq.createdAt).getFullYear() : new Date().getFullYear();
+      enq.enquiryId = `ENQ-${year}-${String(i + 1).padStart(5, '0')}`;
+      await enq.save();
+    }
+
+    const convertedWithoutUnifiedId = await Enquiry.find({
+      bookingRef: { $exists: true, $ne: null },
+      $or: [{ unifiedBookingId: { $exists: false } }, { unifiedBookingId: null }],
+    }).populate('bookingRef', 'bookingId');
+
+    for (const enq of convertedWithoutUnifiedId) {
+      if ((enq.bookingRef as any)?.bookingId) {
+        enq.unifiedBookingId = (enq.bookingRef as any).bookingId;
+        await enq.save();
+      }
+    }
+  } catch (err) {
+    console.error('[Unified ID Sync] Error:', err);
+  }
+})();
 
 // 1. Security HTTP headers
 app.use(helmet());
@@ -166,6 +194,7 @@ app.use('/api/gallery', galleryRoutes);
 app.use('/api/day-templates', dayTemplateRoutes);
 app.use('/api/approvals', approvalRoutes);
 app.use('/api/targets', targetRoutes);
+app.use('/api/universal-search', universalSearchRoutes);
 // Note: /api/webhooks is mounted earlier (before express.json) — see above
 
 // Health check endpoint
