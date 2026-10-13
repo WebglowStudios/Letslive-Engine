@@ -12,6 +12,7 @@ import {
   getUserPerformance,
   searchUserByEmail,
   updateUserPassword,
+  getUserPassword,
 } from '../controllers/userController.js';
 import { protect, requirePermission, staffOnly, adminOnly } from '../middleware/auth.js';
 
@@ -27,6 +28,7 @@ router.put('/profile', protect, updateProfile);
 router.put('/password', protect, changePassword);
 router.get('/search', protect, staffOnly, searchUserByEmail);
 router.get('/:id/performance', protect, getUserPerformance);
+router.get('/:id/password-reveal', protect, adminOnly, getUserPassword);
 router.get('/:id', protect, requirePermission('users.view'), getUserById);
 router.put('/:id/password', protect, adminOnly, updateUserPassword);
 router.delete('/:id', protect, requirePermission('users.delete'), deleteUser);

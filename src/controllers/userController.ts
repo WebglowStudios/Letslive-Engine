@@ -6,6 +6,7 @@ import Enquiry from '../models/Enquiry.js';
 import Operation from '../models/Operation.js';
 import '../models/Booking.js'; // Side-effect import to ensure Schema is registered for populate
 import mongoose from 'mongoose';
+import { encryptPassword, decryptPassword } from '../utils/crypto.js';
 
 // @desc    Get all users (admin)
 // @route   GET /api/users
@@ -130,6 +131,7 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
   }
 
   user.password = newPassword;
+  user.viewablePassword = encryptPassword(newPassword);
   await user.save();
 
   res.status(200).json({
@@ -212,11 +214,41 @@ export const updateUserPassword = asyncHandler(async (req: Request, res: Respons
   }
 
   user.password = password;
+  user.viewablePassword = encryptPassword(password);
   await user.save();
 
   res.status(200).json({
     status: 'success',
     message: 'User password updated successfully',
+  });
+});
+
+// @desc    Get user password for admin viewing
+// @route   GET /api/users/:id/password-reveal
+export const getUserPassword = asyncHandler(async (req: Request, res: Response) => {
+  const user = await User.findById(req.params.id).select('+viewablePassword');
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  if (!user.viewablePassword) {
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        password: null,
+        isPreExisting: true,
+        message: 'Password was created before this feature was enabled (stored as one-way hash).',
+      },
+    });
+  }
+
+  const plainPassword = decryptPassword(user.viewablePassword);
+  res.status(200).json({
+    status: 'success',
+    data: {
+      password: plainPassword,
+      isPreExisting: false,
+    },
   });
 });
 

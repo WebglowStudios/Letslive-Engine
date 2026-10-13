@@ -479,7 +479,7 @@ export async function sendBookingLink(opts: {
         <td style="padding:20px 24px;">
           <p style="margin:0 0 6px;font-size:18px;font-weight:700;color:#1a1a1a;">${packageName}</p>
           ${priceText}
-          <p style="margin:8px 0 0;font-size:13px;color:#888;">Prepared by ${staffName} · LetsLive Tours</p>
+          <p style="margin:8px 0 0;font-size:13px;color:#888;">Curated by ${staffName} · LetsLive Tours</p>
         </td>
       </tr>
     </table>

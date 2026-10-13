@@ -8,6 +8,7 @@ import Enquiry from '../models/Enquiry.js';
 import Newsletter from '../models/Newsletter.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { encryptPassword } from '../utils/crypto.js';
 
 // @desc    Get dashboard stats
 // @route   GET /api/admin/stats
@@ -104,6 +105,7 @@ export const createStaff = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email: email.toLowerCase(),
     password,
+    viewablePassword: encryptPassword(password),
     phone: phone || undefined,
     role: role || 'user',
     isVerified: true, // Admin-created accounts skip email verification

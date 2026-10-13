@@ -153,7 +153,7 @@ export const getPackageBySlug = asyncHandler(async (req: Request, res: Response)
 
   // Try by slug first, then by _id
   let pkg = await Package.findOne({ slug: param })
-    .populate('destination', 'name slug country region')
+    .populate('destination', 'name slug country region whyTravelersLoveUs')
     .populate('createdBy', 'firstName lastName email')
     .populate({
       path: 'enquiryId',
@@ -163,7 +163,7 @@ export const getPackageBySlug = asyncHandler(async (req: Request, res: Response)
 
   if (!pkg && param.match(/^[0-9a-fA-F]{24}$/)) {
     pkg = await Package.findById(param)
-      .populate('destination', 'name slug country region')
+      .populate('destination', 'name slug country region whyTravelersLoveUs')
       .populate('createdBy', 'firstName lastName email')
       .populate({
         path: 'enquiryId',

@@ -18,6 +18,7 @@ import {
 } from '../validations/auth.js';
 import { sendVerificationEmail, sendResetPasswordEmail } from '../services/emailService.js';
 import ActivityLog from '../models/ActivityLog.js';
+import { encryptPassword } from '../utils/crypto.js';
 
 interface JwtPayload {
   id: string;
@@ -37,7 +38,10 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Create user
-  const user = await User.create(data);
+  const user = await User.create({
+    ...data,
+    viewablePassword: encryptPassword(data.password),
+  });
 
   // Generate verification token
   const rawToken = user.createVerificationToken();
@@ -239,6 +243,7 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
 
   // Set new password and clear reset fields
   user.password = data.password;
+  user.viewablePassword = encryptPassword(data.password);
   user.resetPasswordToken = undefined;
   user.resetPasswordExpires = undefined;
   await user.save();

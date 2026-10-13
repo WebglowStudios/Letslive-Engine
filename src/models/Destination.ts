@@ -12,6 +12,16 @@ export interface IWhyVisit {
   description: string;
 }
 
+export interface IWhyTravelersLoveUs {
+  title?: string;
+  image?: string;
+  quote?: string;
+  description?: string;
+  authorName?: string;
+  authorRole?: string;
+  authorImage?: string;
+}
+
 export interface IDestination extends Document {
   name: string;
   slug: string;
@@ -34,6 +44,7 @@ export interface IDestination extends Document {
   travelTips: ITravelTip[];
   whyVisit: IWhyVisit[];
   partners: string[];
+  whyTravelersLoveUs?: IWhyTravelersLoveUs;
   groupDeal?: {
     title: string;
     description: string;
@@ -84,6 +95,15 @@ const destinationSchema = new Schema<IDestination>(
       },
     ],
     partners: [{ type: String }],
+    whyTravelersLoveUs: {
+      title: { type: String },
+      image: { type: String },
+      quote: { type: String },
+      description: { type: String },
+      authorName: { type: String },
+      authorRole: { type: String },
+      authorImage: { type: String },
+    },
     groupDeal: {
       title: { type: String },
       description: { type: String },
