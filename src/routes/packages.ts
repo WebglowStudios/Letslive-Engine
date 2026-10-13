@@ -41,6 +41,9 @@ router.put('/:id', protect, requirePermission('packages.edit'), updatePackage);
 router.delete('/:id', protect, requirePermission('packages.delete'), deletePackage);
 router.post('/:id/delink', protect, requirePermission('packages.edit'), delinkPackage);
 
+import slugify from 'slugify';
+import Destination from '../models/Destination.js';
+
 // Duplicate a package
 router.post('/:id/duplicate', protect, asyncHandler(async (req: Request, res: Response) => {
   const original = await Package.findById(req.params.id).lean();
@@ -53,31 +56,57 @@ router.post('/:id/duplicate', protect, asyncHandler(async (req: Request, res: Re
   const { _id, slug, createdAt, updatedAt, __v, ...rest } = original as unknown as Record<string, unknown>;
   void _id; void createdAt; void updatedAt; void __v;
 
-  // Use custom name if provided, or build a unique copy name
-  const copyName = req.body.name && req.body.name.trim() ? req.body.name.trim() : `${rest.name} -- copy`;
-  const uniqueSlug = `${slug}-copy-${Date.now()}`;
-
-  let customerData = {};
-  let isCustom = (rest as any).isCustom || false;
   const enquiryId = req.body.enquiryId;
+  let isCustom = (rest as any).isCustom || Boolean(enquiryId);
+  let customerData: Record<string, unknown> = {};
+  let targetEnquiry: any = null;
 
   if (enquiryId) {
-    const enquiry = await Enquiry.findById(enquiryId);
-    if (enquiry) {
+    targetEnquiry = await Enquiry.findById(enquiryId);
+    if (targetEnquiry) {
       isCustom = true;
       customerData = {
         enquiryId,
-        clientName: `${enquiry.firstName} ${enquiry.lastName || ''}`.trim(),
-        clientEmail: enquiry.email,
-        clientPhone: enquiry.phone,
+        clientName: `${targetEnquiry.firstName} ${targetEnquiry.lastName || ''}`.trim(),
+        clientEmail: targetEnquiry.email,
+        clientPhone: targetEnquiry.phone,
       };
     }
   }
 
-  const copy = await Package.create({
+  // Resolve custom name
+  let copyName = req.body.name && req.body.name.trim() ? req.body.name.trim() : '';
+  if (!copyName) {
+    if (targetEnquiry && targetEnquiry.packageName) {
+      copyName = targetEnquiry.packageName;
+    } else {
+      copyName = `${rest.name} -- copy`;
+    }
+  }
+
+  // Generate unique slug based on the new name, not the old slug
+  const baseSlugFn = ((slugify as any).default || slugify);
+  const baseSlug = baseSlugFn(copyName, { lower: true, strict: true }) || 'itinerary';
+  const randomSuffix = Math.random().toString(36).slice(2, 7);
+  const uniqueSlug = `${baseSlug}-${Date.now().toString(36)}-${randomSuffix}`;
+
+  // Destination override:
+  let destinationOverride = rest.destination;
+  let customDestTextOverride = rest.customDestinationText;
+
+  if (req.body.destination !== undefined) {
+    destinationOverride = req.body.destination ? req.body.destination : undefined;
+  }
+  if (req.body.customDestinationText !== undefined) {
+    customDestTextOverride = req.body.customDestinationText ? req.body.customDestinationText.trim() : undefined;
+  }
+
+  const copy: any = await Package.create({
     ...rest,
     name: copyName,
     slug: uniqueSlug,
+    destination: destinationOverride as any,
+    customDestinationText: customDestTextOverride as any,
     isFeatured: false,
     approvalStatus: 'approved',
     isActive: true,
@@ -86,11 +115,11 @@ router.post('/:id/duplicate', protect, asyncHandler(async (req: Request, res: Re
     createdBy: req.user!._id,
     isCustom,
     ...customerData,
-  });
+  } as any);
 
-  if (enquiryId && isCustom) {
+  if (enquiryId && isCustom && targetEnquiry) {
     const creatorName = req.user ? `${req.user.firstName} ${req.user.lastName || ''}`.trim() : 'Staff';
-    await Enquiry.findByIdAndUpdate(enquiryId, {
+    const enquiryUpdate: Record<string, any> = {
       package: copy._id,
       packageName: copy.name,
       $push: {
@@ -104,7 +133,21 @@ router.post('/:id/duplicate', protect, asyncHandler(async (req: Request, res: Re
           meta: { packageId: copy._id, slug: copy.slug, name: copy.name, price: copy.price },
         },
       },
-    });
+    };
+
+    // If destination was set on the new copy and enquiry had no destination, set it on enquiry
+    if (!targetEnquiry.destination) {
+      if (customDestTextOverride) {
+        enquiryUpdate.destination = customDestTextOverride;
+      } else if (destinationOverride) {
+        const destDoc = await Destination.findById(destinationOverride).select('name');
+        if (destDoc?.name) {
+          enquiryUpdate.destination = destDoc.name;
+        }
+      }
+    }
+
+    await Enquiry.findByIdAndUpdate(enquiryId, enquiryUpdate);
   }
 
   res.status(201).json({ status: 'success', data: copy });

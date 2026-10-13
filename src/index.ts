@@ -55,30 +55,43 @@ Enquiry.updateMany(
   { $set: { dnpCount: 0 } }
 ).catch((err) => console.error('[DB Cleanup] Error resetting dnpCount for non-DNP enquiries:', err));
 
-// Backfill unified IDs for historical enquiries and operations
+// Backfill missing human-friendly IDs on historical records safely without altering timestamps
 (async () => {
   try {
-    const enquiriesWithoutId = await Enquiry.find({ $or: [{ enquiryId: { $exists: false } }, { enquiryId: null }] }).limit(200);
-    for (let i = 0; i < enquiriesWithoutId.length; i++) {
-      const enq = enquiriesWithoutId[i];
+    const enquiriesWithoutId = await Enquiry.find(
+      { $or: [{ enquiryId: { $exists: false } }, { enquiryId: null }] },
+      { _id: 1, createdAt: 1 }
+    ).lean();
+
+    for (const enq of enquiriesWithoutId) {
       const year = enq.createdAt ? new Date(enq.createdAt).getFullYear() : new Date().getFullYear();
-      enq.enquiryId = `ENQ-${year}-${String(i + 1).padStart(5, '0')}`;
-      await enq.save();
+      const derivedId = `ENQ-${year}-${String(enq._id).slice(-6).toUpperCase()}`;
+      await Enquiry.updateOne(
+        { _id: enq._id },
+        { $set: { enquiryId: derivedId } },
+        { timestamps: false }
+      );
     }
 
     const convertedWithoutUnifiedId = await Enquiry.find({
       bookingRef: { $exists: true, $ne: null },
       $or: [{ unifiedBookingId: { $exists: false } }, { unifiedBookingId: null }],
-    }).populate('bookingRef', 'bookingId');
+    })
+      .populate('bookingRef', 'bookingId')
+      .lean();
 
     for (const enq of convertedWithoutUnifiedId) {
-      if ((enq.bookingRef as any)?.bookingId) {
-        enq.unifiedBookingId = (enq.bookingRef as any).bookingId;
-        await enq.save();
+      const bId = (enq.bookingRef as any)?.bookingId;
+      if (bId) {
+        await Enquiry.updateOne(
+          { _id: enq._id },
+          { $set: { unifiedBookingId: bId } },
+          { timestamps: false }
+        );
       }
     }
   } catch (err) {
-    console.error('[Unified ID Sync] Error:', err);
+    console.error('[Unified ID Safe Sync] Non-blocking notice:', err);
   }
 })();
 

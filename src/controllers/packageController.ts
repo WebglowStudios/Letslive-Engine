@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
+import slugify from 'slugify';
 import Package from '../models/Package.js';
 import Destination from '../models/Destination.js';
 import Enquiry from '../models/Enquiry.js';
@@ -356,8 +357,9 @@ export const updatePackage = asyncHandler(async (req: Request, res: Response) =>
 
   const canDirectChange = req.user?.role === 'admin' || req.user?.role === 'manager';
   const isLiveApproved = pkgCheck.approvalStatus === 'approved' && pkgCheck.isActive === true;
+  const isCustomItinerary = pkgCheck.isCustom || Boolean(pkgCheck.enquiryId);
 
-  if (!canDirectChange && isLiveApproved && !pkgCheck.isCustom) {
+  if (!canDirectChange && isLiveApproved && !isCustomItinerary) {
     await ApprovalRequest.create({
       entityType: 'Package',
       entityId: req.params.id as any,
@@ -372,11 +374,31 @@ export const updatePackage = asyncHandler(async (req: Request, res: Response) =>
     });
   }
 
-  // Strip empty destination to avoid ObjectId cast error
-  if (!req.body.destination) {
-    delete req.body.destination;
+  // Handle destination and customDestinationText updates
+  const updateData = { ...req.body };
+  const unsetData: Record<string, any> = {};
+
+  if ('destination' in req.body) {
+    if (!req.body.destination) {
+      delete updateData.destination;
+      unsetData.destination = 1;
+    }
   }
-  const pkg = await Package.findByIdAndUpdate(req.params.id, req.body, {
+
+  // If custom itinerary name is updated, regenerate slug if name changed
+  if (isCustomItinerary && req.body.name && req.body.name.trim() !== pkgCheck.name) {
+    const baseSlugFn = ((slugify as any).default || slugify);
+    const baseSlug = baseSlugFn(req.body.name.trim(), { lower: true, strict: true }) || 'itinerary';
+    const randomSuffix = Math.random().toString(36).slice(2, 7);
+    updateData.slug = `${baseSlug}-${Date.now().toString(36)}-${randomSuffix}`;
+  }
+
+  const mongoUpdate: Record<string, any> = { $set: updateData };
+  if (Object.keys(unsetData).length > 0) {
+    mongoUpdate.$unset = unsetData;
+  }
+
+  const pkg = await Package.findByIdAndUpdate(req.params.id, mongoUpdate, {
     new: true,
     runValidators: true,
   });
@@ -387,10 +409,19 @@ export const updatePackage = asyncHandler(async (req: Request, res: Response) =>
 
   // If this package is linked to an enquiry and name was updated, keep enquiry.packageName in sync
   if (pkg.enquiryId && req.body.name) {
-    await Enquiry.findByIdAndUpdate(pkg.enquiryId, {
+    const enquiryUpdate: Record<string, any> = {
       package: pkg._id,
       packageName: pkg.name,
-    });
+    };
+    if (req.body.customDestinationText) {
+      enquiryUpdate.destination = req.body.customDestinationText.trim();
+    } else if (req.body.destination) {
+      const destDoc = await Destination.findById(req.body.destination).select('name');
+      if (destDoc?.name) {
+        enquiryUpdate.destination = destDoc.name;
+      }
+    }
+    await Enquiry.findByIdAndUpdate(pkg.enquiryId, enquiryUpdate);
   }
 
   // Detect approval status change
