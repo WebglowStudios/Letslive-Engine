@@ -27,16 +27,30 @@ export const getDashboardStats = asyncHandler(async (_req: Request, res: Respons
     User.countDocuments({ role: 'user' }),
     Package.countDocuments({ isActive: true }),
     Destination.countDocuments({ isActive: true }),
-    Booking.countDocuments({ status: 'pending' }),
+    Booking.countDocuments({ bookingStatus: { $in: ['pending', 'staff-confirmed'] } }),
     Review.countDocuments({ isApproved: false }),
     Enquiry.countDocuments({ status: 'new' }),
     Newsletter.countDocuments({ isSubscribed: true }),
   ]);
 
-  // Calculate total revenue from completed bookings
+  // Calculate total revenue from active/confirmed bookings or collected payments
   const revenueResult = await Booking.aggregate([
-    { $match: { status: { $in: ['confirmed', 'completed'] } } },
-    { $group: { _id: null, total: { $sum: '$totalAmount' } } },
+    {
+      $match: {
+        $or: [
+          { bookingStatus: { $in: ['confirmed', 'completed', 'staff-confirmed', 'vendor-confirmed', 'in-progress'] } },
+          { paymentStatus: { $in: ['paid', 'partial'] } },
+          { paidAmount: { $gt: 0 } },
+        ],
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        total: { $sum: { $ifNull: ['$totalAmount', 0] } },
+        totalPaid: { $sum: { $ifNull: ['$paidAmount', 0] } },
+      },
+    },
   ]);
   const totalRevenue = revenueResult[0]?.total || 0;
 

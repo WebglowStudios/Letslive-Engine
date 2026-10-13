@@ -385,6 +385,40 @@ export const updatePackage = asyncHandler(async (req: Request, res: Response) =>
     }
   }
 
+  // Handle clearing optional cost & bifurcation fields when left blank or null
+  const costFields = [
+    'hotelPrice',
+    'activityPrice',
+    'transferPrice',
+    'activityAndTransportPrice',
+    'extraMealsPrice',
+    'visaPrice',
+    'flightPrice',
+    'trainPrice',
+    'cruisePrice',
+    'landCost',
+    'originalPrice',
+    'discount',
+  ];
+
+  for (const field of costFields) {
+    if (field in req.body) {
+      const val = req.body[field];
+      if (val === null || val === undefined || val === '' || (typeof val === 'number' && val <= 0)) {
+        delete updateData[field];
+        unsetData[field] = 1;
+      }
+    }
+  }
+
+  // If activityAndTransportPrice is being updated, clean legacy separate activityPrice & transferPrice
+  if ('activityAndTransportPrice' in req.body) {
+    delete updateData.activityPrice;
+    delete updateData.transferPrice;
+    unsetData.activityPrice = 1;
+    unsetData.transferPrice = 1;
+  }
+
   // If custom itinerary name is updated, regenerate slug if name changed
   if (isCustomItinerary && req.body.name && req.body.name.trim() !== pkgCheck.name) {
     const baseSlugFn = ((slugify as any).default || slugify);

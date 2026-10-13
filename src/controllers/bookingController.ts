@@ -35,6 +35,7 @@ const sanitizeTravellersDetails = (details?: any[]): any[] => {
       ...t,
       age,
       dob,
+      gender: t.gender ? String(t.gender).trim().toLowerCase() : undefined,
     };
   });
 };

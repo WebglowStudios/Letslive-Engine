@@ -1378,18 +1378,37 @@ export const bulkUpdateEnquiries = asyncHandler(async (req: Request, res: Respon
 // @desc    Get CRM pipeline stats
 // @route   GET /api/enquiries/stats
 export const getEnquiryStats = asyncHandler(async (req: Request, res: Response) => {
-  // Optional date filter (default: current month)
   const now = new Date();
-  const fromDate = req.query.from
-    ? new Date(req.query.from as string)
-    : new Date(now.getFullYear(), now.getMonth(), 1);
+  const period = (req.query.period as string) || (req.query.from ? 'custom' : 'month');
+  
+  let fromDate: Date | null = null;
   const toDate = req.query.to ? new Date(req.query.to as string) : now;
 
-  const dateFilter: any = { createdAt: { $gte: fromDate, $lte: toDate } };
+  if (req.query.from) {
+    fromDate = new Date(req.query.from as string);
+  } else if (period === 'month') {
+    fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
 
+  const roleFilter: any = {};
   const fullAccessRoles = ['admin', 'manager', 'sales-manager'];
   if (!fullAccessRoles.includes(req.user?.role || '')) {
-    dateFilter.assignedTo = req.user?._id;
+    roleFilter.assignedTo = req.user?._id;
+  }
+
+  // Base match filter
+  const matchFilter: any = { ...roleFilter };
+  if (fromDate) {
+    if (period === 'month') {
+      // Month pipeline view: Include all open/active pipeline leads, plus leads created or closed/converted this month
+      matchFilter.$or = [
+        { status: { $nin: ['converted', 'closed', 'resolved'] } },
+        { createdAt: { $gte: fromDate, $lte: toDate } },
+        { updatedAt: { $gte: fromDate, $lte: toDate } },
+      ];
+    } else {
+      matchFilter.createdAt = { $gte: fromDate, $lte: toDate };
+    }
   }
 
   const [
@@ -1402,19 +1421,19 @@ export const getEnquiryStats = asyncHandler(async (req: Request, res: Response) 
   ] = await Promise.all([
     // Count by each status
     Enquiry.aggregate([
-      { $match: dateFilter },
+      { $match: matchFilter },
       { $group: { _id: '$status', count: { $sum: 1 } } },
     ]),
 
     // Count by channel
     Enquiry.aggregate([
-      { $match: dateFilter },
+      { $match: matchFilter },
       { $group: { _id: '$channel', count: { $sum: 1 } } },
     ]),
 
     // DNP breakdown
     Enquiry.aggregate([
-      { $match: { ...dateFilter, dnpCount: { $gt: 0 }, status: { $nin: ['closed', 'resolved', 'converted'] } } },
+      { $match: { ...matchFilter, dnpCount: { $gt: 0 }, status: { $nin: ['closed', 'resolved', 'converted'] } } },
       {
         $group: {
           _id: null,
@@ -1428,13 +1447,33 @@ export const getEnquiryStats = asyncHandler(async (req: Request, res: Response) 
       },
     ]),
 
-    // Conversion value total + avg time to convert
+    // Conversion value total + avg time to convert (with fallback to linked booking amount)
     Enquiry.aggregate([
-      { $match: { ...dateFilter, status: 'converted', conversionValue: { $exists: true } } },
+      { $match: { ...matchFilter, status: 'converted' } },
+      {
+        $lookup: {
+          from: 'bookings',
+          localField: 'bookingRef',
+          foreignField: '_id',
+          as: 'booking',
+        },
+      },
+      {
+        $addFields: {
+          effectiveValue: {
+            $ifNull: [
+              '$conversionValue',
+              { $first: '$booking.totalAmount' },
+              '$budget',
+              0,
+            ],
+          },
+        },
+      },
       {
         $group: {
           _id: null,
-          totalConversionValue: { $sum: '$conversionValue' },
+          totalConversionValue: { $sum: '$effectiveValue' },
           avgDaysToConvert: {
             $avg: {
               $divide: [
@@ -1450,13 +1489,37 @@ export const getEnquiryStats = asyncHandler(async (req: Request, res: Response) 
 
     // Per-staff performance
     Enquiry.aggregate([
-      { $match: dateFilter },
+      { $match: matchFilter },
+      {
+        $lookup: {
+          from: 'bookings',
+          localField: 'bookingRef',
+          foreignField: '_id',
+          as: 'booking',
+        },
+      },
+      {
+        $addFields: {
+          effectiveValue: {
+            $ifNull: [
+              '$conversionValue',
+              { $first: '$booking.totalAmount' },
+              '$budget',
+              0,
+            ],
+          },
+        },
+      },
       {
         $group: {
           _id: '$assignedTo',
           assigned: { $sum: 1 },
           converted: { $sum: { $cond: [{ $eq: ['$status', 'converted'] }, 1, 0] } },
-          totalValue: { $sum: '$conversionValue' },
+          totalValue: {
+            $sum: {
+              $cond: [{ $eq: ['$status', 'converted'] }, '$effectiveValue', 0],
+            },
+          },
         },
       },
       {
@@ -1489,19 +1552,47 @@ export const getEnquiryStats = asyncHandler(async (req: Request, res: Response) 
 
     // Follow-ups due today
     Enquiry.countDocuments({
+      ...roleFilter,
       followUpDate: {
-        $gte: new Date(now.setHours(0, 0, 0, 0)),
-        $lte: new Date(now.setHours(23, 59, 59, 999)),
+        $gte: new Date(new Date().setHours(0, 0, 0, 0)),
+        $lte: new Date(new Date().setHours(23, 59, 59, 999)),
       },
       status: { $nin: ['converted', 'closed', 'resolved'] },
     }),
   ]);
 
-  // Shape byStatus into a flat object
-  const statusMap: Record<string, number> = {};
-  for (const s of byStatus) statusMap[s._id] = s.count;
-  const total = Object.values(statusMap).reduce((a, b) => a + b, 0);
-  const convertedCount = statusMap['converted'] || 0;
+  // Shape raw status counts
+  const rawStatusMap: Record<string, number> = {};
+  for (const s of byStatus) rawStatusMap[s._id] = s.count;
+
+  // Roll up into standard CRM pipeline buckets
+  const newCount = (rawStatusMap['new'] || 0) + (rawStatusMap['begin'] || 0);
+  const inProgressCount =
+    (rawStatusMap['in-progress'] || 0) +
+    (rawStatusMap['assigned'] || 0) +
+    (rawStatusMap['responded'] || 0) +
+    (rawStatusMap['whatsapp-sent'] || 0) +
+    (rawStatusMap['negotiation'] || 0) +
+    (rawStatusMap['ytc'] || 0);
+  const followUpCount =
+    (rawStatusMap['follow-up'] || 0) +
+    (rawStatusMap['callback-scheduled'] || 0) +
+    (rawStatusMap['callback-requested'] || 0) +
+    (rawStatusMap['dnp'] || 0) +
+    (rawStatusMap['busy'] || 0);
+  const convertedCount = rawStatusMap['converted'] || 0;
+  const closedCount = (rawStatusMap['closed'] || 0) + (rawStatusMap['resolved'] || 0);
+
+  const statusMap: Record<string, number> = {
+    ...rawStatusMap,
+    new: newCount,
+    'in-progress': inProgressCount,
+    'follow-up': followUpCount,
+    converted: convertedCount,
+    closed: closedCount,
+  };
+
+  const total = newCount + inProgressCount + followUpCount + convertedCount + closedCount;
   const conversionRate = total > 0 ? Math.round((convertedCount / total) * 100) : 0;
 
   // Shape channel breakdown
@@ -1514,9 +1605,16 @@ export const getEnquiryStats = asyncHandler(async (req: Request, res: Response) 
   res.status(200).json({
     status: 'success',
     data: {
-      period: { from: fromDate, to: toDate },
+      period: { from: fromDate, to: toDate, mode: period },
       total,
       byStatus: statusMap,
+      pipelineByStatus: {
+        new: newCount,
+        'in-progress': inProgressCount,
+        'follow-up': followUpCount,
+        converted: convertedCount,
+        closed: closedCount,
+      },
       conversionRate,
       convertedCount,
       avgDaysToConvert: Math.round((conv.avgDaysToConvert || 0) * 10) / 10,

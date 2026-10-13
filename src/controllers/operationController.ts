@@ -786,8 +786,74 @@ export const updateCustomerPayment = asyncHandler(async (req: Request, res: Resp
   res.status(200).json({ status: 'success', data: payment });
 });
 export const deleteCustomerPayment = asyncHandler(async (req: Request, res: Response) => {
+  const payment = await CustomerPayment.findById(req.params.paymentId);
+  if (!payment) throw new AppError('Payment not found', 404);
+
+  const opId = payment.operation;
+  const bookingId = payment.booking;
+  const paymentAmount = payment.amount || 0;
+  const milestoneLower = (payment.milestone || '').toLowerCase();
+  const isExtraCharge = milestoneLower.includes('extra passenger') || milestoneLower.includes('extra charge');
+
   await CustomerPayment.findByIdAndDelete(req.params.paymentId);
-  res.status(204).json({ status: 'success', data: null });
+
+  // If this payment was an extra passenger or extra charge milestone, deduct it from booking.totalAmount
+  if (bookingId && isExtraCharge && paymentAmount > 0) {
+    const booking = await Booking.findById(bookingId);
+    if (booking && booking.totalAmount) {
+      booking.totalAmount = Math.max(0, booking.totalAmount - paymentAmount);
+      await booking.save();
+    }
+  }
+
+  // Recalculate operation financials
+  if (opId) {
+    const [transports, accommodations, activities, remainingPayments] = await Promise.all([
+      OperationTransport.find({ operation: opId }),
+      OperationAccommodation.find({ operation: opId }),
+      OperationActivity.find({ operation: opId }),
+      CustomerPayment.find({ operation: opId }),
+    ]);
+
+    const totalVendorCost =
+      transports.reduce((s, t) => s + (t.vendorCost || 0), 0) +
+      accommodations.reduce((s, a) => s + (a.vendorCost || 0), 0) +
+      activities.reduce((s, a) => {
+        const actBase = a.vendorCost || 0;
+        const transferCost = (a.transfers || []).reduce((ts: number, tr: any) => ts + (tr.hasPricing ? (tr.vendorCost || 0) : 0), 0);
+        return s + actBase + transferCost;
+      }, 0);
+
+    const totalCustomerBilled = remainingPayments.reduce((s, cp) => s + (cp.amount || 0), 0);
+
+    const operation = await Operation.findById(opId);
+    if (operation) {
+      operation.totalVendorCost = totalVendorCost;
+      if (totalCustomerBilled > 0) {
+        operation.sellingPrice = totalCustomerBilled;
+      }
+      operation.grossProfit = (operation.sellingPrice || 0) - totalVendorCost;
+      operation.profitPercentage = operation.sellingPrice > 0
+        ? Math.round(((operation.sellingPrice - totalVendorCost) / operation.sellingPrice) * 100)
+        : 0;
+      await operation.save();
+
+      // Also sync linked bookings if needed
+      if (bookingId) {
+        const bPayments = remainingPayments.filter(cp => cp.booking && String(cp.booking) === String(bookingId));
+        if (bPayments.length > 0) {
+          const bTotal = bPayments.reduce((s, cp) => s + (cp.amount || 0), 0);
+          const bPaid = bPayments.reduce((s, cp) => s + (cp.paidAmount || 0), 0);
+          let bStatus: 'pending' | 'partial' | 'paid' = 'pending';
+          if (bTotal > 0 && bPaid >= bTotal) bStatus = 'paid';
+          else if (bPaid > 0) bStatus = 'partial';
+          await Booking.findByIdAndUpdate(bookingId, { $set: { totalAmount: bTotal, paidAmount: bPaid, paymentStatus: bStatus } });
+        }
+      }
+    }
+  }
+
+  res.status(200).json({ status: 'success', message: 'Payment deleted and operation recalculated' });
 });
 
 export const notifyCustomerPayment = asyncHandler(async (req: Request, res: Response) => {
@@ -854,13 +920,13 @@ export const getSalespersonStats = asyncHandler(async (_req: Request, res: Respo
 
 export const addOperationPassenger = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params; // operation ID
-  const { mode, passengerData, bookingId, email, phone, firstName, lastName } = req.body;
+  const { mode, passengerData, bookingId, email, phone, firstName, lastName, billExtra, extraAmount } = req.body;
 
   const operation = await Operation.findById(id).populate('package');
   if (!operation) throw new AppError('Operation not found', 404);
 
   const pkg = operation.package as any;
-  const price = pkg?.price || 0;
+  const basePrice = pkg?.price || 0;
 
   const rawAge = (passengerData?.age !== '' && passengerData?.age !== undefined && passengerData?.age !== null)
     ? Number(passengerData.age)
@@ -869,6 +935,7 @@ export const addOperationPassenger = asyncHandler(async (req: Request, res: Resp
     ...passengerData,
     age: (rawAge !== undefined && !isNaN(rawAge)) ? rawAge : undefined,
     dob: passengerData?.dob ? new Date(passengerData.dob) : undefined,
+    gender: passengerData?.gender ? String(passengerData.gender).trim().toLowerCase() : undefined,
   };
   if (sanitizedPassenger.age === undefined && sanitizedPassenger.dob && !isNaN(sanitizedPassenger.dob.getTime())) {
     const today = new Date();
@@ -880,58 +947,77 @@ export const addOperationPassenger = asyncHandler(async (req: Request, res: Resp
     if (calculatedAge >= 0) sanitizedPassenger.age = calculatedAge;
   }
 
+  // Determine if extra billing is requested
+  const shouldBillExtra = Boolean(billExtra);
+  const extraPrice = shouldBillExtra
+    ? (extraAmount !== undefined && extraAmount !== '' && !isNaN(Number(extraAmount)) ? Number(extraAmount) : basePrice)
+    : 0;
+
   if (mode === 'existing') {
     if (!bookingId) throw new AppError('Booking ID is required for existing mode', 400);
     const booking = await Booking.findById(bookingId);
     if (!booking) throw new AppError('Booking not found', 404);
     
-    // 1. Add passenger to booking
+    // 1. Add passenger to booking travellersDetails
     booking.travellersDetails = [...(booking.travellersDetails || []), sanitizedPassenger];
-    if (sanitizedPassenger.type === 'child') {
-      booking.travellers.children = (booking.travellers.children || 0) + 1;
-    } else if (sanitizedPassenger.type === 'infant') {
-      booking.travellers.infants = (booking.travellers.infants || 0) + 1;
-    } else {
-      booking.travellers.adults = (booking.travellers.adults || 1) + 1;
-    }
     
-    // 2. Financial Bookkeeping
-    booking.totalAmount = (booking.totalAmount || 0) + price;
-    await booking.save();
+    // Calculate actual passenger counts from details vs existing booked counts
+    const allDetails = booking.travellersDetails || [];
+    const adultDetailsCount = allDetails.filter((p: any) => p.type !== 'child' && p.type !== 'infant').length;
+    const childDetailsCount = allDetails.filter((p: any) => p.type === 'child').length;
+    const infantDetailsCount = allDetails.filter((p: any) => p.type === 'infant').length;
 
-    operation.sellingPrice += price;
+    booking.travellers = booking.travellers || { adults: 1, children: 0, infants: 0 };
+    const prevPax = (booking.travellers.adults || 0) + (booking.travellers.children || 0);
+
+    // Use Math.max to prevent inflating counts for group bookings where pax was already booked
+    booking.travellers.adults = Math.max(booking.travellers.adults || 0, adultDetailsCount);
+    booking.travellers.children = Math.max(booking.travellers.children || 0, childDetailsCount);
+    booking.travellers.infants = Math.max(booking.travellers.infants || 0, infantDetailsCount);
+
+    const newPax = (booking.travellers.adults || 0) + (booking.travellers.children || 0);
+    const totalWithInfants = newPax + (booking.travellers.infants || 0);
+
+    // 2. Financial Bookkeeping: ONLY bill if explicitly requested
+    if (shouldBillExtra && extraPrice > 0) {
+      booking.totalAmount = (booking.totalAmount || 0) + extraPrice;
+      operation.sellingPrice = (operation.sellingPrice || 0) + extraPrice;
+
+      await CustomerPayment.create({
+        operation: operation._id,
+        booking: booking._id,
+        milestone: `Extra Passenger: ${sanitizedPassenger.name || 'Additional'}`,
+        amount: extraPrice,
+        paidAmount: 0,
+        status: 'upcoming',
+        dueDate: new Date(),
+      });
+    }
+
+    await booking.save();
     
     // Update pax in operation customers array
     const custIndex = operation.bookings?.findIndex((b: any) => String(b) === String(bookingId));
     if (custIndex !== undefined && custIndex !== -1 && operation.customers[custIndex]) {
-       operation.customers[custIndex].pax += 1;
-       if (sanitizedPassenger.type === 'child') operation.customers[custIndex].children = (operation.customers[custIndex].children || 0) + 1;
-       else operation.customers[custIndex].adults = (operation.customers[custIndex].adults || 0) + 1;
+       operation.customers[custIndex].pax = Math.max(operation.customers[custIndex].pax || 0, totalWithInfants);
+       operation.customers[custIndex].adults = Math.max(operation.customers[custIndex].adults || 0, booking.travellers.adults || 0);
+       operation.customers[custIndex].children = Math.max(operation.customers[custIndex].children || 0, booking.travellers.children || 0);
        operation.markModified('customers');
     } else if ((operation as any).customer) {
-       (operation as any).customer.pax += 1;
-       if (sanitizedPassenger.type === 'child') (operation as any).customer.children = ((operation as any).customer.children || 0) + 1;
-       else (operation as any).customer.adults = ((operation as any).customer.adults || 0) + 1;
+       (operation as any).customer.pax = Math.max((operation as any).customer.pax || 0, totalWithInfants);
+       (operation as any).customer.adults = Math.max((operation as any).customer.adults || 0, booking.travellers.adults || 0);
+       (operation as any).customer.children = Math.max((operation as any).customer.children || 0, booking.travellers.children || 0);
        operation.markModified('customer');
     }
 
     await operation.save();
 
-    await CustomerPayment.create({
-      operation: operation._id,
-      booking: booking._id,
-      milestone: 'Extra Passenger Addition',
-      amount: price,
-      paidAmount: 0,
-      status: 'upcoming',
-      dueDate: new Date(),
-    });
-
-    // 3. Update Package Slots
-    if (pkg && operation.departureId) {
+    // 3. Update Package Slots ONLY if passenger increases booked slots beyond original booking
+    const addedSlots = newPax - prevPax;
+    if (addedSlots > 0 && pkg && operation.departureId) {
       await mongoose.model('Package').updateOne(
         { _id: pkg._id, 'departures._id': operation.departureId },
-        { $inc: { 'departures.$.bookedSlots': 1 } }
+        { $inc: { 'departures.$.bookedSlots': addedSlots } }
       );
     }
 
@@ -940,6 +1026,11 @@ export const addOperationPassenger = asyncHandler(async (req: Request, res: Resp
   } else if (mode === 'new') {
     if (!email) throw new AppError('Email is required for new booking mode', 400);
     
+    // Allow custom price if specified in extraAmount, otherwise fallback to pkg.price
+    const newBookingPrice = (extraAmount !== undefined && extraAmount !== '' && !isNaN(Number(extraAmount)))
+      ? Number(extraAmount)
+      : basePrice;
+
     // 1. Resolve User
     let user = await mongoose.model('User').findOne({ email });
     if (!user) {
@@ -960,8 +1051,7 @@ export const addOperationPassenger = asyncHandler(async (req: Request, res: Resp
       user: user._id,
       package: pkg._id,
       departureId: operation.departureId,
-      // destination on Operation is a string, Booking expects ObjectId, so we omit it here
-      totalAmount: price,
+      totalAmount: newBookingPrice,
       paidAmount: 0,
       paymentStatus: 'pending',
       bookingStatus: 'confirmed',
@@ -989,7 +1079,7 @@ export const addOperationPassenger = asyncHandler(async (req: Request, res: Resp
       adults: passengerData.type === 'adult' ? 1 : 0,
       children: passengerData.type === 'child' ? 1 : 0,
     });
-    operation.sellingPrice += price;
+    operation.sellingPrice = (operation.sellingPrice || 0) + newBookingPrice;
     await operation.save();
 
     // 4. Create Payment
@@ -997,7 +1087,7 @@ export const addOperationPassenger = asyncHandler(async (req: Request, res: Resp
       operation: operation._id,
       booking: newBooking._id,
       milestone: 'Full Payment',
-      amount: price,
+      amount: newBookingPrice,
       paidAmount: 0,
       status: 'upcoming',
       dueDate: new Date(),
