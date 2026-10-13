@@ -19,10 +19,13 @@ const transporter = nodemailer.createTransport({
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+export type BrandType = 'letslivetours' | 'trippy-travellerz';
+
 interface SendEmailOptions {
   to: string;
   subject: string;
   html: string;
+  brand?: BrandType;
 }
 
 interface BookingDetails {
@@ -31,11 +34,20 @@ interface BookingDetails {
   amount: number;
   travellers: string;
   bookingId: string;
+  brand?: BrandType;
 }
 
 // ─── HTML Template Helpers ───────────────────────────────────────────────────
 
-function wrapTemplate(body: string): string {
+function wrapTemplate(body: string, brand: BrandType = 'letslivetours'): string {
+  const isTrippy = brand === 'trippy-travellerz';
+  const brandName = isTrippy ? 'Trippy Travellerz' : 'LetsLive Tours';
+  const brandTagline = isTrippy ? 'Artisanal Journeys · Bespoke Luxury' : 'Explore · Experience · Live';
+  const headerBg = isTrippy ? '#58371E' : '#004d5e';
+  const footerAddress = isTrippy ? 'Trippy Travellerz Expeditions · Mumbai & Bengaluru, India' : 'LetsLive Tours Pvt. Ltd. · Bengaluru, India';
+  const footerContact = isTrippy ? 'concierge@trippytravellerz.com · +91 98765 43210' : 'info@letslivetours.com · +91 98765 43210';
+  const footerCopyright = isTrippy ? '© 2026 Trippy Travellerz. All rights reserved.' : '© 2026 LetsLive Tours. All rights reserved.';
+
   return `
 <!DOCTYPE html>
 <html>
@@ -46,9 +58,9 @@ function wrapTemplate(body: string): string {
       <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.06);">
         <!-- Header -->
         <tr>
-          <td style="background:#004d5e;padding:28px 32px;text-align:center;">
-            <h1 style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:1px;">LetsLive Tours</h1>
-            <p style="margin:4px 0 0;font-size:11px;color:rgba(255,255,255,.6);letter-spacing:2px;text-transform:uppercase;">Explore · Experience · Live</p>
+          <td style="background:${headerBg};padding:28px 32px;text-align:center;">
+            <h1 style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:1px;">${brandName}</h1>
+            <p style="margin:4px 0 0;font-size:11px;color:rgba(255,255,255,.75);letter-spacing:2px;text-transform:uppercase;">${brandTagline}</p>
           </td>
         </tr>
         <!-- Body -->
@@ -60,9 +72,9 @@ function wrapTemplate(body: string): string {
         <!-- Footer -->
         <tr>
           <td style="background:#f9f6f0;padding:24px 32px;text-align:center;border-top:1px solid #e5e5e5;">
-            <p style="margin:0;font-size:12px;color:#888;">LetsLive Tours Pvt. Ltd. · Bengaluru, India</p>
-            <p style="margin:6px 0 0;font-size:11px;color:#aaa;">info@letslivetours.com · +91 98765 43210</p>
-            <p style="margin:8px 0 0;font-size:11px;color:#bbb;">© 2026 LetsLive Tours. All rights reserved.</p>
+            <p style="margin:0;font-size:12px;color:#888;">${footerAddress}</p>
+            <p style="margin:6px 0 0;font-size:11px;color:#aaa;">${footerContact}</p>
+            <p style="margin:8px 0 0;font-size:11px;color:#bbb;">${footerCopyright}</p>
           </td>
         </tr>
       </table>
@@ -72,18 +84,22 @@ function wrapTemplate(body: string): string {
 </html>`;
 }
 
-function ctaButton(text: string, url: string): string {
+function ctaButton(text: string, url: string, brand: BrandType = 'letslivetours'): string {
+  const btnBg = brand === 'trippy-travellerz' ? '#DFB980' : '#f5a623';
+  const textColor = brand === 'trippy-travellerz' ? '#1A1108' : '#ffffff';
   return `<table cellpadding="0" cellspacing="0" style="margin:28px 0;"><tr><td>
-    <a href="${url}" style="display:inline-block;padding:14px 32px;background:#f5a623;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;border-radius:50px;letter-spacing:0.5px;">${text}</a>
+    <a href="${url}" style="display:inline-block;padding:14px 32px;background:${btnBg};color:${textColor};font-size:14px;font-weight:700;text-decoration:none;border-radius:50px;letter-spacing:0.5px;">${text}</a>
   </td></tr></table>`;
 }
 
 // ─── Base Send Function ──────────────────────────────────────────────────────
 
-export async function sendEmail({ to, subject, html }: SendEmailOptions): Promise<void> {
+export async function sendEmail({ to, subject, html, brand }: SendEmailOptions): Promise<void> {
+  const fromName = brand === 'trippy-travellerz' ? 'Trippy Travellerz' : 'LetsLive Tours';
+
   if (env.NODE_ENV === 'development' && !env.SMTP_USER) {
     console.log('──────────────────────────────────────');
-    console.log('📧 EMAIL (dev mode — not sent)');
+    console.log(`📧 EMAIL (${fromName} dev mode — not sent)`);
     console.log(`   To: ${to}`);
     console.log(`   Subject: ${subject}`);
     console.log('──────────────────────────────────────');
@@ -92,7 +108,7 @@ export async function sendEmail({ to, subject, html }: SendEmailOptions): Promis
 
   try {
     await transporter.sendMail({
-      from: `"LetsLive Tours" <${env.SMTP_USER}>`,
+      from: `"${fromName}" <${env.SMTP_USER}>`,
       to,
       subject,
       html,
@@ -107,75 +123,95 @@ export async function sendEmail({ to, subject, html }: SendEmailOptions): Promis
 export async function sendVerificationEmail(
   email: string,
   token: string,
-  name: string
+  name: string,
+  brand: BrandType = 'letslivetours'
 ): Promise<void> {
-  const link = `${env.FRONTEND_URL}/verify-email/${token}`;
+  const isTrippy = brand === 'trippy-travellerz';
+  const brandName = isTrippy ? 'Trippy Travellerz' : 'LetsLive Tours';
+  const baseUrl = isTrippy ? 'http://localhost:3002' : env.FRONTEND_URL;
+  const link = `${baseUrl}/verify-email/${token}`;
   const html = wrapTemplate(`
     <h2 style="margin:0 0 12px;font-size:20px;color:#1a1a1a;">Hi ${name},</h2>
-    <p style="margin:0 0 8px;font-size:15px;color:#444;line-height:1.7;">Welcome to LetsLive Tours! Please verify your email address to get started.</p>
+    <p style="margin:0 0 8px;font-size:15px;color:#444;line-height:1.7;">Welcome to ${brandName}! Please verify your email address to get started.</p>
     <p style="margin:0;font-size:14px;color:#666;line-height:1.6;">Click the button below to confirm your email:</p>
-    ${ctaButton('Verify Email', link)}
+    ${ctaButton('Verify Email', link, brand)}
     <p style="margin:0;font-size:12px;color:#999;">If you didn't create an account, you can safely ignore this email.</p>
     <p style="margin:12px 0 0;font-size:11px;color:#bbb;word-break:break-all;">Or copy this link: ${link}</p>
-  `);
+  `, brand);
 
-  await sendEmail({ to: email, subject: 'Verify your email — LetsLive Tours', html });
+  await sendEmail({ to: email, subject: `Verify your email — ${brandName}`, html, brand });
 }
 
 export async function sendResetPasswordEmail(
   email: string,
   token: string,
-  name: string
+  name: string,
+  brand: BrandType = 'letslivetours'
 ): Promise<void> {
-  const link = `${env.FRONTEND_URL}/reset-password/${token}`;
+  const isTrippy = brand === 'trippy-travellerz';
+  const brandName = isTrippy ? 'Trippy Travellerz' : 'LetsLive Tours';
+  const baseUrl = isTrippy ? 'http://localhost:3002' : env.FRONTEND_URL;
+  const link = `${baseUrl}/reset-password/${token}`;
   const html = wrapTemplate(`
     <h2 style="margin:0 0 12px;font-size:20px;color:#1a1a1a;">Hi ${name},</h2>
     <p style="margin:0 0 8px;font-size:15px;color:#444;line-height:1.7;">We received a request to reset your password. Click the button below to choose a new one:</p>
-    ${ctaButton('Reset Password', link)}
+    ${ctaButton('Reset Password', link, brand)}
     <p style="margin:0;font-size:12px;color:#999;">This link expires in 1 hour. If you didn't request a password reset, please ignore this email.</p>
     <p style="margin:12px 0 0;font-size:11px;color:#bbb;word-break:break-all;">Or copy this link: ${link}</p>
-  `);
+  `, brand);
 
-  await sendEmail({ to: email, subject: 'Reset your password — LetsLive Tours', html });
+  await sendEmail({ to: email, subject: `Reset your password — ${brandName}`, html, brand });
 }
 
 export async function sendEnquiryReceived(
   email: string,
-  name: string
+  name: string,
+  brand: BrandType = 'letslivetours'
 ): Promise<void> {
+  const isTrippy = brand === 'trippy-travellerz';
+  const brandName = isTrippy ? 'Trippy Travellerz' : 'LetsLive Tours';
+  const baseUrl = isTrippy ? 'http://localhost:3002' : env.FRONTEND_URL;
   const html = wrapTemplate(`
     <h2 style="margin:0 0 12px;font-size:20px;color:#1a1a1a;">Hi ${name},</h2>
     <p style="margin:0 0 8px;font-size:15px;color:#444;line-height:1.7;">Thank you for reaching out! We've received your enquiry and our travel experts will get back to you within 24 hours.</p>
     <p style="margin:0 0 20px;font-size:14px;color:#666;line-height:1.6;">In the meantime, feel free to explore our curated travel packages:</p>
-    ${ctaButton('Browse Packages', `${env.FRONTEND_URL}/packages`)}
-    <p style="margin:0;font-size:12px;color:#999;">If you have any urgent queries, call us at +91 80 1234 5678.</p>
-  `);
+    ${ctaButton('Browse Packages', `${baseUrl}/packages`, brand)}
+    <p style="margin:0;font-size:12px;color:#999;">If you have any urgent queries, contact our concierge at +91 98765 43210.</p>
+  `, brand);
 
-  await sendEmail({ to: email, subject: 'We received your enquiry — LetsLive Tours', html });
+  await sendEmail({ to: email, subject: `We received your enquiry — ${brandName}`, html, brand });
 }
 
 export async function sendCallbackRequested(
   email: string,
   name: string,
-  phone: string
+  phone: string,
+  brand: BrandType = 'letslivetours'
 ): Promise<void> {
+  const isTrippy = brand === 'trippy-travellerz';
+  const brandName = isTrippy ? 'Trippy Travellerz' : 'LetsLive Tours';
+  const baseUrl = isTrippy ? 'http://localhost:3002' : env.FRONTEND_URL;
   const html = wrapTemplate(`
     <h2 style="margin:0 0 12px;font-size:20px;color:#1a1a1a;">Hi ${name},</h2>
     <p style="margin:0 0 8px;font-size:15px;color:#444;line-height:1.7;">We've received your callback request. One of our travel experts will call you shortly at <strong>${phone}</strong>.</p>
     <p style="margin:0 0 20px;font-size:14px;color:#666;line-height:1.6;">Our team typically responds within 2 hours during business hours (9 AM – 7 PM IST).</p>
     <p style="margin:0;font-size:14px;color:#444;line-height:1.6;">While you wait, explore what we have to offer:</p>
-    ${ctaButton('Explore Destinations', `${env.FRONTEND_URL}/destinations`)}
-    <p style="margin:0;font-size:12px;color:#999;">Can't wait? Call us directly at +91 80 1234 5678.</p>
-  `);
+    ${ctaButton('Explore Destinations', `${baseUrl}/destinations`, brand)}
+    <p style="margin:0;font-size:12px;color:#999;">Can't wait? Call us directly at +91 98765 43210.</p>
+  `, brand);
 
-  await sendEmail({ to: email, subject: "We'll call you back soon — LetsLive Tours", html });
+  await sendEmail({ to: email, subject: `We'll call you back soon — ${brandName}`, html, brand });
 }
 
 export async function sendBookingConfirmation(
   email: string,
   name: string,
-  bookingDetails: BookingDetails
+  bookingDetails: BookingDetails,
+  brandOption?: BrandType
 ): Promise<void> {
+  const brand = brandOption || bookingDetails.brand || 'letslivetours';
+  const isTrippy = brand === 'trippy-travellerz';
+  const brandName = isTrippy ? 'Trippy Travellerz' : 'LetsLive Tours';
   const { packageName, travelDate, amount, travellers, bookingId } = bookingDetails;
   const formattedAmount = new Intl.NumberFormat('en-IN', {
     style: 'currency',
@@ -183,21 +219,26 @@ export async function sendBookingConfirmation(
     maximumFractionDigits: 0,
   }).format(amount);
 
+  const amountColor = isTrippy ? '#58371E' : '#004d5e';
+  const dashboardLink = isTrippy
+    ? `http://localhost:3002/dashboard?tab=bookings`
+    : `${env.FRONTEND_URL}/dashboard/bookings/${bookingId}`;
+
   const html = wrapTemplate(`
     <h2 style="margin:0 0 12px;font-size:20px;color:#1a1a1a;">Booking Confirmed! 🎉</h2>
-    <p style="margin:0 0 20px;font-size:15px;color:#444;line-height:1.7;">Hi ${name}, your booking has been confirmed. Here are the details:</p>
+    <p style="margin:0 0 20px;font-size:15px;color:#444;line-height:1.7;">Hi ${name}, your booking has been confirmed with ${brandName}. Here are the details:</p>
     <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f6f0;border-radius:10px;padding:20px;margin-bottom:20px;">
       <tr><td style="padding:8px 16px;font-size:13px;color:#888;">Booking ID</td><td style="padding:8px 16px;font-size:14px;color:#1a1a1a;font-weight:600;text-align:right;">${bookingId}</td></tr>
       <tr><td style="padding:8px 16px;font-size:13px;color:#888;">Package</td><td style="padding:8px 16px;font-size:14px;color:#1a1a1a;font-weight:600;text-align:right;">${packageName}</td></tr>
       <tr><td style="padding:8px 16px;font-size:13px;color:#888;">Travel Date</td><td style="padding:8px 16px;font-size:14px;color:#1a1a1a;font-weight:600;text-align:right;">${travelDate}</td></tr>
       <tr><td style="padding:8px 16px;font-size:13px;color:#888;">Travellers</td><td style="padding:8px 16px;font-size:14px;color:#1a1a1a;font-weight:600;text-align:right;">${travellers}</td></tr>
-      <tr><td style="padding:8px 16px;font-size:13px;color:#888;border-top:1px solid #e5e5e5;">Total Amount</td><td style="padding:8px 16px;font-size:18px;color:#004d5e;font-weight:700;text-align:right;border-top:1px solid #e5e5e5;">${formattedAmount}</td></tr>
+      <tr><td style="padding:8px 16px;font-size:13px;color:#888;border-top:1px solid #e5e5e5;">Total Amount</td><td style="padding:8px 16px;font-size:18px;color:${amountColor};font-weight:700;text-align:right;border-top:1px solid #e5e5e5;">${formattedAmount}</td></tr>
     </table>
     <p style="margin:0;font-size:14px;color:#444;line-height:1.6;">Our team will reach out to you shortly with further details. You can view your booking anytime from your dashboard.</p>
-    ${ctaButton('View Booking', `${env.FRONTEND_URL}/dashboard/bookings/${bookingId}`)}
-  `);
+    ${ctaButton('View Booking', dashboardLink, brand)}
+  `, brand);
 
-  await sendEmail({ to: email, subject: 'Booking Confirmed — LetsLive Tours', html });
+  await sendEmail({ to: email, subject: `Booking Confirmed — ${brandName}`, html, brand });
 }
 
 export async function sendReviewThanks(

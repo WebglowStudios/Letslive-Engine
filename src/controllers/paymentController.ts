@@ -280,6 +280,7 @@ export const verifyPayment = asyncHandler(async (req: Request, res: Response) =>
           : 'TBD',
         amount: booking.totalAmount,
         travellers: `${adults} Adult${adults > 1 ? 's' : ''}${children ? `, ${children} Child${children > 1 ? 'ren' : ''}` : ''}`,
+        brand: booking.brand,
       }).catch((err) => console.error('Failed to send booking confirmation:', err));
     }
 

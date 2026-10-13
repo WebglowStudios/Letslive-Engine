@@ -29,6 +29,7 @@ export interface IBooking extends Document {
   financeDetails?: { paidAmount?: number; mode: string; transactionId: string; remarks: string; requestedBy?: mongoose.Types.ObjectId };
   bookingStatus: 'pending' | 'confirmed' | 'staff-confirmed' | 'vendor-confirmed' | 'in-progress' | 'completed' | 'cancelled';
   bookingSource: 'online' | 'admin_manual';
+  brand?: 'letslivetours' | 'trippy-travellerz';
   specialRequests?: string;
   contactPhone?: string;
   contactEmail?: string;
@@ -106,6 +107,12 @@ const bookingSchema = new Schema<IBooking>(
       enum: ['online', 'admin_manual'],
       default: 'online',
     },
+    brand: {
+      type: String,
+      enum: ['letslivetours', 'trippy-travellerz'],
+      default: 'letslivetours',
+      index: true,
+    },
     contactPhone: { type: String },
     contactEmail: { type: String },
     paymentHistory: [
@@ -149,24 +156,30 @@ const bookingSchema = new Schema<IBooking>(
   }
 );
 
-// Auto-generate bookingId like "LLT-2026-00001"
+// Auto-generate bookingId like "LLT-2026-00001" or "TTZ-2026-00001"
 bookingSchema.pre('save', async function (this: IBooking) {
   if (!this.isNew || this.bookingId) return;
 
   const year = new Date().getFullYear();
+  const prefix = this.brand === 'trippy-travellerz' ? 'TTZ' : 'LLT';
   const lastBooking = await mongoose
     .model<IBooking>('Booking')
-    .findOne({ bookingId: { $regex: `^LLT-${year}-` } })
+    .findOne({ bookingId: { $regex: `^${prefix}-${year}-` } })
     .sort({ bookingId: -1 })
     .lean();
 
   let counter = 1;
   if (lastBooking?.bookingId) {
-    const lastCounter = parseInt(lastBooking.bookingId.split('-')[2], 10);
-    counter = lastCounter + 1;
+    const parts = lastBooking.bookingId.split('-');
+    if (parts.length >= 3) {
+      const lastCounter = parseInt(parts[2], 10);
+      if (!isNaN(lastCounter)) {
+        counter = lastCounter + 1;
+      }
+    }
   }
 
-  this.bookingId = `LLT-${year}-${String(counter).padStart(5, '0')}`;
+  this.bookingId = `${prefix}-${year}-${String(counter).padStart(5, '0')}`;
 });
 
 const Booking: Model<IBooking> = mongoose.model<IBooking>('Booking', bookingSchema);

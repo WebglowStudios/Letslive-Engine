@@ -95,6 +95,7 @@ export interface IEnquiry extends Document {
   budget?: number;                             // Customer's stated budget
   tags: string[];                              // Free-form: 'honeymoon', 'family', etc.
   channel?: string;                            // Lead acquisition channel
+  brand?: 'letslivetours' | 'trippy-travellerz';
   callLog: ICallLog[];                         // Per-call attempt records
   lastContactedAt?: Date;                      // Last time customer actually picked up/replied
   feedback?: {
@@ -176,6 +177,12 @@ const enquirySchema = new Schema<IEnquiry>(
       type: String,
       enum: ['website', 'whatsapp', 'phone', 'walk-in', 'instagram', 'facebook', 'google', 'referral', 'other'],
       default: 'website',
+    },
+    brand: {
+      type: String,
+      enum: ['letslivetours', 'trippy-travellerz'],
+      default: 'letslivetours',
+      index: true,
     },
 
     // ─── CRM fields ─────────────────────────────────────────────────────────

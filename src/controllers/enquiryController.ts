@@ -149,9 +149,9 @@ export const createEnquiry = asyncHandler(async (req: Request, res: Response) =>
 
   // Customer confirmation
   if (type === 'callback' && req.body.phone) {
-    sendCallbackRequested(customerEmail, customerName, req.body.phone).catch(console.error);
+    sendCallbackRequested(customerEmail, customerName, req.body.phone, enquiry.brand).catch(console.error);
   } else {
-    sendEnquiryReceived(customerEmail, customerName).catch(console.error);
+    sendEnquiryReceived(customerEmail, customerName, enquiry.brand).catch(console.error);
   }
 
   // Admin notification — always fires so admin can see and assign
@@ -422,6 +422,10 @@ export const getMyEnquiries = asyncHandler(async (req: Request, res: Response) =
     }
   }
 
+  if (req.query.brand && req.query.brand !== 'all') {
+    filter.brand = req.query.brand;
+  }
+
   const [enquiries, total] = await Promise.all([
     Enquiry.find(filter)
       .populate('assignedTo', 'firstName lastName')
@@ -524,6 +528,7 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
   }
   if (req.query.destination) filter.destination = new RegExp(req.query.destination as string, 'i');
   if (req.query.travellerCount) filter.travellerCount = parseInt(req.query.travellerCount as string);
+  if (req.query.brand && req.query.brand !== 'all') filter.brand = req.query.brand;
 
   // Text search across name, email, phone, packageName
   if (req.query.search) {

@@ -185,6 +185,7 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
       priority: 'high',
       source: 'website',
       user: userId,  // ← link to the customer so it appears in their dashboard
+      brand: req.body.brand || 'letslivetours',
     });
     enquiryId = String(newEnquiry._id);
   }
@@ -402,7 +403,8 @@ export const createManualBooking = asyncHandler(async (req: Request, res: Respon
         travelDate: new Date(booking.travelDate).toLocaleDateString('en-IN'),
         amount: totalAmount,
         travellers: String((booking.travellers?.adults || 1) + (booking.travellers?.children || 0) + (booking.travellers?.infants || 0)),
-        bookingId: String(booking.bookingId || booking._id)
+        bookingId: String(booking.bookingId || booking._id),
+        brand: booking.brand,
       }
     ).catch(console.error);
   }
@@ -808,6 +810,7 @@ export const getAllBookings = asyncHandler(async (req: Request, res: Response) =
   if (req.query.package) filter.package = req.query.package;
   if (req.query.departureId) filter.departureId = req.query.departureId;
   if (req.query.paymentStatus) filter.paymentStatus = req.query.paymentStatus;
+  if (req.query.brand && req.query.brand !== 'all') filter.brand = req.query.brand;
 
   if (req.query.search) {
     const q = String(req.query.search).trim();

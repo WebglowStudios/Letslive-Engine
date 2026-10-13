@@ -62,9 +62,12 @@ const allowedOrigins = [
   process.env.ADMIN_URL || 'http://localhost:3001',
   'http://localhost:3000',
   'http://localhost:3001',
+  'http://localhost:3002',
   'https://letslivetours.com',
   'https://www.letslivetours.com',
   'https://admin.letslivetours.com',
+  'https://trippytravellers.com',
+  'https://www.trippytravellers.com',
 ];
 app.use(
   cors({
