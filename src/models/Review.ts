@@ -2,6 +2,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IReview extends Document {
   user?: mongoose.Types.ObjectId;
+  createdBy?: mongoose.Types.ObjectId;
   reviewerName?: string;
   package: mongoose.Types.ObjectId;
   destination?: mongoose.Types.ObjectId;
@@ -22,6 +23,7 @@ export interface IReview extends Document {
 const reviewSchema = new Schema<IReview>(
   {
     user: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', index: true },
     reviewerName: { type: String },
     package: { type: Schema.Types.ObjectId, ref: 'Package', required: true, index: true },
     destination: { type: Schema.Types.ObjectId, ref: 'Destination', index: true },

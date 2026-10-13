@@ -249,6 +249,7 @@ export const createManualReview = asyncHandler(async (req: Request, res: Respons
     travelDate: travelDate || undefined,
     isVerified: true, // Manual reviews by staff are considered verified
     isApproved: true, // Manual reviews by staff are pre-approved
+    createdBy: req.user?._id,
   });
 
   // Recalculate ratings

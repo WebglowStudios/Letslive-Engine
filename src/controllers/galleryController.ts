@@ -6,11 +6,51 @@ import GalleryImage from '../models/GalleryImage.js';
 // @access  Public
 export const getGalleryImages = async (req: Request, res: Response) => {
   try {
-    const { activeOnly } = req.query;
-    const filter = activeOnly === 'true' ? { isActive: true } : {};
+    const { activeOnly, group } = req.query;
+    const filter: any = activeOnly === 'true' ? { isActive: true } : {};
+    
+    if (group && typeof group === 'string' && group.trim() && group.toLowerCase() !== 'all') {
+      filter.group = group.trim();
+    }
     
     const images = await GalleryImage.find(filter).sort({ sortOrder: 1, createdAt: -1 });
     res.status(200).json({ status: 'success', data: images });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+// @desc    Get all unique gallery groups with counts
+// @route   GET /api/gallery/groups
+// @access  Public
+export const getGalleryGroups = async (req: Request, res: Response) => {
+  try {
+    const { activeOnly } = req.query;
+    const match = activeOnly === 'true' ? { isActive: true } : {};
+
+    const groups = await GalleryImage.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: {
+            $cond: [
+              { $or: [{ $eq: ['$group', null] }, { $eq: ['$group', ''] }] },
+              'General',
+              '$group',
+            ],
+          },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const formatted = groups.map((g) => ({
+      name: g._id,
+      count: g.count,
+    }));
+
+    res.status(200).json({ status: 'success', data: formatted });
   } catch (error: any) {
     res.status(500).json({ status: 'error', message: error.message });
   }
@@ -21,7 +61,8 @@ export const getGalleryImages = async (req: Request, res: Response) => {
 // @access  Private/Admin
 export const addGalleryImage = async (req: Request, res: Response) => {
   try {
-    const { url, urls, caption, sortOrder, isActive } = req.body;
+    const { url, urls, caption, group, sortOrder, isActive } = req.body;
+    const assignedGroup = (group && typeof group === 'string' && group.trim()) ? group.trim() : 'General';
     
     if (Array.isArray(urls) && urls.length > 0) {
       const startOrder = typeof sortOrder === 'number' ? sortOrder : 0;
@@ -30,6 +71,7 @@ export const addGalleryImage = async (req: Request, res: Response) => {
         .map((u: string, idx: number) => ({
           url: u.trim(),
           caption: caption || '',
+          group: assignedGroup,
           sortOrder: startOrder + idx,
           isActive: isActive !== undefined ? isActive : true,
         }));
@@ -41,7 +83,13 @@ export const addGalleryImage = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'error', message: 'Image URL is required' });
     }
 
-    const image = await GalleryImage.create({ url, caption, sortOrder, isActive });
+    const image = await GalleryImage.create({
+      url,
+      caption,
+      group: assignedGroup,
+      sortOrder,
+      isActive,
+    });
     res.status(201).json({ status: 'success', data: image });
   } catch (error: any) {
     res.status(500).json({ status: 'error', message: error.message });
@@ -53,6 +101,10 @@ export const addGalleryImage = async (req: Request, res: Response) => {
 // @access  Private/Admin
 export const updateGalleryImage = async (req: Request, res: Response) => {
   try {
+    if (req.body.group !== undefined && typeof req.body.group === 'string') {
+      req.body.group = req.body.group.trim() || 'General';
+    }
+
     const image = await GalleryImage.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     
     if (!image) {
@@ -60,6 +112,25 @@ export const updateGalleryImage = async (req: Request, res: Response) => {
     }
     
     res.status(200).json({ status: 'success', data: image });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+// @desc    Rename an existing gallery group across all images
+// @route   PUT /api/gallery/groups/rename
+// @access  Private/Admin
+export const renameGalleryGroup = async (req: Request, res: Response) => {
+  try {
+    const { oldName, newName } = req.body;
+    if (!oldName || !newName) {
+      return res.status(400).json({ status: 'error', message: 'oldName and newName are required' });
+    }
+    const result = await GalleryImage.updateMany(
+      { group: oldName.trim() },
+      { group: newName.trim() }
+    );
+    res.status(200).json({ status: 'success', message: 'Group renamed', modifiedCount: result.modifiedCount });
   } catch (error: any) {
     res.status(500).json({ status: 'error', message: error.message });
   }

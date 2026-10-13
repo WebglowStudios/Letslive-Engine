@@ -37,6 +37,7 @@ import aboutRoutes from './routes/about.js';
 import galleryRoutes from './routes/gallery.js';
 import dayTemplateRoutes from './routes/dayTemplateRoutes.js';
 import approvalRoutes from './routes/approvals.js';
+import targetRoutes from './routes/targets.js';
 import Enquiry from './models/Enquiry.js';
 
 const app = express();
@@ -164,6 +165,7 @@ app.use('/api/about', aboutRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/day-templates', dayTemplateRoutes);
 app.use('/api/approvals', approvalRoutes);
+app.use('/api/targets', targetRoutes);
 // Note: /api/webhooks is mounted earlier (before express.json) — see above
 
 // Health check endpoint

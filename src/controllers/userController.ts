@@ -4,7 +4,10 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
 import Enquiry from '../models/Enquiry.js';
 import Operation from '../models/Operation.js';
+import Review from '../models/Review.js';
+import EmployeeTarget from '../models/EmployeeTarget.js';
 import '../models/Booking.js'; // Side-effect import to ensure Schema is registered for populate
+import '../models/Package.js';
 import mongoose from 'mongoose';
 import { encryptPassword, decryptPassword } from '../utils/crypto.js';
 
@@ -268,36 +271,65 @@ export const searchUserByEmail = asyncHandler(async (req: Request, res: Response
 export const getUserPerformance = asyncHandler(async (req: Request, res: Response) => {
   const targetId = req.params.id === 'me' ? req.user!._id : req.params.id;
   
-  if (req.params.id !== 'me' && req.user!.role !== 'admin' && req.user!.role !== 'manager') {
+  if (req.params.id !== 'me' && req.user!.role !== 'admin' && req.user!.role !== 'manager' && req.user!.role !== 'sales-manager') {
     throw new AppError('Not authorized to view other users performance', 403);
   }
 
   const userId = new mongoose.Types.ObjectId(String(targetId));
-  console.log('[PERF DEBUG] targetId raw:', targetId, '| type:', typeof targetId);
-  console.log('[PERF DEBUG] userId as ObjectId:', userId);
+  const userProfile = await User.findById(userId).select('firstName lastName email role department').lean();
 
-  // 1. Inquiries Managed & Conversions
+  // Timeframe parameters
+  const period = ((req.query.period as string) || 'monthly').toLowerCase(); // 'monthly' | 'quarterly' | 'yearly' | 'all'
+  const now = new Date();
+  const year = req.query.year ? parseInt(req.query.year as string, 10) : now.getFullYear();
+  const month = req.query.month ? parseInt(req.query.month as string, 10) : now.getMonth() + 1;
+  const quarter = req.query.quarter ? parseInt(req.query.quarter as string, 10) : Math.floor(now.getMonth() / 3) + 1;
+
+  let startDate: Date | null = null;
+  let endDate: Date | null = null;
+
+  if (period === 'monthly') {
+    startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
+    endDate = new Date(year, month, 0, 23, 59, 59, 999);
+  } else if (period === 'quarterly') {
+    const startMonth = (quarter - 1) * 3;
+    startDate = new Date(year, startMonth, 1, 0, 0, 0, 0);
+    endDate = new Date(year, startMonth + 3, 0, 23, 59, 59, 999);
+  } else if (period === 'yearly') {
+    startDate = new Date(year, 0, 1, 0, 0, 0, 0);
+    endDate = new Date(year, 11, 31, 23, 59, 59, 999);
+  }
+
+  const dateFilter = startDate && endDate ? { $gte: startDate, $lte: endDate } : null;
+
+  // 1. Inquiries Managed & Conversions within timeframe
+  const enquiryMatch: Record<string, any> = { assignedTo: userId };
+  if (dateFilter) enquiryMatch.createdAt = dateFilter;
+
   const enquiriesStats = await Enquiry.aggregate([
-    { $match: { assignedTo: userId } },
+    { $match: enquiryMatch },
     {
       $group: {
         _id: null,
         totalManaged: { $sum: 1 },
-        totalConverted: { $sum: { $cond: [{ $eq: ['$status', 'converted'] }, 1, 0] } }
-      }
-    }
+        totalConverted: { $sum: { $cond: [{ $eq: ['$status', 'converted'] }, 1, 0] } },
+      },
+    },
   ]);
 
   const inquiriesManaged = enquiriesStats[0]?.totalManaged || 0;
   const conversions = enquiriesStats[0]?.totalConverted || 0;
 
-  // 2. Revenue, Profit & Clients Handled (Operations)
+  // 2. Revenue, Profit & Clients Handled (Operations) within timeframe
+  const opsMatch: Record<string, any> = { assignedTo: userId };
+  if (dateFilter) opsMatch.createdAt = dateFilter;
+
   const opsStats = await Operation.aggregate([
-    { $match: { assignedTo: userId } },
+    { $match: opsMatch },
     {
       $group: {
         _id: null,
-        clientsHandled: { $sum: 1 }, // counting number of operations handled
+        clientsHandled: { $sum: 1 }, // counting number of operations handled/sales closed
         totalRevenue: { $sum: '$sellingPrice' },
         totalProfit: { $sum: '$grossProfit' },
         totalIncentives: { $sum: { $ifNull: ['$incentiveAmount', 0] } },
@@ -307,16 +339,16 @@ export const getUserPerformance = asyncHandler(async (req: Request, res: Respons
               {
                 $and: [
                   { $eq: ['$status', 'completed'] },
-                  { $eq: [{ $ifNull: ['$incentiveAmount', 'MISSING'] }, 'MISSING'] }
-                ]
+                  { $eq: [{ $ifNull: ['$incentiveAmount', 'MISSING'] }, 'MISSING'] },
+                ],
               },
               1,
-              0
-            ]
-          }
-        }
-      }
-    }
+              0,
+            ],
+          },
+        },
+      },
+    },
   ]);
 
   const clientsHandled = opsStats[0]?.clientsHandled || 0;
@@ -325,15 +357,146 @@ export const getUserPerformance = asyncHandler(async (req: Request, res: Respons
   const incentivesEarned = opsStats[0]?.totalIncentives || 0;
   const pendingIncentives = opsStats[0]?.pendingIncentives || 0;
 
-  // Recent Conversions/Bookings for activity table
-  const recentOperations = await Operation.find({ assignedTo: userId })
+  // 3. Reviews entered by this employee within timeframe
+  const reviewMatch: Record<string, any> = {
+    $or: [{ createdBy: userId }, { user: userId }],
+  };
+  if (dateFilter) reviewMatch.createdAt = dateFilter;
+
+  const [totalReviewsEntered, reviewsByPackage] = await Promise.all([
+    Review.countDocuments(reviewMatch),
+    Review.aggregate([
+      { $match: reviewMatch },
+      {
+        $group: {
+          _id: '$package',
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $lookup: {
+          from: 'packages',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'packageDoc',
+        },
+      },
+      {
+        $project: {
+          packageId: '$_id',
+          packageName: { $ifNull: [{ $arrayElemAt: ['$packageDoc.name', 0] }, 'Unassigned / Direct'] },
+          count: 1,
+        },
+      },
+      { $sort: { count: -1 } },
+    ]),
+  ]);
+
+  // 4. Employee Target lookup for the specified timeframe
+  let targetDoc = null;
+  if (period !== 'all') {
+    const targetQuery: Record<string, any> = {
+      user: userId,
+      periodType: period,
+      year,
+    };
+    if (period === 'monthly') targetQuery.month = month;
+    if (period === 'quarterly') targetQuery.quarter = quarter;
+    targetDoc = await EmployeeTarget.findOne(targetQuery).lean();
+  }
+
+  // Calculate achievements against target
+  let salesTarget = 0;
+  let revenueTarget = 0;
+  let reviewTarget = 0;
+  let targetPackageId: string | null = null;
+  let targetPackageName: string | null = null;
+  let targetNotes: string | null = null;
+  let reviewAchieved = totalReviewsEntered;
+
+  if (targetDoc) {
+    salesTarget = targetDoc.salesTarget || 0;
+    revenueTarget = targetDoc.revenueTarget || 0;
+    reviewTarget = targetDoc.reviewTarget || 0;
+    targetPackageId = targetDoc.package ? String(targetDoc.package) : null;
+    targetPackageName = targetDoc.packageName || null;
+    targetNotes = targetDoc.notes || null;
+
+    if (targetDoc.package) {
+      // Review target is set specifically for a particular package
+      const pkgReviewsCount = await Review.countDocuments({
+        ...reviewMatch,
+        package: targetDoc.package,
+      });
+      reviewAchieved = pkgReviewsCount;
+    }
+  }
+
+  // Actual sales is the number of bookings / operations closed
+  const salesAchieved = clientsHandled;
+  const isSalesAchieved = salesTarget > 0 ? salesAchieved >= salesTarget : null;
+  const isRevenueAchieved = revenueTarget > 0 ? revenueGenerated >= revenueTarget : null;
+  const isReviewAchieved = reviewTarget > 0 ? reviewAchieved >= reviewTarget : null;
+
+  // Determine overall status: 'achieved' | 'in-progress' | 'missed' | 'no-target'
+  let overallStatus: 'achieved' | 'in-progress' | 'missed' | 'no-target' = 'no-target';
+  const hasAnyTarget = salesTarget > 0 || revenueTarget > 0 || reviewTarget > 0;
+
+  if (hasAnyTarget) {
+    const isSalesOk = salesTarget === 0 || salesAchieved >= salesTarget;
+    const isRevenueOk = revenueTarget === 0 || revenueGenerated >= revenueTarget;
+    const isReviewOk = reviewTarget === 0 || reviewAchieved >= reviewTarget;
+    const allMet = isSalesOk && isRevenueOk && isReviewOk;
+
+    if (allMet) {
+      overallStatus = 'achieved';
+    } else {
+      const isPeriodPast = endDate ? endDate.getTime() < Date.now() : false;
+      overallStatus = isPeriodPast ? 'missed' : 'in-progress';
+    }
+  }
+
+  const targetSummary = {
+    exists: !!targetDoc,
+    id: targetDoc?._id || null,
+    periodType: period,
+    year,
+    month: period === 'monthly' ? month : undefined,
+    quarter: period === 'quarterly' ? quarter : undefined,
+    salesTarget,
+    salesAchieved,
+    isSalesAchieved,
+    salesProgressPercent: salesTarget > 0 ? Math.min(Math.round((salesAchieved / salesTarget) * 100), 100) : 0,
+    revenueTarget,
+    revenueAchieved: revenueGenerated,
+    isRevenueAchieved,
+    revenueProgressPercent: revenueTarget > 0 ? Math.min(Math.round((revenueGenerated / revenueTarget) * 100), 100) : 0,
+    reviewTarget,
+    reviewAchieved,
+    isReviewAchieved,
+    reviewProgressPercent: reviewTarget > 0 ? Math.min(Math.round((reviewAchieved / reviewTarget) * 100), 100) : 0,
+    targetPackageId,
+    targetPackageName,
+    notes: targetNotes,
+    overallStatus,
+  };
+
+  // Recent Conversions/Bookings for activity table within timeframe
+  const recentOpsMatch: Record<string, any> = { assignedTo: userId };
+  if (dateFilter) recentOpsMatch.createdAt = dateFilter;
+  const recentOperations = await Operation.find(recentOpsMatch)
     .sort({ createdAt: -1 })
-    .limit(5)
+    .limit(8)
     .populate('booking', 'bookingId totalAmount');
 
   res.status(200).json({
     status: 'success',
     data: {
+      user: userProfile,
+      period,
+      year,
+      month: period === 'monthly' ? month : undefined,
+      quarter: period === 'quarterly' ? quarter : undefined,
       inquiriesManaged,
       conversions,
       clientsHandled,
@@ -341,7 +504,10 @@ export const getUserPerformance = asyncHandler(async (req: Request, res: Respons
       profitGenerated,
       incentivesEarned,
       pendingIncentives,
-      recentActivity: recentOperations
-    }
+      totalReviewsEntered,
+      reviewsByPackage,
+      target: targetSummary,
+      recentActivity: recentOperations,
+    },
   });
 });

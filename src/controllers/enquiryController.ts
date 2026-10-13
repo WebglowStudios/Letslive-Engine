@@ -426,16 +426,77 @@ export const getMyEnquiries = asyncHandler(async (req: Request, res: Response) =
     filter.brand = req.query.brand;
   }
 
-  const [enquiries, total] = await Promise.all([
-    Enquiry.find(filter)
-      .populate('assignedTo', 'firstName lastName')
-      .populate('notes.by', 'firstName lastName')
-      .populate('callLog.by', 'firstName lastName')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit),
-    Enquiry.countDocuments(filter),
-  ]);
+  const isExplicitClosedOnly = req.query.status === 'closed';
+  const rawStatus = req.query.status ? String(req.query.status) : '';
+  const includesClosed = !rawStatus || rawStatus === 'all' || rawStatus.split(',').map((s) => s.trim()).includes('closed');
+
+  let enquiries: any[] = [];
+  let total = 0;
+
+  if (includesClosed && !isExplicitClosedOnly) {
+    const activeStatus = filter.status && typeof filter.status === 'object' && Array.isArray((filter.status as any).$in)
+      ? { $in: (filter.status as any).$in.filter((s: string) => s !== 'closed') }
+      : { ...(filter.status && typeof filter.status === 'object' ? filter.status : {}), $ne: 'closed' };
+
+    const activeFilter: any = { ...filter, status: activeStatus };
+    const closedFilter: any = { ...filter, status: 'closed' };
+
+    const [activeCount, closedCount] = await Promise.all([
+      Enquiry.countDocuments(activeFilter),
+      Enquiry.countDocuments(closedFilter),
+    ]);
+    total = activeCount + closedCount;
+
+    if (skip < activeCount) {
+      const activeToFetch = Math.min(limit, activeCount - skip);
+      const activeDocs = await Enquiry.find(activeFilter)
+        .populate('assignedTo', 'firstName lastName')
+        .populate('notes.by', 'firstName lastName')
+        .populate('callLog.by', 'firstName lastName')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(activeToFetch);
+
+      enquiries.push(...activeDocs);
+
+      const remainingLimit = limit - activeDocs.length;
+      if (remainingLimit > 0 && closedCount > 0) {
+        const closedDocs = await Enquiry.find(closedFilter)
+          .populate('assignedTo', 'firstName lastName')
+          .populate('notes.by', 'firstName lastName')
+          .populate('callLog.by', 'firstName lastName')
+          .sort({ createdAt: -1 })
+          .skip(0)
+          .limit(remainingLimit);
+
+        enquiries.push(...closedDocs);
+      }
+    } else {
+      const closedSkip = skip - activeCount;
+      const closedDocs = await Enquiry.find(closedFilter)
+        .populate('assignedTo', 'firstName lastName')
+        .populate('notes.by', 'firstName lastName')
+        .populate('callLog.by', 'firstName lastName')
+        .sort({ createdAt: -1 })
+        .skip(closedSkip)
+        .limit(limit);
+
+      enquiries.push(...closedDocs);
+    }
+  } else {
+    const [docs, count] = await Promise.all([
+      Enquiry.find(filter)
+        .populate('assignedTo', 'firstName lastName')
+        .populate('notes.by', 'firstName lastName')
+        .populate('callLog.by', 'firstName lastName')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Enquiry.countDocuments(filter),
+    ]);
+    enquiries = docs;
+    total = count;
+  }
 
   res.status(200).json({
     status: 'success',
@@ -572,16 +633,77 @@ export const getAllEnquiries = asyncHandler(async (req: Request, res: Response) 
     filter.createdAt = dateFilter;
   }
 
-  const [enquiries, total] = await Promise.all([
-    Enquiry.find(filter)
-      .populate('assignedTo', 'firstName lastName')
-      .populate('notes.by', 'firstName lastName')
-      .populate('callLog.by', 'firstName lastName')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit),
-    Enquiry.countDocuments(filter),
-  ]);
+  const isExplicitClosedOnly = req.query.status === 'closed';
+  const rawStatus = req.query.status ? String(req.query.status) : '';
+  const includesClosed = !rawStatus || rawStatus === 'all' || rawStatus.split(',').map((s) => s.trim()).includes('closed');
+
+  let enquiries: any[] = [];
+  let total = 0;
+
+  if (includesClosed && !isExplicitClosedOnly) {
+    const activeStatus = filter.status && typeof filter.status === 'object' && Array.isArray((filter.status as any).$in)
+      ? { $in: (filter.status as any).$in.filter((s: string) => s !== 'closed') }
+      : { ...(filter.status && typeof filter.status === 'object' ? filter.status : {}), $ne: 'closed' };
+
+    const activeFilter: any = { ...filter, status: activeStatus };
+    const closedFilter: any = { ...filter, status: 'closed' };
+
+    const [activeCount, closedCount] = await Promise.all([
+      Enquiry.countDocuments(activeFilter),
+      Enquiry.countDocuments(closedFilter),
+    ]);
+    total = activeCount + closedCount;
+
+    if (skip < activeCount) {
+      const activeToFetch = Math.min(limit, activeCount - skip);
+      const activeDocs = await Enquiry.find(activeFilter)
+        .populate('assignedTo', 'firstName lastName')
+        .populate('notes.by', 'firstName lastName')
+        .populate('callLog.by', 'firstName lastName')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(activeToFetch);
+
+      enquiries.push(...activeDocs);
+
+      const remainingLimit = limit - activeDocs.length;
+      if (remainingLimit > 0 && closedCount > 0) {
+        const closedDocs = await Enquiry.find(closedFilter)
+          .populate('assignedTo', 'firstName lastName')
+          .populate('notes.by', 'firstName lastName')
+          .populate('callLog.by', 'firstName lastName')
+          .sort({ createdAt: -1 })
+          .skip(0)
+          .limit(remainingLimit);
+
+        enquiries.push(...closedDocs);
+      }
+    } else {
+      const closedSkip = skip - activeCount;
+      const closedDocs = await Enquiry.find(closedFilter)
+        .populate('assignedTo', 'firstName lastName')
+        .populate('notes.by', 'firstName lastName')
+        .populate('callLog.by', 'firstName lastName')
+        .sort({ createdAt: -1 })
+        .skip(closedSkip)
+        .limit(limit);
+
+      enquiries.push(...closedDocs);
+    }
+  } else {
+    const [docs, count] = await Promise.all([
+      Enquiry.find(filter)
+        .populate('assignedTo', 'firstName lastName')
+        .populate('notes.by', 'firstName lastName')
+        .populate('callLog.by', 'firstName lastName')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Enquiry.countDocuments(filter),
+    ]);
+    enquiries = docs;
+    total = count;
+  }
 
   // Ensure latest linked itinerary name is resolved for each enquiry in list
   const enquiryIds = enquiries.map((e) => e._id);

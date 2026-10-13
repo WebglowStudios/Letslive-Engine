@@ -3,6 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface IGalleryImage extends Document {
   url: string;
   caption?: string;
+  group?: string;
   isActive: boolean;
   sortOrder: number;
 }
@@ -16,6 +17,12 @@ const GalleryImageSchema: Schema = new Schema(
     caption: {
       type: String,
       default: '',
+    },
+    group: {
+      type: String,
+      default: 'General',
+      trim: true,
+      index: true,
     },
     isActive: {
       type: Boolean,
