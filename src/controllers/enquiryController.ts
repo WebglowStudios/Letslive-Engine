@@ -130,17 +130,31 @@ export const createEnquiry = asyncHandler(async (req: Request, res: Response) =>
     });
   }
 
-  const enquiry = await Enquiry.create({
-    ...req.body,
-    destination: destination || undefined,
-    packageName: packageName || undefined,
-    package: packageId || undefined,
-    user: linkedUserId,
-    assignedTo: undefined,   // always unassigned — admin will assign manually
-    status: 'new',
-    priority,
-    timeline: initialTimeline,
-  });
+  let enquiry: any;
+  let attempts = 0;
+  while (attempts < 3) {
+    try {
+      enquiry = await Enquiry.create({
+        ...req.body,
+        destination: destination || undefined,
+        packageName: packageName || undefined,
+        package: packageId || undefined,
+        user: linkedUserId,
+        assignedTo: undefined,   // always unassigned — admin will assign manually
+        status: 'new',
+        priority,
+        timeline: initialTimeline,
+      });
+      break;
+    } catch (err: any) {
+      if (err.code === 11000 && (err.keyPattern?.enquiryId || err.message?.includes('enquiryId'))) {
+        attempts++;
+        if (attempts >= 3) throw err;
+        continue;
+      }
+      throw err;
+    }
+  }
 
   // Send emails (fire-and-forget)
   const customerEmail = enquiry.email;
@@ -289,31 +303,45 @@ export const manualCreateEnquiry = asyncHandler(async (req: Request, res: Respon
     });
   }
 
-  const enquiry = await Enquiry.create({
-    firstName, lastName, email, phone,
-    type: type || 'general',
-    message,
-    packageName: resolvedPackageName || undefined,
-    package: packageId || undefined,
-    destination: resolvedDestination || undefined,
-    travelDate,
-    travellerCount: totalPax,
-    adultCount: adultCount ? Number(adultCount) : undefined,
-    childCount: childCount ? Number(childCount) : undefined,
-    infantCount: infantCount ? Number(infantCount) : undefined,
-    budget,
-    departureId,
-    tags: tags || [],
-    channel: channel || 'phone',
-    source: (['whatsapp', 'website', 'instagram', 'google', 'referral', 'walk-in', 'other'].includes(channel))
-      ? channel
-      : 'phone',
-    assignedTo: assignedToId || undefined,
-    user: existingUser ? existingUser._id : undefined,
-    status: assignedToId ? 'assigned' : 'new',
-    priority,
-    timeline: initialTimeline,
-  });
+  let enquiry: any;
+  let manualAttempts = 0;
+  while (manualAttempts < 3) {
+    try {
+      enquiry = await Enquiry.create({
+        firstName, lastName, email, phone,
+        type: type || 'general',
+        message,
+        packageName: resolvedPackageName || undefined,
+        package: packageId || undefined,
+        destination: resolvedDestination || undefined,
+        travelDate,
+        travellerCount: totalPax,
+        adultCount: adultCount ? Number(adultCount) : undefined,
+        childCount: childCount ? Number(childCount) : undefined,
+        infantCount: infantCount ? Number(infantCount) : undefined,
+        budget,
+        departureId,
+        tags: tags || [],
+        channel: channel || 'phone',
+        source: (['whatsapp', 'website', 'instagram', 'google', 'referral', 'walk-in', 'other'].includes(channel))
+          ? channel
+          : 'phone',
+        assignedTo: assignedToId || undefined,
+        user: existingUser ? existingUser._id : undefined,
+        status: assignedToId ? 'assigned' : 'new',
+        priority,
+        timeline: initialTimeline,
+      });
+      break;
+    } catch (err: any) {
+      if (err.code === 11000 && (err.keyPattern?.enquiryId || err.message?.includes('enquiryId'))) {
+        manualAttempts++;
+        if (manualAttempts >= 3) throw err;
+        continue;
+      }
+      throw err;
+    }
+  }
 
   await logActivity({
     req,
@@ -2433,23 +2461,37 @@ export const importEnquiries = asyncHandler(async (req: Request, res: Response) 
     }
 
     try {
-      const newEnquiry = await Enquiry.create({
-        firstName,
-        lastName: lastName || undefined,
-        email,
-        phone: rawPhone,
-        destination: destination || undefined,
-        message: message || undefined,
-        source: resolvedSource,
-        channel: resolvedChannel,
-        status: assignedStaffId ? 'assigned' : 'new',
-        priority: 'medium',
-        assignedTo: assignedStaffId,
-        externalLeadId: rawExternalId || undefined,
-        tags: Array.from(new Set(tags)),
-        timeline,
-        createdAt: lead.created_time && !isNaN(new Date(lead.created_time).getTime()) ? new Date(lead.created_time) : new Date(),
-      });
+      let newEnquiry: any;
+      let importAttempts = 0;
+      while (importAttempts < 3) {
+        try {
+          newEnquiry = await Enquiry.create({
+            firstName,
+            lastName: lastName || undefined,
+            email,
+            phone: rawPhone,
+            destination: destination || undefined,
+            message: message || undefined,
+            source: resolvedSource,
+            channel: resolvedChannel,
+            status: assignedStaffId ? 'assigned' : 'new',
+            priority: 'medium',
+            assignedTo: assignedStaffId,
+            externalLeadId: rawExternalId || undefined,
+            tags: Array.from(new Set(tags)),
+            timeline,
+            createdAt: lead.created_time && !isNaN(new Date(lead.created_time).getTime()) ? new Date(lead.created_time) : new Date(),
+          });
+          break;
+        } catch (retryErr: any) {
+          if (retryErr.code === 11000 && (retryErr.keyPattern?.enquiryId || retryErr.message?.includes('enquiryId'))) {
+            importAttempts++;
+            if (importAttempts >= 3) throw retryErr;
+            continue;
+          }
+          throw retryErr;
+        }
+      }
 
       importedCount++;
       createdEnquiries.push(newEnquiry._id);

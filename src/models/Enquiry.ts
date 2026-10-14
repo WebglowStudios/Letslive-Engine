@@ -243,13 +243,11 @@ enquirySchema.index({ channel: 1 });
 enquirySchema.index({ createdAt: -1 });
 
 // Auto-generate enquiryId like "ENQ-2026-00001"
-enquirySchema.pre('save', async function (this: IEnquiry) {
-  if (!this.isNew || this.enquiryId) return;
-
+export async function getNextEnquiryId(): Promise<string> {
   const year = new Date().getFullYear();
   const lastEnquiry = await mongoose
     .model<IEnquiry>('Enquiry')
-    .findOne({ enquiryId: { $regex: `^ENQ-${year}-` } })
+    .findOne({ enquiryId: { $regex: `^ENQ-${year}-\\d{5}$` } })
     .sort({ enquiryId: -1 })
     .lean();
 
@@ -264,7 +262,18 @@ enquirySchema.pre('save', async function (this: IEnquiry) {
     }
   }
 
-  this.enquiryId = `ENQ-${year}-${String(counter).padStart(5, '0')}`;
+  let candidateId = `ENQ-${year}-${String(counter).padStart(5, '0')}`;
+  while (await mongoose.model('Enquiry').exists({ enquiryId: candidateId })) {
+    counter++;
+    candidateId = `ENQ-${year}-${String(counter).padStart(5, '0')}`;
+  }
+
+  return candidateId;
+}
+
+enquirySchema.pre('save', async function (this: IEnquiry) {
+  if (!this.isNew || this.enquiryId) return;
+  this.enquiryId = await getNextEnquiryId();
 });
 
 const Enquiry: Model<IEnquiry> = mongoose.model<IEnquiry>('Enquiry', enquirySchema);

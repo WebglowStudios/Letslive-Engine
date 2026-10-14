@@ -109,7 +109,7 @@ operationSchema.pre('save', async function () {
   const year = new Date().getFullYear();
   const last = await mongoose
     .model<IOperation>('Operation')
-    .findOne({ operationId: { $regex: `^OPS-${year}-` } })
+    .findOne({ operationId: { $regex: `^OPS-${year}-\\d{4}$` } })
     .sort({ operationId: -1 })
     .lean();
   let counter = 1;
@@ -120,7 +120,12 @@ operationSchema.pre('save', async function () {
       if (!isNaN(lastNum)) counter = lastNum + 1;
     }
   }
-  this.operationId = `OPS-${year}-${String(counter).padStart(4, '0')}`;
+  let candidateId = `OPS-${year}-${String(counter).padStart(4, '0')}`;
+  while (await mongoose.model('Operation').exists({ operationId: candidateId })) {
+    counter++;
+    candidateId = `OPS-${year}-${String(counter).padStart(4, '0')}`;
+  }
+  this.operationId = candidateId;
 });
 
 // Auto-calculate profit on save

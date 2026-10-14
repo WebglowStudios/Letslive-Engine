@@ -158,14 +158,12 @@ const bookingSchema = new Schema<IBooking>(
 );
 
 // Auto-generate bookingId like "LLT-2026-00001" or "TTZ-2026-00001"
-bookingSchema.pre('save', async function (this: IBooking) {
-  if (!this.isNew || this.bookingId) return;
-
+export async function getNextBookingId(brand?: string): Promise<string> {
   const year = new Date().getFullYear();
-  const prefix = this.brand === 'trippy-travellerz' ? 'TTZ' : 'LLT';
+  const prefix = brand === 'trippy-travellerz' ? 'TTZ' : 'LLT';
   const lastBooking = await mongoose
     .model<IBooking>('Booking')
-    .findOne({ bookingId: { $regex: `^${prefix}-${year}-` } })
+    .findOne({ bookingId: { $regex: `^${prefix}-${year}-\\d{5}$` } })
     .sort({ bookingId: -1 })
     .lean();
 
@@ -180,7 +178,18 @@ bookingSchema.pre('save', async function (this: IBooking) {
     }
   }
 
-  this.bookingId = `${prefix}-${year}-${String(counter).padStart(5, '0')}`;
+  let candidateId = `${prefix}-${year}-${String(counter).padStart(5, '0')}`;
+  while (await mongoose.model('Booking').exists({ bookingId: candidateId })) {
+    counter++;
+    candidateId = `${prefix}-${year}-${String(counter).padStart(5, '0')}`;
+  }
+
+  return candidateId;
+}
+
+bookingSchema.pre('save', async function (this: IBooking) {
+  if (!this.isNew || this.bookingId) return;
+  this.bookingId = await getNextBookingId(this.brand);
 });
 
 const Booking: Model<IBooking> = mongoose.model<IBooking>('Booking', bookingSchema);

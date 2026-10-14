@@ -108,8 +108,8 @@ const allowedOrigins = [
   'https://letslivetours.com',
   'https://www.letslivetours.com',
   'https://admin.letslivetours.com',
-  'https://trippytravellers.com',
-  'https://www.trippytravellers.com',
+  'https://trippytravelerz.com',
+  'https://www.trippytravelerz.com',
 ];
 app.use(
   cors({
