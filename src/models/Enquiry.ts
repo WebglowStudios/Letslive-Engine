@@ -97,7 +97,7 @@ export interface IEnquiry extends Document {
   budget?: number;                             // Customer's stated budget
   tags: string[];                              // Free-form: 'honeymoon', 'family', etc.
   channel?: string;                            // Lead acquisition channel
-  brand?: 'letslivetours' | 'trippy-travellerz';
+  brand?: 'letslivetours';
   callLog: ICallLog[];                         // Per-call attempt records
   lastContactedAt?: Date;                      // Last time customer actually picked up/replied
   feedback?: {
@@ -184,7 +184,7 @@ const enquirySchema = new Schema<IEnquiry>(
     },
     brand: {
       type: String,
-      enum: ['letslivetours', 'trippy-travellerz'],
+      enum: ['letslivetours'],
       default: 'letslivetours',
       index: true,
     },

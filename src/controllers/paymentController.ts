@@ -373,6 +373,7 @@ export const generatePaymentLink = asyncHandler(async (req: Request, res: Respon
   const notes: Record<string, string> = {};
   if (bookingId) notes.bookingId = bookingId;
   if (customerPaymentId) notes.customerPaymentId = customerPaymentId;
+  notes.baseAmount = String(amount);
 
   // Razorpay amounts are in paise
   const amountPaise = Math.round(Number(amount) * 100);

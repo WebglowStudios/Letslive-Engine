@@ -2,7 +2,7 @@ export const careersSeed = [
   {
     title: "Senior Travel Consultant — Dubai & Middle East",
     department: "operations",
-    location: "Bengaluru",
+    location: "Pune",
     type: "full-time",
     experience: "3–5 years",
     description: "Lead our Dubai and Middle East travel vertical. You'll craft luxury itineraries, manage key supplier relationships, and mentor junior consultants.",
@@ -41,7 +41,7 @@ export const careersSeed = [
   {
     title: "Performance Marketing Lead — Paid Social & Search",
     department: "marketing",
-    location: "Bengaluru",
+    location: "Pune",
     type: "full-time",
     experience: "4–6 years",
     description: "Scale our paid acquisition channels. Own Google Ads, Meta Ads, and emerging platforms to drive qualified leads at target CAC.",
@@ -67,7 +67,7 @@ export const careersSeed = [
   {
     title: "Social Media & Video Creator",
     department: "marketing",
-    location: "Bengaluru",
+    location: "Pune",
     type: "full-time",
     experience: "1–3 years",
     description: "Create scroll-stopping reels, stories, and video content that showcases our destinations and grows our social following.",
@@ -93,7 +93,7 @@ export const careersSeed = [
   {
     title: "Product Designer — UX/UI (Travel Platform)",
     department: "technology",
-    location: "Bengaluru",
+    location: "Pune",
     type: "full-time",
     experience: "3–5 years",
     description: "Design beautiful, intuitive experiences for our travel platform. From search to booking to post-trip — every pixel matters.",
@@ -119,7 +119,7 @@ export const careersSeed = [
   {
     title: "Talent Acquisition Specialist",
     department: "hr",
-    location: "Bengaluru",
+    location: "Pune",
     type: "full-time",
     experience: "2–4 years",
     description: "Find and attract exceptional talent to join our growing team. Own the full recruitment lifecycle from sourcing to offer.",
@@ -132,7 +132,7 @@ export const careersSeed = [
   {
     title: "Finance Manager — Revenue & Reconciliation",
     department: "finance",
-    location: "Bengaluru",
+    location: "Pune",
     type: "full-time",
     experience: "5–8 years",
     description: "Manage financial operations including revenue recognition, vendor payments, reconciliation, and financial reporting.",

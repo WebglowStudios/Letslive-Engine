@@ -19,7 +19,7 @@ const transporter = nodemailer.createTransport({
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type BrandType = 'letslivetours' | 'trippy-travellerz';
+export type BrandType = 'letslivetours';
 
 interface SendEmailOptions {
   to: string;
@@ -39,14 +39,13 @@ interface BookingDetails {
 
 // ─── HTML Template Helpers ───────────────────────────────────────────────────
 
-function wrapTemplate(body: string, brand: BrandType = 'letslivetours'): string {
-  const isTrippy = brand === 'trippy-travellerz';
-  const brandName = isTrippy ? 'Trippy Travellerz' : 'LetsLive Tours';
-  const brandTagline = isTrippy ? 'Artisanal Journeys · Bespoke Luxury' : 'Explore · Experience · Live';
-  const headerBg = isTrippy ? '#58371E' : '#004d5e';
-  const footerAddress = isTrippy ? 'Trippy Travellerz Expeditions · Mumbai & Bengaluru, India' : 'LetsLive Tours Pvt. Ltd. · Bengaluru, India';
-  const footerContact = isTrippy ? 'concierge@trippytravellerz.com · +91 98765 43210' : 'info@letslivetours.com · +91 98765 43210';
-  const footerCopyright = isTrippy ? '© 2026 Trippy Travellerz. All rights reserved.' : '© 2026 LetsLive Tours. All rights reserved.';
+function wrapTemplate(body: string, _brand: BrandType = 'letslivetours'): string {
+  const brandName = 'LetsLive Tours';
+  const brandTagline = 'Explore · Experience · Live';
+  const headerBg = '#004d5e';
+  const footerAddress = 'LetsLive Tours Pvt. Ltd. · Pune, India';
+  const footerContact = 'info@letslivetours.com · +91 98765 43210';
+  const footerCopyright = '© 2026 LetsLive Tours. All rights reserved.';
 
   return `
 <!DOCTYPE html>
@@ -84,9 +83,9 @@ function wrapTemplate(body: string, brand: BrandType = 'letslivetours'): string 
 </html>`;
 }
 
-function ctaButton(text: string, url: string, brand: BrandType = 'letslivetours'): string {
-  const btnBg = brand === 'trippy-travellerz' ? '#DFB980' : '#f5a623';
-  const textColor = brand === 'trippy-travellerz' ? '#1A1108' : '#ffffff';
+function ctaButton(text: string, url: string, _brand: BrandType = 'letslivetours'): string {
+  const btnBg = '#f5a623';
+  const textColor = '#ffffff';
   return `<table cellpadding="0" cellspacing="0" style="margin:28px 0;"><tr><td>
     <a href="${url}" style="display:inline-block;padding:14px 32px;background:${btnBg};color:${textColor};font-size:14px;font-weight:700;text-decoration:none;border-radius:50px;letter-spacing:0.5px;">${text}</a>
   </td></tr></table>`;
@@ -95,7 +94,7 @@ function ctaButton(text: string, url: string, brand: BrandType = 'letslivetours'
 // ─── Base Send Function ──────────────────────────────────────────────────────
 
 export async function sendEmail({ to, subject, html, brand }: SendEmailOptions): Promise<void> {
-  const fromName = brand === 'trippy-travellerz' ? 'Trippy Travellerz' : 'LetsLive Tours';
+  const fromName = 'LetsLive Tours';
 
   if (env.NODE_ENV === 'development' && !env.SMTP_USER) {
     console.log('──────────────────────────────────────');
@@ -126,9 +125,8 @@ export async function sendVerificationEmail(
   name: string,
   brand: BrandType = 'letslivetours'
 ): Promise<void> {
-  const isTrippy = brand === 'trippy-travellerz';
-  const brandName = isTrippy ? 'Trippy Travellerz' : 'LetsLive Tours';
-  const baseUrl = isTrippy ? 'http://localhost:3002' : env.FRONTEND_URL;
+  const brandName = 'LetsLive Tours';
+  const baseUrl = env.FRONTEND_URL;
   const link = `${baseUrl}/verify-email/${token}`;
   const html = wrapTemplate(`
     <h2 style="margin:0 0 12px;font-size:20px;color:#1a1a1a;">Hi ${name},</h2>
@@ -148,9 +146,8 @@ export async function sendResetPasswordEmail(
   name: string,
   brand: BrandType = 'letslivetours'
 ): Promise<void> {
-  const isTrippy = brand === 'trippy-travellerz';
-  const brandName = isTrippy ? 'Trippy Travellerz' : 'LetsLive Tours';
-  const baseUrl = isTrippy ? 'http://localhost:3002' : env.FRONTEND_URL;
+  const brandName = 'LetsLive Tours';
+  const baseUrl = env.FRONTEND_URL;
   const link = `${baseUrl}/reset-password/${token}`;
   const html = wrapTemplate(`
     <h2 style="margin:0 0 12px;font-size:20px;color:#1a1a1a;">Hi ${name},</h2>
@@ -168,9 +165,8 @@ export async function sendEnquiryReceived(
   name: string,
   brand: BrandType = 'letslivetours'
 ): Promise<void> {
-  const isTrippy = brand === 'trippy-travellerz';
-  const brandName = isTrippy ? 'Trippy Travellerz' : 'LetsLive Tours';
-  const baseUrl = isTrippy ? 'http://localhost:3002' : env.FRONTEND_URL;
+  const brandName = 'LetsLive Tours';
+  const baseUrl = env.FRONTEND_URL;
   const html = wrapTemplate(`
     <h2 style="margin:0 0 12px;font-size:20px;color:#1a1a1a;">Hi ${name},</h2>
     <p style="margin:0 0 8px;font-size:15px;color:#444;line-height:1.7;">Thank you for reaching out! We've received your enquiry and our travel experts will get back to you within 24 hours.</p>
@@ -188,9 +184,8 @@ export async function sendCallbackRequested(
   phone: string,
   brand: BrandType = 'letslivetours'
 ): Promise<void> {
-  const isTrippy = brand === 'trippy-travellerz';
-  const brandName = isTrippy ? 'Trippy Travellerz' : 'LetsLive Tours';
-  const baseUrl = isTrippy ? 'http://localhost:3002' : env.FRONTEND_URL;
+  const brandName = 'LetsLive Tours';
+  const baseUrl = env.FRONTEND_URL;
   const html = wrapTemplate(`
     <h2 style="margin:0 0 12px;font-size:20px;color:#1a1a1a;">Hi ${name},</h2>
     <p style="margin:0 0 8px;font-size:15px;color:#444;line-height:1.7;">We've received your callback request. One of our travel experts will call you shortly at <strong>${phone}</strong>.</p>
@@ -210,8 +205,7 @@ export async function sendBookingConfirmation(
   brandOption?: BrandType
 ): Promise<void> {
   const brand = brandOption || bookingDetails.brand || 'letslivetours';
-  const isTrippy = brand === 'trippy-travellerz';
-  const brandName = isTrippy ? 'Trippy Travellerz' : 'LetsLive Tours';
+  const brandName = 'LetsLive Tours';
   const { packageName, travelDate, amount, travellers, bookingId } = bookingDetails;
   const formattedAmount = new Intl.NumberFormat('en-IN', {
     style: 'currency',
@@ -219,10 +213,8 @@ export async function sendBookingConfirmation(
     maximumFractionDigits: 0,
   }).format(amount);
 
-  const amountColor = isTrippy ? '#58371E' : '#004d5e';
-  const dashboardLink = isTrippy
-    ? `http://localhost:3002/dashboard?tab=bookings`
-    : `${env.FRONTEND_URL}/dashboard/bookings/${bookingId}`;
+  const amountColor = '#004d5e';
+  const dashboardLink = `${env.FRONTEND_URL}/dashboard/bookings/${bookingId}`;
 
   const html = wrapTemplate(`
     <h2 style="margin:0 0 12px;font-size:20px;color:#1a1a1a;">Booking Confirmed! 🎉</h2>

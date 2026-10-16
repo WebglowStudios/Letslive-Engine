@@ -29,7 +29,7 @@ export interface IBooking extends Document {
   financeDetails?: { paidAmount?: number; mode: string; transactionId: string; remarks: string; requestedBy?: mongoose.Types.ObjectId };
   bookingStatus: 'pending' | 'confirmed' | 'staff-confirmed' | 'vendor-confirmed' | 'in-progress' | 'completed' | 'cancelled';
   bookingSource: 'online' | 'admin_manual';
-  brand?: 'letslivetours' | 'trippy-travellerz';
+  brand?: 'letslivetours';
   specialRequests?: string;
   contactPhone?: string;
   contactEmail?: string;
@@ -110,7 +110,7 @@ const bookingSchema = new Schema<IBooking>(
     },
     brand: {
       type: String,
-      enum: ['letslivetours', 'trippy-travellerz'],
+      enum: ['letslivetours'],
       default: 'letslivetours',
       index: true,
     },
@@ -160,7 +160,7 @@ const bookingSchema = new Schema<IBooking>(
 // Auto-generate bookingId like "LLT-2026-00001" or "TTZ-2026-00001"
 export async function getNextBookingId(brand?: string): Promise<string> {
   const year = new Date().getFullYear();
-  const prefix = brand === 'trippy-travellerz' ? 'TTZ' : 'LLT';
+  const prefix = 'LLT';
   const lastBooking = await mongoose
     .model<IBooking>('Booking')
     .findOne({ bookingId: { $regex: `^${prefix}-${year}-\\d{5}$` } })

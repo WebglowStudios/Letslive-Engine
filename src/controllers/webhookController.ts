@@ -103,7 +103,7 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
   const razorpayOrderId = entity.order_id as string;
   // Razorpay amounts are in paise — convert to INR
   const amountPaise = entity.amount as number;
-  const amountINR = Math.round(amountPaise / 100);
+  let amountINR = Math.round(amountPaise / 100);
 
   // Notes: for payment_link.paid, the notes we set are on the payment_link entity
   // For payment.captured (order-based), notes are on the payment entity itself
@@ -138,6 +138,34 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
     return;
   }
 
+  // Check if baseAmount is specified in notes or order (excluding customer-paid MDR / convenience fee)
+  if (notes?.baseAmount) {
+    const parsedBase = Number(notes.baseAmount);
+    if (!isNaN(parsedBase) && parsedBase > 0) {
+      amountINR = parsedBase;
+    }
+  } else if (razorpayOrderId) {
+    try {
+      const razorpay = getRazorpay();
+      const rzpOrder = await razorpay.orders.fetch(razorpayOrderId);
+      if (rzpOrder?.amount) {
+        amountINR = Math.round(Number(rzpOrder.amount) / 100);
+      }
+    } catch {
+      // fallback to amountINR
+    }
+  } else if (entity.payment_link_id) {
+    try {
+      const razorpay = getRazorpay();
+      const pl = await razorpay.paymentLink.fetch(entity.payment_link_id as string);
+      if (pl?.amount) {
+        amountINR = Math.round(Number(pl.amount) / 100);
+      }
+    } catch {
+      // fallback to amountINR
+    }
+  }
+
   console.log(`[WEBHOOK] ${event} — paymentId: ${razorpayPaymentId}, bookingId: ${bookingId}, customerPaymentId: ${customerPaymentId}, amount: ₹${amountINR}, notes:`, JSON.stringify(notes));
 
   try {
@@ -157,11 +185,15 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
         return;
       }
 
+      // Prevent MDR / convenience fee from overcrediting CustomerPayment
+      const remainingDue = cp.amount - (cp.paidAmount || 0);
+      const creditedAmount = remainingDue > 0 && amountINR > remainingDue ? remainingDue : amountINR;
+
       // Mark CP as paid — Razorpay payment is auto-verified, no finance approval needed
       cp.status = 'paid';
       cp.transactionId = razorpayPaymentId;
       cp.paymentMode = 'razorpay';
-      cp.paidAmount = amountINR;
+      cp.paidAmount = (cp.paidAmount || 0) + creditedAmount;
       cp.paidDate = new Date();
       cp.financeStatus = 'approved'; // Online payment — auto-approved, skip finance queue
       // We don't save cp yet, we update Booking first to keep sync
@@ -170,13 +202,13 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
         const booking = await Booking.findById(bookingId);
         if (booking) {
           booking.paymentHistory.push({
-            amount: amountINR,
+            amount: creditedAmount,
             method: 'razorpay',
             transactionId: razorpayPaymentId,
             date: new Date(),
             status: 'success',
           });
-          booking.paidAmount = (booking.paidAmount || 0) + amountINR;
+          booking.paidAmount = (booking.paidAmount || 0) + creditedAmount;
           
           if (booking.paidAmount >= booking.totalAmount) {
             booking.paymentStatus = 'paid';
@@ -214,9 +246,12 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
         return;
       }
 
+      const bookingDue = booking.totalAmount - (booking.paidAmount || 0);
+      const creditedAmount = bookingDue > 0 && amountINR > bookingDue ? bookingDue : amountINR;
+
       // Record payment
       booking.paymentHistory.push({
-        amount: amountINR,
+        amount: creditedAmount,
         method: 'razorpay',
         transactionId: razorpayPaymentId,
         date: new Date(),
@@ -224,7 +259,7 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
       });
 
       // Update paidAmount and derive paymentStatus
-      booking.paidAmount = (booking.paidAmount || 0) + amountINR;
+      booking.paidAmount = (booking.paidAmount || 0) + creditedAmount;
 
       const wasConfirmed = booking.bookingStatus === 'confirmed';
 

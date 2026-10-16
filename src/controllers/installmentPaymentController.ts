@@ -78,6 +78,7 @@ export const createInstallmentOrder = asyncHandler(async (req: Request, res: Res
       customerPaymentId: String(payment._id),
       bookingId: String(payment.booking || ''),
       milestone: payment.milestone,
+      baseAmount: String(finalAmount),
     },
   };
 
@@ -126,8 +127,25 @@ export const verifyInstallmentPayment = asyncHandler(async (req: Request, res: R
   }
 
   const razorpay = getRazorpay();
-  const rzpPayment = await razorpay.payments.fetch(razorpay_payment_id);
-  const amountINR = Math.round((rzpPayment.amount as number) / 100);
+  const [rzpPayment, rzpOrder] = await Promise.all([
+    razorpay.payments.fetch(razorpay_payment_id),
+    razorpay_order_id ? razorpay.orders.fetch(razorpay_order_id).catch(() => null) : null,
+  ]);
+
+  // Determine the true base amount intended to be paid (excluding customer-paid MDR / Razorpay convenience fees)
+  let baseAmountINR: number | undefined;
+  if (rzpOrder && rzpOrder.amount) {
+    baseAmountINR = Math.round(Number(rzpOrder.amount) / 100);
+  } else if (rzpPayment.notes?.baseAmount) {
+    const parsed = Number(rzpPayment.notes.baseAmount);
+    if (!isNaN(parsed) && parsed > 0) baseAmountINR = parsed;
+  }
+
+  const chargedINR = Math.round((rzpPayment.amount as number) / 100);
+  const remainingDue = payment.amount - (payment.paidAmount || 0);
+
+  // If baseAmountINR is available, use it. Otherwise cap chargedINR at remainingDue so MDR is never added as surplus.
+  const amountINR = baseAmountINR ?? (remainingDue > 0 && chargedINR > remainingDue ? remainingDue : chargedINR);
 
   // 3. Update CustomerPayment
   payment.paidAmount = (payment.paidAmount || 0) + amountINR;
