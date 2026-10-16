@@ -71,13 +71,13 @@ export const getOperations = asyncHandler(async (req: Request, res: Response) =>
 export const getOperationById = asyncHandler(async (req: Request, res: Response) => {
   const operation = await Operation.findById(req.params.id).populate({
     path: 'bookings',
-    select: 'bookingId brand totalAmount paidAmount paymentStatus travellersDetails primaryTraveller dateChangeHistory package',
+    select: 'bookingId brand totalAmount paidAmount paymentStatus travellersDetails primaryTraveller travellers dateChangeHistory package',
     populate: [
       { path: 'package', select: 'name slug isCustom description itinerary adultCount childCount isInternational visaIncluded flightsIncluded trainsIncluded hideTrainInfo flightPrice landCost hotelPrice activityPrice transferPrice activityAndTransportPrice extraMealsIncluded extraMealsCount extraMealsPrice visaPrice trainPrice cruiseIncluded cruisePrice flights' }
     ]
   }).populate({
     path: 'booking',
-    select: 'bookingId brand totalAmount paidAmount paymentStatus travellersDetails primaryTraveller dateChangeHistory package',
+    select: 'bookingId brand totalAmount paidAmount paymentStatus travellersDetails primaryTraveller travellers dateChangeHistory package',
     populate: [
       { path: 'package', select: 'name slug isCustom description itinerary adultCount childCount isInternational visaIncluded flightsIncluded trainsIncluded hideTrainInfo flightPrice landCost hotelPrice activityPrice transferPrice activityAndTransportPrice extraMealsIncluded extraMealsCount extraMealsPrice visaPrice trainPrice cruiseIncluded cruisePrice flights' }
     ]
@@ -102,8 +102,52 @@ export const getOperationById = asyncHandler(async (req: Request, res: Response)
   const grossProfit = effectiveSelling - vendorCost;
   const profitPercentage = effectiveSelling > 0 ? Math.round((grossProfit / effectiveSelling) * 100) : 0;
 
+  // Multi-source lead customer derivation (ensures customer snapshot is never blank)
+  const leadCust = (operation.customer && operation.customer.name && operation.customer.name.trim())
+    ? operation.customer
+    : (operation.customers && operation.customers.length > 0 && operation.customers[0]?.name ? operation.customers[0] : null);
+
+  const linkedBooking = (operation.booking as any) || (operation.bookings && (operation.bookings as any)[0]) || null;
+  const primaryTraveller = linkedBooking?.primaryTraveller;
+  const bookingTravellers = linkedBooking?.travellers;
+  const bkgDetails = linkedBooking?.travellersDetails || [];
+
+  const derivedName = leadCust?.name
+    || (primaryTraveller?.firstName ? `${primaryTraveller.firstName} ${primaryTraveller.lastName || ''}`.trim() : '')
+    || (bkgDetails[0]?.name)
+    || '';
+
+  const derivedAdults = leadCust?.adults
+    ?? bookingTravellers?.adults
+    ?? (bkgDetails.filter((t: any) => t.type === 'adult').length || undefined)
+    ?? (operation.package as any)?.adultCount
+    ?? (linkedBooking?.package as any)?.adultCount;
+
+  const derivedChildren = leadCust?.children
+    ?? bookingTravellers?.children
+    ?? (bkgDetails.filter((t: any) => t.type === 'child').length || undefined)
+    ?? (operation.package as any)?.childCount
+    ?? (linkedBooking?.package as any)?.childCount;
+
+  const derivedPax = leadCust?.pax
+    ?? ((derivedAdults !== undefined || derivedChildren !== undefined) ? ((derivedAdults || 0) + (derivedChildren || 0)) : undefined)
+    ?? (bookingTravellers ? (bookingTravellers.adults || 0) + (bookingTravellers.children || 0) : undefined)
+    ?? (bkgDetails.length > 0 ? bkgDetails.length : undefined)
+    ?? 1;
+
+  const normalizedCustomer = {
+    ...(operation.customer || {}),
+    name: (operation.customer && operation.customer.name) ? operation.customer.name : derivedName,
+    email: (operation.customer && operation.customer.email) ? operation.customer.email : (leadCust?.email || primaryTraveller?.email || ''),
+    phone: (operation.customer && operation.customer.phone) ? operation.customer.phone : (leadCust?.phone || primaryTraveller?.phone || ''),
+    pax: (operation.customer && operation.customer.pax && operation.customer.name) ? operation.customer.pax : derivedPax,
+    adults: (operation.customer && operation.customer.adults !== undefined) ? operation.customer.adults : derivedAdults,
+    children: (operation.customer && operation.customer.children !== undefined) ? operation.customer.children : derivedChildren,
+  };
+
   const operationWithLiveData = {
     ...operation.toObject(),
+    customer: normalizedCustomer,
     effectiveSelling,
     totalReceived,
     pendingPayment,

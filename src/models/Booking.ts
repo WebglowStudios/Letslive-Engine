@@ -19,7 +19,19 @@ export interface IBooking extends Document {
   returnDate?: Date;
   travellers: { adults: number; children: number; infants: number };
   travellersDetails: { name: string; age?: number; dob?: Date; gender?: string; phone?: string; type: 'adult' | 'child' | 'infant'; passportNumber?: string; passportExpiry?: Date; issuingCountry?: string }[];
-  primaryTraveller: { firstName: string; lastName: string; email: string; phone?: string; panCard?: string };
+  primaryTraveller: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    panCard?: string;
+    passportNumber?: string;
+    passportExpiry?: Date;
+    issuingCountry?: string;
+    dob?: Date;
+    gender?: string;
+    age?: number;
+  };
   totalAmount: number;
   paidAmount: number;
   couponCode?: string;
@@ -75,6 +87,12 @@ const bookingSchema = new Schema<IBooking>(
       email: { type: String },
       phone: { type: String },
       panCard: { type: String },
+      passportNumber: { type: String },
+      passportExpiry: { type: Date },
+      issuingCountry: { type: String },
+      dob: { type: Date },
+      gender: { type: String },
+      age: { type: Number },
     },
     totalAmount: { type: Number, required: true },
     paidAmount: { type: Number, default: 0 },

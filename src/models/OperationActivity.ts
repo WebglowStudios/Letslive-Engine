@@ -17,6 +17,7 @@ export interface IActivityTransfer {
   vendorName?: string;
   vendorContact?: string;
   vendorCost?: number;
+  paidAmount?: number;
   sellingPrice?: number;
   paymentStatus?: 'pending' | 'paid' | 'partial';
 }
@@ -32,6 +33,7 @@ export interface IOperationActivity extends Document {
   vendorContact?: string;
   vendorEmail?: string;
   vendorCost: number;
+  paidAmount: number;
   sellingPrice: number;
   paymentStatus: 'pending' | 'paid' | 'partial';
   paymentDueDate?: Date;
@@ -61,6 +63,7 @@ const activityTransferSchema = new Schema<IActivityTransfer>(
     vendorName: { type: String, default: '' },
     vendorContact: { type: String, default: '' },
     vendorCost: { type: Number, default: 0 },
+    paidAmount: { type: Number, default: 0 },
     sellingPrice: { type: Number, default: 0 },
     paymentStatus: { type: String, enum: ['pending', 'paid', 'partial'], default: 'pending' },
   },
@@ -79,6 +82,7 @@ const operationActivitySchema = new Schema<IOperationActivity>(
     vendorContact: { type: String, default: '' },
     vendorEmail: { type: String, default: '' },
     vendorCost: { type: Number, default: 0 },
+    paidAmount: { type: Number, default: 0 },
     sellingPrice: { type: Number, default: 0 },
     paymentStatus: { type: String, enum: ['pending', 'paid', 'partial'], default: 'pending' },
     paymentDueDate: { type: Date },

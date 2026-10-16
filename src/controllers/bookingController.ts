@@ -652,19 +652,39 @@ export const getBookingVoucherData = asyncHandler(async (req: Request, res: Resp
 
   const pdfTransports = transports.filter((t: any) => t.type !== 'flight');
 
+  const leadCustomer = (operation.customer && operation.customer.name && operation.customer.name.trim())
+    ? operation.customer
+    : (operation.customers && operation.customers.length > 0 && operation.customers[0]?.name ? operation.customers[0] : null);
+
   const customerName = booking.primaryTraveller?.firstName
     ? `${booking.primaryTraveller.firstName} ${booking.primaryTraveller.lastName || ''}`.trim()
-    : `${(booking.user as any)?.firstName || 'Customer'} ${(booking.user as any)?.lastName || ''}`.trim();
+    : (leadCustomer?.name || (booking.travellersDetails && booking.travellersDetails[0]?.name) || `${(booking.user as any)?.firstName || 'Valued Guest'} ${(booking.user as any)?.lastName || ''}`.trim());
 
-  const totalPax = (booking.travellers?.adults || 1) + (booking.travellers?.children || 0) + (booking.travellers?.infants || 0);
+  const bkgDetails = booking.travellersDetails || [];
+  const adultsFromDetails = bkgDetails.filter((t: any) => t.type === 'adult').length;
+  const childrenFromDetails = bkgDetails.filter((t: any) => t.type === 'child').length;
+
+  const adults = booking.travellers?.adults 
+    ?? leadCustomer?.adults 
+    ?? (adultsFromDetails > 0 ? adultsFromDetails : undefined) 
+    ?? pkg?.adultCount;
+
+  const children = booking.travellers?.children 
+    ?? leadCustomer?.children 
+    ?? (childrenFromDetails > 0 ? childrenFromDetails : undefined) 
+    ?? pkg?.childCount;
+
+  const totalPax = (adults !== undefined || children !== undefined)
+    ? ((adults || 0) + (children || 0) + (booking.travellers?.infants || 0) || 1)
+    : (leadCustomer?.pax || (booking.travellers?.adults || 1) + (booking.travellers?.children || 0) + (booking.travellers?.infants || 0));
 
   const voucherData = {
     operationId: operation.operationId,
     destination: operation.destination,
     customerName,
     pax: totalPax,
-    adults: booking.travellers?.adults,
-    children: booking.travellers?.children,
+    adults,
+    children,
     paymentStatus: booking.paymentStatus,
     totalAmount: booking.totalAmount,
     paidAmount: booking.paidAmount,
@@ -1069,7 +1089,19 @@ export const updateBookingPassengers = asyncHandler(async (req: Request, res: Re
 // @access  Admin/Manager/Staff
 export const updateBookingPrimaryTraveller = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { firstName, lastName, email, phone, panCard } = req.body;
+  const {
+    firstName,
+    lastName,
+    email,
+    phone,
+    panCard,
+    passportNumber,
+    passportExpiry,
+    issuingCountry,
+    dob,
+    gender,
+    age,
+  } = req.body;
 
   const booking = await Booking.findById(id);
   if (!booking) {
@@ -1083,8 +1115,40 @@ export const updateBookingPrimaryTraveller = asyncHandler(async (req: Request, r
     lastName: lastName ?? (existing as any).lastName ?? '',
     email: email ?? (existing as any).email ?? '',
     phone: phone ?? (existing as any).phone ?? '',
-    panCard: panCard ?? (existing as any).panCard ?? '',
+    panCard: panCard !== undefined ? panCard : ((existing as any).panCard ?? ''),
+    passportNumber: passportNumber !== undefined ? passportNumber : ((existing as any).passportNumber ?? ''),
+    passportExpiry: passportExpiry !== undefined ? (passportExpiry ? new Date(passportExpiry) : undefined) : (existing as any).passportExpiry,
+    issuingCountry: issuingCountry !== undefined ? issuingCountry : ((existing as any).issuingCountry ?? ''),
+    dob: dob !== undefined ? (dob ? new Date(dob) : undefined) : (existing as any).dob,
+    gender: gender !== undefined ? gender : ((existing as any).gender ?? ''),
+    age: age !== undefined ? (age ? Number(age) : undefined) : (existing as any).age,
   };
+
+  // Sync matching primary traveller in booking.travellersDetails
+  const oldFullName = `${(existing as any).firstName || ''} ${(existing as any).lastName || ''}`.trim().toLowerCase();
+  const newFullName = `${firstName !== undefined ? firstName : ((existing as any).firstName || '')} ${lastName !== undefined ? lastName : ((existing as any).lastName || '')}`.trim();
+
+  if (Array.isArray(booking.travellersDetails)) {
+    const matchIdx = booking.travellersDetails.findIndex((d: any) =>
+      (oldFullName && d.name?.trim().toLowerCase() === oldFullName) ||
+      (newFullName && d.name?.trim().toLowerCase() === newFullName.toLowerCase())
+    );
+    if (matchIdx !== -1) {
+      booking.travellersDetails[matchIdx] = {
+        ...booking.travellersDetails[matchIdx],
+        name: newFullName || booking.travellersDetails[matchIdx].name,
+        phone: phone !== undefined ? phone : booking.travellersDetails[matchIdx].phone,
+        passportNumber: passportNumber !== undefined ? passportNumber : booking.travellersDetails[matchIdx].passportNumber,
+        passportExpiry: passportExpiry !== undefined ? (passportExpiry ? new Date(passportExpiry) : undefined) : booking.travellersDetails[matchIdx].passportExpiry,
+        issuingCountry: issuingCountry !== undefined ? issuingCountry : booking.travellersDetails[matchIdx].issuingCountry,
+        dob: dob !== undefined ? (dob ? new Date(dob) : undefined) : booking.travellersDetails[matchIdx].dob,
+        gender: gender !== undefined ? gender : booking.travellersDetails[matchIdx].gender,
+        age: age !== undefined ? (age ? Number(age) : undefined) : booking.travellersDetails[matchIdx].age,
+      };
+      booking.markModified('travellersDetails');
+    }
+  }
+
   await booking.save();
 
   // Sync with Operation — check both new (bookings[]) and legacy (booking) fields

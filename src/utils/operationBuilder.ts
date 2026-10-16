@@ -40,10 +40,15 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
     const adults = Math.max(pkg?.adultCount || travellers?.adults || 1, travellersDetails.filter(t => t.type === 'adult').length);
     const children = Math.max(pkg?.childCount || travellers?.children || 0, travellersDetails.filter(t => t.type === 'child').length);
 
+    const primaryTraveller = populatedBooking.primaryTraveller as { firstName?: string; lastName?: string; email?: string; phone?: string; panCard?: string } | undefined;
+    const leadName = primaryTraveller?.firstName 
+      ? `${primaryTraveller.firstName} ${primaryTraveller.lastName || ''}`.trim()
+      : (usr ? `${usr.firstName || ''} ${usr.lastName || ''}`.trim() : (travellersDetails[0]?.name || 'Customer'));
+
     const customerObj = {
-      name: usr ? `${usr.firstName || ''} ${usr.lastName || ''}`.trim() : 'Customer',
-      email: usr?.email || '',
-      phone: usr?.phone || '',
+      name: leadName,
+      email: primaryTraveller?.email || usr?.email || '',
+      phone: primaryTraveller?.phone || usr?.phone || '',
       pax,
       adults,
       children,
@@ -58,6 +63,9 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
       if (groupOp) {
         groupOp.bookings.push(populatedBooking._id);
         groupOp.customers.push(customerObj);
+        if (!groupOp.customer || !groupOp.customer.name) {
+          groupOp.customer = customerObj;
+        }
         groupOp.sellingPrice += (populatedBooking.totalAmount || 0);
         await groupOp.save();
         op = groupOp;
@@ -73,6 +81,7 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
         operationId: populatedBooking.bookingId || `OP${String(populatedBooking._id).slice(-6).toUpperCase()}`,
         package: pkg?._id || undefined,
         enquiry: populatedBooking.enquiry || undefined,
+        customer: customerObj,
         customers: [customerObj],
         destination: dest?.name || 'TBD',
         travelDates: {

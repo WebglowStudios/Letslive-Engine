@@ -15,6 +15,7 @@ export interface IOperationAccommodation extends Document {
   tripDay: string;
   vendorName: string;
   vendorCost: number;
+  paidAmount: number;
   sellingPrice: number;
   paymentStatus: 'pending' | 'paid' | 'partial';
   paymentDueDate?: Date;
@@ -42,6 +43,7 @@ const schema = new Schema<IOperationAccommodation>(
     tripDay: { type: String, default: '' }, // e.g. "Day 1-3", "Day 4-7"
     vendorName: { type: String, default: '' },
     vendorCost: { type: Number, default: 0 },
+    paidAmount: { type: Number, default: 0 },
     sellingPrice: { type: Number, default: 0 },
     paymentStatus: { type: String, enum: ['pending', 'paid', 'partial'], default: 'pending' },
     paymentDueDate: { type: Date },
