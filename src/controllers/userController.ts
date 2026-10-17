@@ -353,15 +353,27 @@ export const getUserPerformance = asyncHandler(async (req: Request, res: Respons
 
   const clientsHandled = opsStats[0]?.clientsHandled || 0;
   const revenueGenerated = opsStats[0]?.totalRevenue || 0;
-  const profitGenerated = opsStats[0]?.totalProfit || 0;
+  const grossProfit = opsStats[0]?.totalProfit || 0;
+  const profitGenerated = grossProfit;
   const incentivesEarned = opsStats[0]?.totalIncentives || 0;
   const pendingIncentives = opsStats[0]?.pendingIncentives || 0;
+  const netProfit = grossProfit - incentivesEarned;
 
-  // 3. Reviews entered by this employee within timeframe
+  // 3. Approved reviews entered by this employee within timeframe
   const reviewMatch: Record<string, any> = {
     $or: [{ createdBy: userId }, { user: userId }],
+    isApproved: true,
   };
-  if (dateFilter) reviewMatch.createdAt = dateFilter;
+  if (dateFilter) {
+    reviewMatch.$and = [
+      {
+        $or: [
+          { reviewDate: dateFilter },
+          { createdAt: dateFilter },
+        ],
+      },
+    ];
+  }
 
   const [totalReviewsEntered, reviewsByPackage] = await Promise.all([
     Review.countDocuments(reviewMatch),
@@ -435,18 +447,24 @@ export const getUserPerformance = asyncHandler(async (req: Request, res: Respons
   // Actual sales is the number of bookings / operations closed
   const salesAchieved = clientsHandled;
   const isSalesAchieved = salesTarget > 0 ? salesAchieved >= salesTarget : null;
+  const grossProfitTarget = targetDoc?.grossProfitTarget || 0;
+  const netProfitTarget = targetDoc?.netProfitTarget || 0;
   const isRevenueAchieved = revenueTarget > 0 ? revenueGenerated >= revenueTarget : null;
   const isReviewAchieved = reviewTarget > 0 ? reviewAchieved >= reviewTarget : null;
+  const isGrossProfitAchieved = grossProfitTarget > 0 ? grossProfit >= grossProfitTarget : null;
+  const isNetProfitAchieved = netProfitTarget > 0 ? netProfit >= netProfitTarget : null;
 
   // Determine overall status: 'achieved' | 'in-progress' | 'missed' | 'no-target'
   let overallStatus: 'achieved' | 'in-progress' | 'missed' | 'no-target' = 'no-target';
-  const hasAnyTarget = salesTarget > 0 || revenueTarget > 0 || reviewTarget > 0;
+  const hasAnyTarget = salesTarget > 0 || revenueTarget > 0 || reviewTarget > 0 || grossProfitTarget > 0 || netProfitTarget > 0;
 
   if (hasAnyTarget) {
     const isSalesOk = salesTarget === 0 || salesAchieved >= salesTarget;
     const isRevenueOk = revenueTarget === 0 || revenueGenerated >= revenueTarget;
     const isReviewOk = reviewTarget === 0 || reviewAchieved >= reviewTarget;
-    const allMet = isSalesOk && isRevenueOk && isReviewOk;
+    const isGrossProfitOk = grossProfitTarget === 0 || grossProfit >= grossProfitTarget;
+    const isNetProfitOk = netProfitTarget === 0 || netProfit >= netProfitTarget;
+    const allMet = isSalesOk && isRevenueOk && isReviewOk && isGrossProfitOk && isNetProfitOk;
 
     if (allMet) {
       overallStatus = 'achieved';
@@ -471,6 +489,14 @@ export const getUserPerformance = asyncHandler(async (req: Request, res: Respons
     revenueAchieved: revenueGenerated,
     isRevenueAchieved,
     revenueProgressPercent: revenueTarget > 0 ? Math.min(Math.round((revenueGenerated / revenueTarget) * 100), 100) : 0,
+    grossProfitTarget,
+    grossProfitAchieved: grossProfit,
+    isGrossProfitAchieved,
+    grossProfitProgressPercent: grossProfitTarget > 0 ? Math.min(Math.round((grossProfit / grossProfitTarget) * 100), 100) : 0,
+    netProfitTarget,
+    netProfitAchieved: netProfit,
+    isNetProfitAchieved,
+    netProfitProgressPercent: netProfitTarget > 0 ? Math.min(Math.round((netProfit / netProfitTarget) * 100), 100) : 0,
     reviewTarget,
     reviewAchieved,
     isReviewAchieved,
@@ -541,6 +567,8 @@ export const getUserPerformance = asyncHandler(async (req: Request, res: Respons
       clientsHandled,
       revenueGenerated,
       profitGenerated,
+      grossProfit,
+      netProfit,
       incentivesEarned,
       pendingIncentives,
       totalReviewsEntered,

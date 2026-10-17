@@ -9,6 +9,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { sendReviewThanks } from '../services/emailService.js';
 import ActivityLog from '../models/ActivityLog.js';
+import { logActivity } from '../utils/logActivity.js';
 import ApprovalRequest from '../models/ApprovalRequest.js';
 
 // Helper: Recalculate ratings for a package and its destination
@@ -414,8 +415,7 @@ export const submitEmployeeReview = asyncHandler(async (req: Request, res: Respo
     throw new AppError('Selected package not found', 404);
   }
 
-  const userRole = req.user?.role;
-  const isAdmin = userRole === 'admin' || userRole === 'super-admin';
+  const isAdmin = req.user?.role === 'admin';
 
   const reviewPayload = {
     reviewerName: reviewerName.trim(),
@@ -441,12 +441,13 @@ export const submitEmployeeReview = asyncHandler(async (req: Request, res: Respo
 
     await recalculateRatings(pkg._id, pkg.destination);
 
-    await ActivityLog.create({
-      user: req.user!._id,
+    await logActivity({
+      req,
       action: 'create',
-      entity: 'Review',
-      entityId: newReview._id,
-      details: { reviewerName: reviewPayload.reviewerName, rating, platform: reviewPayload.platform },
+      entity: 'review',
+      entityId: String(newReview._id),
+      entityName: reviewPayload.reviewerName,
+      description: `Logged and approved customer review for ${pkg.name}`,
     });
 
     res.status(201).json({
@@ -465,12 +466,13 @@ export const submitEmployeeReview = asyncHandler(async (req: Request, res: Respo
       status: 'pending',
     });
 
-    await ActivityLog.create({
-      user: req.user!._id,
+    await logActivity({
+      req,
       action: 'create',
-      entity: 'ApprovalRequest',
-      entityId: approvalReq._id,
-      details: { entityType: 'Review', reviewerName: reviewPayload.reviewerName },
+      entity: 'other',
+      entityId: String(approvalReq._id),
+      entityName: `Review Approval (${reviewPayload.reviewerName})`,
+      description: `Submitted customer review for ${pkg.name} awaiting approval`,
     });
 
     res.status(201).json({
