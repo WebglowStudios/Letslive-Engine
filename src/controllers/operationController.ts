@@ -38,7 +38,21 @@ export const getOperations = asyncHandler(async (req: Request, res: Response) =>
   }
 
   const [operations, total] = await Promise.all([
-    Operation.find(filter).populate('bookings', 'bookingId totalAmount').populate('assignedTo', 'firstName lastName').sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Operation.find(filter)
+      .populate({
+        path: 'bookings',
+        select: 'bookingId totalAmount primaryTraveller user travellersDetails',
+        populate: { path: 'user', select: 'firstName lastName email phone' }
+      })
+      .populate({
+        path: 'booking',
+        select: 'bookingId totalAmount primaryTraveller user travellersDetails',
+        populate: { path: 'user', select: 'firstName lastName email phone' }
+      })
+      .populate('assignedTo', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
     Operation.countDocuments(filter),
   ]);
 
@@ -49,6 +63,37 @@ export const getOperations = asyncHandler(async (req: Request, res: Response) =>
     const totalReceived = cps.reduce((sum, cp) => sum + (cp.paidAmount || 0), 0);
     const pendingAmount = Math.max(0, totalBilled - totalReceived);
 
+    // Multi-source lead customer derivation (ensures customer snapshot is never blank)
+    const leadCust = (op.customer && op.customer.name && op.customer.name.trim())
+      ? op.customer
+      : (op.customers && op.customers.length > 0 && op.customers[0]?.name && op.customers[0].name.trim() ? op.customers[0] : null);
+
+    const linkedBooking = (op.booking as any) || (op.bookings && (op.bookings as any)[0]) || null;
+    const primaryTraveller = linkedBooking?.primaryTraveller;
+    const usr = linkedBooking?.user;
+    const bkgDetails = linkedBooking?.travellersDetails || [];
+
+    const derivedName = (leadCust?.name && leadCust.name.trim())
+      || (primaryTraveller?.firstName ? `${primaryTraveller.firstName} ${primaryTraveller.lastName || ''}`.trim() : '')
+      || (usr?.firstName ? `${usr.firstName} ${usr.lastName || ''}`.trim() : '')
+      || (bkgDetails[0]?.name ? bkgDetails[0].name.trim() : '')
+      || '';
+
+    const derivedEmail = leadCust?.email || primaryTraveller?.email || usr?.email || '';
+    const derivedPhone = leadCust?.phone || primaryTraveller?.phone || usr?.phone || '';
+
+    const normalizedCustomer = {
+      ...(op.customer || {}),
+      name: derivedName || (op.customer?.name || ''),
+      email: derivedEmail,
+      phone: derivedPhone,
+    };
+
+    // If op.customers is empty or first entry lacks name, backfill it
+    const normalizedCustomers = (op.customers && op.customers.length > 0)
+      ? op.customers.map((c, i) => i === 0 && (!c.name || !c.name.trim()) && derivedName ? { ...c, name: derivedName, email: derivedEmail, phone: derivedPhone } : c)
+      : (derivedName ? [normalizedCustomer] : []);
+
     // Use stored sellingPrice if no CPs exist (new ops), otherwise use live CP total as billing
     const effectiveSelling = totalBilled > 0 ? totalBilled : (op.sellingPrice || 0);
     const vendorCost = op.totalVendorCost || 0;
@@ -57,6 +102,8 @@ export const getOperations = asyncHandler(async (req: Request, res: Response) =>
 
     return {
       ...op.toObject(),
+      customer: normalizedCustomer,
+      customers: normalizedCustomers,
       pendingPayment: pendingAmount,
       totalReceived,
       effectiveSelling,   // live total billed to customer

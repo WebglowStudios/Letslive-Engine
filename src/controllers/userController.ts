@@ -487,7 +487,46 @@ export const getUserPerformance = asyncHandler(async (req: Request, res: Respons
   const recentOperations = await Operation.find(recentOpsMatch)
     .sort({ createdAt: -1 })
     .limit(8)
-    .populate('booking', 'bookingId totalAmount');
+    .populate({
+      path: 'booking',
+      select: 'bookingId totalAmount primaryTraveller user travellersDetails',
+      populate: { path: 'user', select: 'firstName lastName email phone' }
+    })
+    .populate({
+      path: 'bookings',
+      select: 'bookingId totalAmount primaryTraveller user travellersDetails',
+      populate: { path: 'user', select: 'firstName lastName email phone' }
+    });
+
+  const normalizedRecentActivity = recentOperations.map(op => {
+    const leadCust = (op.customer && op.customer.name && op.customer.name.trim())
+      ? op.customer
+      : (op.customers && op.customers.length > 0 && op.customers[0]?.name && op.customers[0].name.trim() ? op.customers[0] : null);
+
+    const linkedBooking = (op.booking as any) || (op.bookings && (op.bookings as any)[0]) || null;
+    const primaryTraveller = linkedBooking?.primaryTraveller;
+    const usr = linkedBooking?.user;
+    const bkgDetails = linkedBooking?.travellersDetails || [];
+
+    const derivedName = (leadCust?.name && leadCust.name.trim())
+      || (primaryTraveller?.firstName ? `${primaryTraveller.firstName} ${primaryTraveller.lastName || ''}`.trim() : '')
+      || (usr?.firstName ? `${usr.firstName} ${usr.lastName || ''}`.trim() : '')
+      || (bkgDetails[0]?.name ? bkgDetails[0].name.trim() : '')
+      || '';
+
+    const derivedEmail = leadCust?.email || primaryTraveller?.email || usr?.email || '';
+    const derivedPhone = leadCust?.phone || primaryTraveller?.phone || usr?.phone || '';
+
+    return {
+      ...op.toObject(),
+      customer: {
+        ...(op.customer || {}),
+        name: derivedName || (op.customer?.name || ''),
+        email: derivedEmail,
+        phone: derivedPhone,
+      }
+    };
+  });
 
   res.status(200).json({
     status: 'success',
@@ -507,7 +546,7 @@ export const getUserPerformance = asyncHandler(async (req: Request, res: Respons
       totalReviewsEntered,
       reviewsByPackage,
       target: targetSummary,
-      recentActivity: recentOperations,
+      recentActivity: normalizedRecentActivity,
     },
   });
 });

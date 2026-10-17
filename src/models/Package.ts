@@ -111,8 +111,12 @@ export interface IPackage extends Document {
   priceUnit: 'person' | 'couple' | 'family' | 'group';
   discount?: number;
   discountType?: 'percent' | 'amount';
+  gstIncluded?: boolean;
   gstRate?: number;
   gstAmount?: number;
+  tcsIncluded?: boolean;
+  tcsRate?: number;
+  tcsAmount?: number;
   rating: number;
   reviewCount: number;
   highlights: string[];
@@ -229,8 +233,12 @@ const packageSchema = new Schema<IPackage>(
     },
     discount: { type: Number },
     discountType: { type: String, enum: ['percent', 'amount'], default: 'percent' },
+    gstIncluded: { type: Boolean, default: true },
     gstRate: { type: Number, default: 5 },
     gstAmount: { type: Number },
+    tcsIncluded: { type: Boolean, default: false },
+    tcsRate: { type: Number, default: 5 },
+    tcsAmount: { type: Number },
     rating: { type: Number, default: 0, min: 0, max: 5 },
     reviewCount: { type: Number, default: 0 },
     highlights: [{ type: String }],
