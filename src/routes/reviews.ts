@@ -11,6 +11,7 @@ import {
   canReviewPackage,
   createManualReview,
   getAdminReviewsByPackage,
+  submitEmployeeReview,
 } from '../controllers/reviewController.js';
 import { protect, requirePermission } from '../middleware/auth.js';
 
@@ -22,6 +23,7 @@ router.get('/can-review/:packageId', protect, canReviewPackage);
 router.get('/package/:packageId', getReviewsByPackage);
 router.get('/destination/:destId', getReviewsByDestination);
 router.get('/admin/package/:packageId', protect, requirePermission('reviews.view'), getAdminReviewsByPackage);
+router.post('/submit', protect, submitEmployeeReview);
 router.post('/manual', protect, requirePermission('reviews.edit'), createManualReview);
 router.post('/', protect, createReview);
 router.put('/:id', protect, updateReview);

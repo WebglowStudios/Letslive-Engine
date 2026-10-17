@@ -10,6 +10,9 @@ export interface IReview extends Document {
   rating: number;
   title?: string;
   text: string;
+  platform?: string;
+  reviewDate?: Date;
+  reviewUrl?: string;
   tripType?: 'honeymoon' | 'family' | 'solo' | 'group' | 'business';
   travelDate?: Date;
   images: string[];
@@ -31,6 +34,9 @@ const reviewSchema = new Schema<IReview>(
     rating: { type: Number, required: true, min: 1, max: 5 },
     title: { type: String },
     text: { type: String, required: true },
+    platform: { type: String, default: 'Google' },
+    reviewDate: { type: Date },
+    reviewUrl: { type: String },
     tripType: {
       type: String,
       enum: ['honeymoon', 'family', 'solo', 'group', 'business'],

@@ -9,9 +9,10 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { sendReviewThanks } from '../services/emailService.js';
 import ActivityLog from '../models/ActivityLog.js';
+import ApprovalRequest from '../models/ApprovalRequest.js';
 
 // Helper: Recalculate ratings for a package and its destination
-const recalculateRatings = async (packageId: unknown, destinationId?: unknown) => {
+export const recalculateRatings = async (packageId: unknown, destinationId?: unknown) => {
   try {
     if (!packageId) return null;
 
@@ -378,4 +379,105 @@ export const canReviewPackage = asyncHandler(async (req: Request, res: Response)
     status: 'success',
     data: { canReview: true, bookingId: booking._id },
   });
+});
+
+// @desc    Submit a customer review (logged by employee) - auto-approves for admin, creates ApprovalRequest for staff
+// @route   POST /api/reviews/submit
+export const submitEmployeeReview = asyncHandler(async (req: Request, res: Response) => {
+  const {
+    reviewerName,
+    reviewDate,
+    platform = 'Google',
+    package: packageId,
+    rating,
+    text,
+    title,
+    reviewUrl,
+    tripType,
+  } = req.body;
+
+  if (!reviewerName || !reviewerName.trim()) {
+    throw new AppError('Customer/Reviewer name is required', 400);
+  }
+  if (!text || !text.trim()) {
+    throw new AppError('Review text is required', 400);
+  }
+  if (!rating || rating < 1 || rating > 5) {
+    throw new AppError('A valid rating between 1 and 5 is required', 400);
+  }
+  if (!packageId) {
+    throw new AppError('Package is required', 400);
+  }
+
+  const pkg = await Package.findById(packageId).select('name destination');
+  if (!pkg) {
+    throw new AppError('Selected package not found', 404);
+  }
+
+  const userRole = req.user?.role;
+  const isAdmin = userRole === 'admin' || userRole === 'super-admin';
+
+  const reviewPayload = {
+    reviewerName: reviewerName.trim(),
+    reviewDate: reviewDate ? new Date(reviewDate) : new Date(),
+    platform: platform?.trim() || 'Google',
+    package: pkg._id,
+    packageName: pkg.name,
+    destination: pkg.destination,
+    rating: Number(rating),
+    text: text.trim(),
+    title: title?.trim() || `${platform || 'Customer'} Review`,
+    reviewUrl: reviewUrl?.trim() || '',
+    tripType: tripType || 'family',
+    createdBy: req.user!._id,
+  };
+
+  if (isAdmin) {
+    const newReview = await Review.create({
+      ...reviewPayload,
+      isApproved: true,
+      isVerified: true,
+    });
+
+    await recalculateRatings(pkg._id, pkg.destination);
+
+    await ActivityLog.create({
+      user: req.user!._id,
+      action: 'create',
+      entity: 'Review',
+      entityId: newReview._id,
+      details: { reviewerName: reviewPayload.reviewerName, rating, platform: reviewPayload.platform },
+    });
+
+    res.status(201).json({
+      status: 'success',
+      data: newReview,
+      requiresApproval: false,
+      message: 'Review created and approved successfully.',
+    });
+  } else {
+    // Non-admin staff: route to Content Approver
+    const approvalReq = await ApprovalRequest.create({
+      entityType: 'Review',
+      action: 'create',
+      payload: reviewPayload,
+      requestedBy: req.user!._id,
+      status: 'pending',
+    });
+
+    await ActivityLog.create({
+      user: req.user!._id,
+      action: 'create',
+      entity: 'ApprovalRequest',
+      entityId: approvalReq._id,
+      details: { entityType: 'Review', reviewerName: reviewPayload.reviewerName },
+    });
+
+    res.status(201).json({
+      status: 'success',
+      data: approvalReq,
+      requiresApproval: true,
+      message: 'Review submitted and sent to Content Approver for verification.',
+    });
+  }
 });

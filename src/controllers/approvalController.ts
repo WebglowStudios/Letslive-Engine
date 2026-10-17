@@ -3,6 +3,8 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import ApprovalRequest from '../models/ApprovalRequest.js';
 import Package from '../models/Package.js';
 import Destination from '../models/Destination.js';
+import Review from '../models/Review.js';
+import { recalculateRatings } from './reviewController.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { logActivity } from '../utils/logActivity.js';
 
@@ -41,23 +43,53 @@ export const approveRequest = asyncHandler(async (req: Request, res: Response) =
 
     if (action === 'create') {
       payload.approvalStatus = 'approved';
-      if (entityType === 'Package') resultEntity = await Package.create(payload);
-      else resultEntity = await Destination.create(payload);
+      if (entityType === 'Package') {
+        resultEntity = await Package.create(payload);
+      } else if (entityType === 'Destination') {
+        resultEntity = await Destination.create(payload);
+      } else if (entityType === 'Review') {
+        let destId = payload.destination;
+        if (!destId && payload.package) {
+          const pkg = await Package.findById(payload.package).select('destination');
+          if (pkg?.destination) destId = pkg.destination;
+        }
+        resultEntity = await Review.create({
+          ...payload,
+          destination: destId,
+          isApproved: true,
+          isVerified: true,
+          createdBy: approval.requestedBy,
+        });
+        if (payload.package) {
+          await recalculateRatings(payload.package, destId);
+        }
+      }
     } else if (action === 'update') {
       if (!entityId) throw new AppError('Missing entityId for update action', 400);
       payload.approvalStatus = 'approved';
       if (entityType === 'Package') {
         resultEntity = await Package.findByIdAndUpdate(entityId.toString(), payload, { new: true, runValidators: true });
-      } else {
+      } else if (entityType === 'Destination') {
         resultEntity = await Destination.findByIdAndUpdate(entityId.toString(), payload, { new: true, runValidators: true });
+      } else if (entityType === 'Review') {
+        resultEntity = await Review.findByIdAndUpdate(entityId.toString(), payload, { new: true, runValidators: true });
+        if (resultEntity?.package) {
+          await recalculateRatings(resultEntity.package, resultEntity.destination);
+        }
       }
       if (!resultEntity) throw new AppError(`${entityType} not found`, 404);
     } else if (action === 'delete') {
       if (!entityId) throw new AppError('Missing entityId for delete action', 400);
       if (entityType === 'Package') {
         resultEntity = await Package.findByIdAndDelete(entityId.toString());
-      } else {
+      } else if (entityType === 'Destination') {
         resultEntity = await Destination.findByIdAndDelete(entityId.toString());
+      } else if (entityType === 'Review') {
+        const rev = await Review.findById(entityId);
+        resultEntity = await Review.findByIdAndDelete(entityId.toString());
+        if (rev?.package) {
+          await recalculateRatings(rev.package, rev.destination);
+        }
       }
       if (!resultEntity) throw new AppError(`${entityType} not found`, 404);
     }

@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IApprovalRequest extends Document {
-  entityType: 'Package' | 'Destination';
+  entityType: 'Package' | 'Destination' | 'Review';
   entityId?: mongoose.Types.ObjectId;
   action: 'create' | 'update' | 'delete';
   payload: any;
@@ -15,7 +15,7 @@ export interface IApprovalRequest extends Document {
 
 const approvalRequestSchema = new Schema<IApprovalRequest>(
   {
-    entityType: { type: String, enum: ['Package', 'Destination'], required: true },
+    entityType: { type: String, enum: ['Package', 'Destination', 'Review'], required: true },
     entityId: { type: Schema.Types.ObjectId, refPath: 'entityType' },
     action: { type: String, enum: ['create', 'update', 'delete'], required: true },
     payload: { type: Schema.Types.Mixed },

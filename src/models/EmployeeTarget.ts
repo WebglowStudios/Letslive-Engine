@@ -9,6 +9,8 @@ export interface IEmployeeTarget extends Document {
   
   salesTarget: number; // Target number of closed bookings/conversions
   revenueTarget: number; // Target revenue generated in ₹
+  grossProfitTarget: number; // Target gross profit generated in ₹
+  netProfitTarget: number; // Target net profit (gross profit - incentives) generated in ₹
   reviewTarget: number; // Target number of reviews entered into the system
   package?: mongoose.Types.ObjectId; // Optional target package for reviews
   packageName?: string; // Optional package name cache
@@ -34,6 +36,8 @@ const employeeTargetSchema = new Schema<IEmployeeTarget>(
 
     salesTarget: { type: Number, default: 0, min: 0 },
     revenueTarget: { type: Number, default: 0, min: 0 },
+    grossProfitTarget: { type: Number, default: 0, min: 0 },
+    netProfitTarget: { type: Number, default: 0, min: 0 },
     reviewTarget: { type: Number, default: 0, min: 0 },
     package: { type: Schema.Types.ObjectId, ref: 'Package' },
     packageName: { type: String, trim: true },
