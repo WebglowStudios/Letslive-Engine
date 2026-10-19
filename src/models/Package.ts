@@ -140,6 +140,7 @@ export interface IPackage extends Document {
   flightsIncluded: boolean;
   trainsIncluded: boolean;
   hideTrainInfo?: boolean;
+  mergeHotelAndActivity?: boolean;
   travellerCount?: string;
   adultCount?: number;
   childCount?: number;
@@ -328,6 +329,7 @@ const packageSchema = new Schema<IPackage>(
     flightsIncluded: { type: Boolean, default: false },
     trainsIncluded: { type: Boolean, default: false },
     hideTrainInfo: { type: Boolean, default: false },
+    mergeHotelAndActivity: { type: Boolean, default: false },
     travellerCount: { type: String },
     adultCount: { type: Number },
     childCount: { type: Number },
