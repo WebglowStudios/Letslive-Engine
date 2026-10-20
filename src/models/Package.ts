@@ -19,6 +19,19 @@ export interface IItineraryDay {
   images: string[];
 }
 
+export interface IStayOption {
+  optionId: string;
+  isDefault?: boolean;
+  name: string;
+  rating?: string;
+  roomType?: string;
+  priceDifference: number; // e.g. 0 for standard/included, +2500 for deluxe
+  images?: string[];
+  amenities?: string[];
+  remark?: string;
+  address?: string;
+}
+
 export interface IStay {
   name: string;
   rating: string;
@@ -31,6 +44,8 @@ export interface IStay {
   confirmationNo?: string;
   remark?: string;
   showRemarkToCustomer?: boolean;
+  hasOptions?: boolean;
+  options?: IStayOption[];
 }
 
 export interface ITransferLeg {
@@ -273,6 +288,21 @@ const packageSchema = new Schema<IPackage>(
         confirmationNo: { type: String },
         remark: { type: String, default: '' },
         showRemarkToCustomer: { type: Boolean, default: false },
+        hasOptions: { type: Boolean, default: false },
+        options: [
+          {
+            optionId: { type: String },
+            isDefault: { type: Boolean, default: false },
+            name: { type: String },
+            rating: { type: String },
+            roomType: { type: String },
+            priceDifference: { type: Number, default: 0 },
+            images: [{ type: String }],
+            amenities: [{ type: String }],
+            remark: { type: String },
+            address: { type: String },
+          },
+        ],
       },
     ],
     transfers: [

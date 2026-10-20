@@ -8,6 +8,16 @@ export interface IPaymentRecord {
   status: string;
 }
 
+export interface ISelectedHotelOption {
+  stayIndex: number;
+  stayName?: string;
+  selectedOptionId?: string;
+  hotelName: string;
+  roomType?: string;
+  rating?: string;
+  priceDifferenceApplied: number;
+}
+
 export interface IBooking extends Document {
   bookingId: string;
   user: mongoose.Types.ObjectId;
@@ -49,6 +59,8 @@ export interface IBooking extends Document {
   dateChangeHistory?: { oldDate: Date; newDate: Date; reason: string; changedBy: mongoose.Types.ObjectId; changedAt: Date }[];
   cancellationReason?: string;
   cancelledAt?: Date;
+  selectedHotelOptions?: ISelectedHotelOption[];
+  hotelUpgradeTotal?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -154,6 +166,18 @@ const bookingSchema = new Schema<IBooking>(
     ],
     cancellationReason: { type: String },
     cancelledAt: { type: Date },
+    selectedHotelOptions: [
+      {
+        stayIndex: { type: Number },
+        stayName: { type: String },
+        selectedOptionId: { type: String },
+        hotelName: { type: String },
+        roomType: { type: String },
+        rating: { type: String },
+        priceDifferenceApplied: { type: Number, default: 0 },
+      },
+    ],
+    hotelUpgradeTotal: { type: Number, default: 0 },
   },
   {
     timestamps: true,

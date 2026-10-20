@@ -476,15 +476,15 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
 
   // Resolve linked package: check operation.package, bookings, or single booking
   let packageId: any = operation.package;
-  if (!packageId && operation.bookings && operation.bookings.length > 0) {
-    const Booking = mongoose.model('Booking');
-    const b: any = await Booking.findById(operation.bookings[0]);
-    if (b?.package) packageId = b.package;
+  let linkedBooking: any = null;
+  const BookingModel = mongoose.model('Booking');
+  if (operation.bookings && operation.bookings.length > 0) {
+    linkedBooking = await BookingModel.findById(operation.bookings[0]).lean();
+    if (linkedBooking?.package && !packageId) packageId = linkedBooking.package;
   }
   if (!packageId && (operation as any).booking) {
-    const Booking = mongoose.model('Booking');
-    const b: any = await Booking.findById((operation as any).booking);
-    if (b?.package) packageId = b.package;
+    if (!linkedBooking) linkedBooking = await BookingModel.findById((operation as any).booking).lean();
+    if (linkedBooking?.package) packageId = linkedBooking.package;
   }
   if (!packageId) throw new AppError('This operation has no linked package/itinerary', 400);
 
@@ -662,6 +662,7 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
   } else {
     const accDocs: object[] = [];
     let currentStayDay = 1;
+    let stayIdx = 0;
 
     for (const stay of (pkg.stays || [])) {
       const nights = stay.nights || 1;
@@ -669,12 +670,22 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
       const checkOutDate = computeDate(currentStayDay + nights);
       
       const stayLocation = stay.address || (stay as any).location || (stay as any).city || '';
+      
+      // Check if linked booking has a selected hotel option for this stay
+      const selectedOption = linkedBooking?.selectedHotelOptions?.find(
+        (o: any) => o.stayIndex === stayIdx || (o.stayName && o.stayName === stay.name)
+      );
+
+      const hotelName = selectedOption?.hotelName || stay.name || '';
+      const roomType = selectedOption?.roomType || stay.roomType || '';
+      const hotelRating = selectedOption?.rating || stay.rating || '';
+
       accDocs.push({
         operation: opId,
         type: 'hotel',
-        name: stay.name || '',
+        name: hotelName,
         area: stayLocation,
-        roomCategory: stay.roomType || '',
+        roomCategory: roomType,
         checkIn: checkInDate,
         checkOut: checkOutDate,
         nights: nights,
@@ -683,7 +694,7 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
         tripDay: `Day ${currentStayDay}-${currentStayDay + nights}`,
         remarks: [
           stay.remark || '',
-          stay.rating ? `${stay.rating} property` : '',
+          hotelRating ? `${hotelRating} property` : '',
           stayLocation,
           stay.checkIn ? `Time In: ${stay.checkIn}` : '',
           stay.checkOut ? `Time Out: ${stay.checkOut}` : ''
@@ -691,6 +702,7 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
         paymentStatus: 'pending',
       });
       currentStayDay += nights;
+      stayIdx++;
     }
 
     if (accDocs.length > 0) {

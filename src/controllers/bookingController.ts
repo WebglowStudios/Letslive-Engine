@@ -111,14 +111,33 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
     }
   }
 
-  let totalAmount = basePrice * adults + basePrice * children;
+  // Hotel Options calculation
+  let hotelUpgradePerPax = 0;
+  const selectedHotelOptions = Array.isArray(req.body.selectedHotelOptions) ? req.body.selectedHotelOptions : [];
+  if (selectedHotelOptions.length > 0) {
+    for (const opt of selectedHotelOptions) {
+      const diff = Number(opt.priceDifferenceApplied || 0);
+      if (!isNaN(diff) && diff !== 0) {
+        hotelUpgradePerPax += diff;
+      }
+    }
+  }
+
+  let hotelUpgradeTotal = 0;
+  if (pkg.priceUnit === 'group' || pkg.priceUnit === 'family') {
+    hotelUpgradeTotal = hotelUpgradePerPax;
+  } else {
+    hotelUpgradeTotal = hotelUpgradePerPax * (adults + children);
+  }
+
+  let totalAmount = (basePrice * adults + basePrice * children) + hotelUpgradeTotal;
   if (pkg.priceUnit === 'group' || pkg.priceUnit === 'family') {
     const includedPax = (pkg.adultCount || 0) + (pkg.childCount || 0) || 1;
     const totalPax = adults + children;
     if (totalPax > includedPax && pkg.extraPersonPrice) {
-      totalAmount = basePrice + ((totalPax - includedPax) * pkg.extraPersonPrice);
+      totalAmount = basePrice + ((totalPax - includedPax) * pkg.extraPersonPrice) + hotelUpgradeTotal;
     } else {
-      totalAmount = basePrice;
+      totalAmount = basePrice + hotelUpgradeTotal;
     }
   }
   
@@ -196,6 +215,8 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
     user: userId,
     destination: pkg.destination,
     enquiry: enquiryId,
+    selectedHotelOptions,
+    hotelUpgradeTotal,
     totalAmount,
     couponCode: appliedCouponCode,
     discountAmount,
@@ -318,6 +339,8 @@ export const createManualBooking = asyncHandler(async (req: Request, res: Respon
     travellers: travellers || { adults: 1, children: 0, infants: 0 },
     travellersDetails: sanitizedTravellers || [],
     primaryTraveller: primaryTraveller || {},
+    selectedHotelOptions: req.body.selectedHotelOptions || [],
+    hotelUpgradeTotal: req.body.hotelUpgradeTotal || 0,
     totalAmount,
     paidAmount: 0,                          // stays 0 until finance approves
     paymentStatus: 'pending',               // stays pending until finance approves
@@ -1183,3 +1206,113 @@ export const updateBookingPrimaryTraveller = asyncHandler(async (req: Request, r
 
   res.status(200).json({ status: 'success', data: booking });
 });
+
+// @desc    Update selected hotel options for a booking (Admin/Manager/Staff)
+// @route   PUT /api/bookings/:id/hotel-options
+// @access  Admin/Manager/Staff
+export const updateBookingHotelOptions = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { selectedHotelOptions } = req.body;
+
+  if (!Array.isArray(selectedHotelOptions)) {
+    throw new AppError('selectedHotelOptions must be an array', 400);
+  }
+
+  const booking = await Booking.findById(id).populate('package');
+  if (!booking) {
+    throw new AppError('Booking not found', 404);
+  }
+
+  const pkg = booking.package as any;
+  const adults = booking.travellers?.adults || 1;
+  const children = booking.travellers?.children || 0;
+
+  // Calculate new hotel upgrade total
+  let hotelUpgradePerPax = 0;
+  for (const opt of selectedHotelOptions) {
+    const diff = Number(opt.priceDifferenceApplied || 0);
+    if (!isNaN(diff) && diff !== 0) {
+      hotelUpgradePerPax += diff;
+    }
+  }
+
+  let newHotelUpgradeTotal = 0;
+  if (pkg?.priceUnit === 'group' || pkg?.priceUnit === 'family') {
+    newHotelUpgradeTotal = hotelUpgradePerPax;
+  } else {
+    newHotelUpgradeTotal = hotelUpgradePerPax * (adults + children);
+  }
+
+  const oldUpgradeTotal = booking.hotelUpgradeTotal || 0;
+  const priceDelta = newHotelUpgradeTotal - oldUpgradeTotal;
+
+  // Update booking fields
+  booking.selectedHotelOptions = selectedHotelOptions;
+  booking.hotelUpgradeTotal = newHotelUpgradeTotal;
+  booking.totalAmount = Math.max(0, (booking.totalAmount || 0) + priceDelta);
+
+  // Reconcile paymentStatus
+  if (booking.paidAmount >= booking.totalAmount && booking.totalAmount > 0) {
+    booking.paymentStatus = 'paid';
+  } else if (booking.paidAmount > 0 && booking.paidAmount < booking.totalAmount) {
+    booking.paymentStatus = 'partial';
+  } else if (booking.totalAmount > 0 && booking.paidAmount === 0) {
+    booking.paymentStatus = 'pending';
+  }
+
+  await booking.save();
+
+  // Log activity
+  await logActivity({
+    req,
+    action: 'update',
+    entity: 'booking',
+    entityId: String(booking._id),
+    entityName: booking.bookingId || String(booking._id),
+    description: `Updated selected hotel options for booking ${booking.bookingId}. Price adjusted by ₹${priceDelta}.`,
+    meta: { priceDelta, newHotelUpgradeTotal, selectedHotelOptions },
+  });
+
+  // Sync with Operation if exists
+  const op = await Operation.findOne({ $or: [{ bookings: id }, { booking: id }] } as any);
+  if (op) {
+    op.sellingPrice = Math.max(0, (op.sellingPrice || 0) + priceDelta);
+    await op.save();
+
+    // Sync CustomerPayment installments if balance payment exists
+    const balancePayment = await CustomerPayment.findOne({
+      $or: [{ operation: op._id }, { booking: booking._id }],
+      milestone: { $regex: /balance|pending/i },
+      status: { $ne: 'paid' }
+    });
+    if (balancePayment) {
+      const remainingDue = Math.max(0, booking.totalAmount - (booking.paidAmount || 0));
+      balancePayment.amount = remainingDue;
+      await balancePayment.save();
+    }
+
+    // Sync OperationAccommodation docs
+    try {
+      const OperationAccommodation = (await import('../models/OperationAccommodation.js')).default;
+      const accommodations = await OperationAccommodation.find({ operation: op._id }).sort({ checkIn: 1 });
+      for (const sel of selectedHotelOptions) {
+        const targetAcc = accommodations[sel.stayIndex];
+        if (targetAcc) {
+          if (sel.hotelName) targetAcc.name = sel.hotelName;
+          if (sel.roomType) targetAcc.roomCategory = sel.roomType;
+          await targetAcc.save();
+        }
+      }
+    } catch (e) {
+      console.error('Error updating OperationAccommodation for booking hotel options:', e);
+    }
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: booking,
+    priceDelta,
+    newTotal: booking.totalAmount,
+  });
+});
+
