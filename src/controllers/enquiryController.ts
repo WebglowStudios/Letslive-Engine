@@ -2175,6 +2175,8 @@ export const importEnquiries = asyncHandler(async (req: Request, res: Response) 
     defaultAssignedTo,
     defaultChannel,
     defaultSource,
+    defaultStatus,
+    defaultDestination,
     skipDuplicates = true,
     skipTestLeads = true,
   } = req.body;
@@ -2356,6 +2358,7 @@ export const importEnquiries = asyncHandler(async (req: Request, res: Response) 
       lead.destination ||
       lead['which_destination_are_you_interested_in?'] ||
       lead.which_destination_are_you_interested_in ||
+      defaultDestination ||
       ''
     ).toString().trim();
 
@@ -2395,6 +2398,34 @@ export const importEnquiries = asyncHandler(async (req: Request, res: Response) 
       resolvedSource = defaultSource as any;
     }
 
+    // Status and Priority resolution
+    const VALID_STATUSES = [
+      'new', 'begin', 'ytc', 'assigned', 'responded', 'dnp', 'busy',
+      'callback-scheduled', 'callback-requested', 'in-progress', 'follow-up',
+      'whatsapp-sent', 'negotiation', 'converted', 'resolved', 'closed'
+    ];
+    const rawStatus = (lead.status || lead.lead_status || defaultStatus || '').toString().toLowerCase().trim();
+    const resolvedStatus = VALID_STATUSES.includes(rawStatus)
+      ? rawStatus
+      : (assignedStaffId ? 'assigned' : 'new');
+
+    const rawPriority = (lead.priority || 'medium').toString().toLowerCase().trim();
+    const resolvedPriority = ['low', 'medium', 'high', 'urgent'].includes(rawPriority) ? rawPriority : 'medium';
+
+    // Budget & Travellers numeric parsing
+    const budget = lead.budget !== undefined && lead.budget !== '' && !isNaN(Number(lead.budget))
+      ? Number(lead.budget)
+      : undefined;
+
+    const travellerCount = lead.travellerCount !== undefined && lead.travellerCount !== '' && !isNaN(Number(lead.travellerCount))
+      ? Number(lead.travellerCount)
+      : (lead.pax !== undefined && lead.pax !== '' && !isNaN(Number(lead.pax)) ? Number(lead.pax) : undefined);
+
+    let travelDate: Date | undefined = undefined;
+    if (lead.travelDate && !isNaN(new Date(lead.travelDate).getTime())) {
+      travelDate = new Date(lead.travelDate);
+    }
+
     // Campaign details and tags
     const campaignName = (lead.campaign_name || lead.campaignName || '').toString().trim();
     const adName = (lead.ad_name || lead.adName || '').toString().trim();
@@ -2410,6 +2441,8 @@ export const importEnquiries = asyncHandler(async (req: Request, res: Response) 
     // Build message
     const messageParts: string[] = [];
     if (lead.message) messageParts.push(lead.message);
+    else if (lead.notes) messageParts.push(lead.notes);
+    else if (lead.requirements) messageParts.push(lead.requirements);
     if (campaignName) messageParts.push(`Campaign: ${campaignName}`);
     if (adName) messageParts.push(`Ad: ${adName}`);
     if (formName) messageParts.push(`Form: ${formName}`);
@@ -2474,8 +2507,11 @@ export const importEnquiries = asyncHandler(async (req: Request, res: Response) 
             message: message || undefined,
             source: resolvedSource,
             channel: resolvedChannel,
-            status: assignedStaffId ? 'assigned' : 'new',
-            priority: 'medium',
+            status: resolvedStatus,
+            priority: resolvedPriority,
+            budget,
+            travellerCount,
+            travelDate,
             assignedTo: assignedStaffId,
             externalLeadId: rawExternalId || undefined,
             tags: Array.from(new Set(tags)),
