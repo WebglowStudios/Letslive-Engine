@@ -229,7 +229,6 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
     await Enquiry.findByIdAndUpdate(enquiryId, {
       user: userId,   // ← backfill the user link in case enquiry was submitted anonymously
       bookingRef: booking._id,
-      unifiedBookingId: booking.bookingId,
       $push: {
         notes: {
           text: `Customer initiated checkout via website for Booking Ref: ${refCode} (Total: ₹${totalAmount.toLocaleString('en-IN')}). Awaiting payment.`,
