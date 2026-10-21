@@ -8,7 +8,7 @@ import Booking from '../models/Booking.js';
 import Package from '../models/Package.js';
 import User from '../models/User.js';
 import { sendBookingConfirmation, sendAdminNewBooking } from '../services/emailService.js';
-import { autoCreateOperationFromBooking } from '../utils/operationBuilder.js';
+import { autoCreateOperationFromBooking, syncEnquiryOnBookingPaymentSuccess } from '../utils/operationBuilder.js';
 
 // Lazily initialise Razorpay so the server doesn't crash on boot if keys are missing
 export function getRazorpay(): Razorpay {
@@ -202,8 +202,9 @@ export const verifyPayment = asyncHandler(async (req: Request, res: Response) =>
 
   await booking.save();
 
-  // Auto-create operation if newly confirmed or already confirmed
+  // Auto-create operation and convert enquiry if newly confirmed or already confirmed
   if (booking.bookingStatus === 'confirmed') {
+    await syncEnquiryOnBookingPaymentSuccess(booking._id);
     const op = await autoCreateOperationFromBooking(booking._id);
     if (op && (paymentType === 'balance' || paymentType === 'full')) {
       const CustomerPayment = (await import('../models/CustomerPayment.js')).default;

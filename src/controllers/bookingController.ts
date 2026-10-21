@@ -200,8 +200,8 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
       package: pkg._id,
       destination: pkg.destination ? String(pkg.destination) : undefined,
       travelDate: req.body.travelDate,
-      message: `Booked via website. ${req.body.specialRequests || ''}`.trim(),
-      status: 'converted',
+      message: `Checkout initiated via website. ${req.body.specialRequests || ''}`.trim(),
+      status: 'new', // Do NOT mark converted until payment is verified!
       priority: 'high',
       source: 'website',
       user: userId,  // ← link to the customer so it appears in their dashboard
@@ -222,27 +222,25 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
     discountAmount,
   });
 
-  // Automatically update the enquiry: mark converted, link to user account (so it
-  // appears in their dashboard), and push a booking-confirmed note & timeline event for staff.
+  // Link booking to the enquiry (so it shows in CRM with pending status),
+  // but DO NOT mark converted or set conversionValue until payment is verified!
   if (enquiryId) {
     const refCode = booking.bookingId || String(booking._id).slice(-6).toUpperCase();
     await Enquiry.findByIdAndUpdate(enquiryId, {
-      status: 'converted',
       user: userId,   // ← backfill the user link in case enquiry was submitted anonymously
       bookingRef: booking._id,
       unifiedBookingId: booking.bookingId,
-      conversionValue: totalAmount,
       $push: {
         notes: {
-          text: `Customer successfully booked this package via the website! Booking Ref: ${refCode}`,
+          text: `Customer initiated checkout via website for Booking Ref: ${refCode} (Total: ₹${totalAmount.toLocaleString('en-IN')}). Awaiting payment.`,
           date: new Date(),
         },
         timeline: {
-          type: 'converted',
-          title: `Lead converted! Booking #${refCode}`,
-          description: `Customer completed booking online. Total amount: ₹${totalAmount.toLocaleString('en-IN')}`,
+          type: 'status_change',
+          title: `Checkout initiated: Booking #${refCode}`,
+          description: `Customer reached payment page for "${pkg.name}" (₹${totalAmount.toLocaleString('en-IN')}). Awaiting payment confirmation.`,
           date: new Date(),
-          meta: { bookingId: booking._id, totalAmount, bookingRef: refCode },
+          meta: { bookingId: booking._id, totalAmount, bookingRef: refCode, pendingPayment: true },
         },
       },
     });

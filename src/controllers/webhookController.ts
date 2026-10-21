@@ -7,7 +7,7 @@ import Operation from '../models/Operation.js';
 import CustomerPayment from '../models/CustomerPayment.js';
 import { syncBookingPaymentToOperation } from '../utils/paymentSync.js';
 import Enquiry from '../models/Enquiry.js';
-import { autoCreateOperationFromBooking } from '../utils/operationBuilder.js';
+import { autoCreateOperationFromBooking, syncEnquiryOnBookingPaymentSuccess } from '../utils/operationBuilder.js';
 import { sendBookingConfirmation, sendAdminNewBooking } from '../services/emailService.js';
 import { getRazorpay } from './paymentController.js';
 
@@ -277,6 +277,10 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
 
       await booking.save();
       console.log(`[WEBHOOK] Booking ${bookingId} updated — paidAmount: ₹${booking.paidAmount}, paymentStatus: ${booking.paymentStatus}, bookingStatus: ${booking.bookingStatus}`);
+
+      if (booking.bookingStatus === 'confirmed') {
+        await syncEnquiryOnBookingPaymentSuccess(booking._id);
+      }
 
       // Sync this payment to the Operation's installments if it exists
       await syncBookingPaymentToOperation(bookingId, amountINR, 'razorpay', razorpayPaymentId);

@@ -13,6 +13,7 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
   try {
     const existingOp = await Operation.findOne({ bookings: bookingId });
     if (existingOp) {
+      await syncEnquiryOnBookingPaymentSuccess(bookingId);
       return existingOp;
     }
 
@@ -138,41 +139,85 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
       });
     }
 
-    // Sync enquiry -> converted + conversionValue + carry over assignedTo
+    // Carry over assignedTo from Enquiry to Operation if exists
     if (populatedBooking.enquiry) {
-      const linkedEnquiry = await Enquiry.findById(populatedBooking.enquiry).populate('assignedTo', 'firstName lastName email');
-      if (linkedEnquiry) {
-        // Carry over assignedTo from Enquiry to Operation
-        if (linkedEnquiry.assignedTo) {
-          op.assignedTo = (linkedEnquiry.assignedTo as any)._id || linkedEnquiry.assignedTo;
-          await op.save();
-        }
-
-        if (populatedBooking.paymentFinanceStatus !== 'pending_approval' && linkedEnquiry.status !== 'converted') {
-          linkedEnquiry.status = 'converted';
-          linkedEnquiry.conversionValue = populatedBooking.totalAmount || 0;
-          linkedEnquiry.bookingRef = populatedBooking._id as unknown as mongoose.Types.ObjectId;
-          linkedEnquiry.unifiedBookingId = populatedBooking.bookingId;
-          await linkedEnquiry.save();
-
-          // Congrats email to the staff who owned this enquiry (fire-and-forget)
-          const assignedStaff = linkedEnquiry.assignedTo as unknown as { firstName: string; lastName?: string; email: string } | null;
-          if (assignedStaff?.email) {
-            const customerName = `${linkedEnquiry.firstName} ${linkedEnquiry.lastName || ''}`.trim();
-            sendConversionCongrats(
-              assignedStaff.email,
-              `${assignedStaff.firstName} ${assignedStaff.lastName || ''}`.trim(),
-              customerName,
-              populatedBooking.totalAmount || 0
-            ).catch(console.error);
-          }
-        }
+      const linkedEnquiry = await Enquiry.findById(populatedBooking.enquiry);
+      if (linkedEnquiry?.assignedTo && !op.assignedTo) {
+        op.assignedTo = (linkedEnquiry.assignedTo as any)._id || linkedEnquiry.assignedTo;
+        await op.save();
       }
     }
+
+    // Convert enquiry now that payment / confirmation has occurred
+    await syncEnquiryOnBookingPaymentSuccess(populatedBooking._id);
 
     return op;
   } catch (error) {
     console.error('Failed to auto-create Operation:', error);
     return null;
+  }
+}
+
+/**
+ * Safely marks the linked Enquiry as converted once payment is verified and confirmed.
+ * Adds timeline event and notes, and notifies the assigned sales representative.
+ */
+export async function syncEnquiryOnBookingPaymentSuccess(bookingId: string | mongoose.Types.ObjectId) {
+  try {
+    const booking = await Booking.findById(bookingId);
+    if (!booking || !booking.enquiry) return;
+
+    // Only convert if payment is actually received or booking is confirmed
+    if (
+      booking.bookingStatus !== 'confirmed' &&
+      booking.bookingStatus !== 'staff-confirmed' &&
+      booking.paymentStatus !== 'paid' &&
+      booking.paymentStatus !== 'partial'
+    ) {
+      return;
+    }
+
+    const linkedEnquiry = await Enquiry.findById(booking.enquiry).populate('assignedTo', 'firstName lastName email');
+    if (!linkedEnquiry) return;
+
+    if (linkedEnquiry.status !== 'converted') {
+      const refCode = booking.bookingId || String(booking._id).slice(-6).toUpperCase();
+      const totalAmount = booking.totalAmount || 0;
+      const paidAmount = booking.paidAmount || 0;
+
+      linkedEnquiry.status = 'converted';
+      linkedEnquiry.conversionValue = totalAmount;
+      linkedEnquiry.bookingRef = booking._id as unknown as mongoose.Types.ObjectId;
+      linkedEnquiry.unifiedBookingId = booking.bookingId;
+
+      linkedEnquiry.notes.push({
+        text: `Payment confirmed! Customer completed booking online. Booking Ref: ${refCode} (Paid: ₹${paidAmount.toLocaleString('en-IN')})`,
+        date: new Date(),
+      });
+
+      linkedEnquiry.timeline.push({
+        type: 'converted',
+        title: `Lead converted! Booking #${refCode}`,
+        description: `Customer completed payment online. Total amount: ₹${totalAmount.toLocaleString('en-IN')}`,
+        date: new Date(),
+        meta: { bookingId: booking._id, totalAmount, paidAmount, bookingRef: refCode },
+      });
+
+      await linkedEnquiry.save();
+
+      // Congrats email to the staff who owned this enquiry (fire-and-forget)
+      const assignedStaff = linkedEnquiry.assignedTo as unknown as { firstName: string; lastName?: string; email: string } | null;
+      if (assignedStaff?.email) {
+        const customerName = `${linkedEnquiry.firstName} ${linkedEnquiry.lastName || ''}`.trim();
+        sendConversionCongrats(
+          assignedStaff.email,
+          `${assignedStaff.firstName} ${assignedStaff.lastName || ''}`.trim(),
+          customerName,
+          totalAmount
+        ).catch(console.error);
+      }
+    }
+  } catch (err) {
+    console.error('Failed to sync enquiry on booking payment success:', err);
   }
 }

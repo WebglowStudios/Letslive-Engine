@@ -911,6 +911,9 @@ export const updateEnquiry = asyncHandler(async (req: Request, res: Response) =>
   if (req.body.priority) enquiry.priority = req.body.priority;
 
   if (req.body.status && req.body.status !== prevStatus) {
+    if (prevStatus === 'converted' && req.body.status !== 'converted') {
+      enquiry.conversionValue = undefined;
+    }
     if (req.body.status === 'closed') {
       const lostText = req.body.lostReason || enquiry.lostReason || 'Closed';
       const otherNote = req.body.lostReasonOtherText ? ` ("${req.body.lostReasonOtherText}")` : '';

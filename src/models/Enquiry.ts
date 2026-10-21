@@ -2,7 +2,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface INote {
   text: string;
-  by: mongoose.Types.ObjectId;
+  by?: mongoose.Types.ObjectId;
   date: Date;
 }
 
