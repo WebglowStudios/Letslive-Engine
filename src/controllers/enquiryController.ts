@@ -2170,6 +2170,353 @@ export const submitEnquiryFeedback = asyncHandler(async (req: Request, res: Resp
   });
 });
 
+// Known destinations catalogue for auto-detection from ad/campaign names
+const KNOWN_DESTINATIONS = [
+  'Vietnam', 'Bali', 'Thailand', 'Dubai', 'Singapore', 'Malaysia', 'Maldives',
+  'Mauritius', 'Europe', 'Switzerland', 'Georgia', 'Baku', 'Azerbaijan',
+  'Turkey', 'Egypt', 'Sri Lanka', 'Bhutan', 'Nepal', 'Japan',
+  'Kashmir', 'Ladakh', 'Kerala', 'Himachal', 'Goa', 'Rajasthan', 'Andaman',
+  'Sikkim', 'Meghalaya', 'Uttarakhand'
+];
+
+function cleanLeadText(val: any): string {
+  if (!val) return '';
+  let str = String(val);
+  str = str.replace(/[\uFFFD\uFFFE\uFFFF]/g, '');
+  str = str.replace(/ï¿½/g, '');
+  str = str.replace(/Ã¯Â¿Â½/g, '');
+  if (str.includes('_')) {
+    str = str.replace(/_+/g, ' ');
+  }
+  return str.trim();
+}
+
+function formatDestinationSlug(raw: string): string {
+  if (!raw) return '';
+  const cleaned = cleanLeadText(raw);
+  if (cleaned.toLowerCase() === 'not_decided_yet' || cleaned.toLowerCase() === 'not decided yet') {
+    return 'Not Decided Yet';
+  }
+  if (cleaned.toLowerCase().includes('<test lead')) return '';
+  return cleaned
+    .split(/[_\s]+/)
+    .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function isTripCategorySlug(text: string): boolean {
+  if (!text) return false;
+  const t = text.toLowerCase();
+  return (
+    t.includes('honeymoon') ||
+    t.includes('romantic') ||
+    t.includes('family') ||
+    t.includes('holiday') ||
+    t.includes('vacation') ||
+    t.includes('group') ||
+    t.includes('adventure') ||
+    t.includes('solo') ||
+    t.includes('friends') ||
+    t.includes('getaway')
+  );
+}
+
+function detectDestinationFromLead(
+  rawDest?: string,
+  adName?: string,
+  campaignName?: string,
+  formName?: string,
+  defaultDest?: string
+): string {
+  const isGeneric = (d?: string) => {
+    if (!d) return true;
+    const l = d.toLowerCase();
+    return (
+      l.includes('<test') ||
+      isTripCategorySlug(l) ||
+      l.includes('not_decided') ||
+      l.includes('not decided')
+    );
+  };
+
+  if (rawDest && !isGeneric(rawDest)) {
+    return formatDestinationSlug(rawDest);
+  }
+
+  const sources = [adName, campaignName, formName].filter(Boolean) as string[];
+  for (const text of sources) {
+    for (const dest of KNOWN_DESTINATIONS) {
+      const regex = new RegExp(`\\b${dest}\\b`, 'i');
+      if (regex.test(text)) {
+        return dest;
+      }
+    }
+  }
+
+  if (defaultDest && !isGeneric(defaultDest)) {
+    return formatDestinationSlug(defaultDest);
+  }
+
+  if (rawDest && rawDest.toLowerCase().includes('not_decided')) {
+    return 'Not Decided Yet';
+  }
+
+  return '';
+}
+
+function parseSingleAmountValue(token: string): number | null {
+  if (!token) return null;
+  let t = token.toLowerCase().replace(/[₹,\s]/g, '');
+  const lakhMatch = t.match(/^([\d.]+)\s*(?:lakh|lac|l)$/);
+  if (lakhMatch) {
+    const val = parseFloat(lakhMatch[1]);
+    return !isNaN(val) ? Math.round(val * 100000) : null;
+  }
+  const kMatch = t.match(/^([\d.]+)\s*k$/);
+  if (kMatch) {
+    const val = parseFloat(kMatch[1]);
+    return !isNaN(val) ? Math.round(val * 1000) : null;
+  }
+  const num = parseFloat(t.replace(/[^0-9.]/g, ''));
+  return !isNaN(num) && num > 0 ? Math.round(num) : null;
+}
+
+function parseBudgetInputBackend(val: any): { budget?: number; rawNote?: string } {
+  if (val === undefined || val === null) return {};
+  const str = cleanLeadText(val);
+  if (!str) return {};
+
+  const cleanStr = str.replace(/[₹]/g, '').trim();
+
+  // 1. Explicit range e.g. "60,000 - 1,80,000", "45k - 60k"
+  const rangeMatch = cleanStr.match(/([0-9.,kK\s]+(?:lakh|lac|l)?)\s*(?:-|to|\/)\s*([0-9.,kK\s]+(?:lakh|lac|l)?)/i);
+  if (rangeMatch) {
+    const low = parseSingleAmountValue(rangeMatch[1]);
+    const high = parseSingleAmountValue(rangeMatch[2]);
+    if (low && high) {
+      const avg = Math.round((low + high) / 2);
+      return {
+        budget: avg,
+        rawNote: `Budget Range: ₹${low.toLocaleString('en-IN')} - ₹${high.toLocaleString('en-IN')}`,
+      };
+    } else if (low || high) {
+      const b = (low || high)!;
+      return {
+        budget: b,
+        rawNote: `Budget: ₹${b.toLocaleString('en-IN')}`,
+      };
+    }
+  }
+
+  // 2. Corrupted concatenated numbers from prior regex stripping (e.g. 6000180000, 4500060000)
+  if (/^\d{9,12}$/.test(cleanStr)) {
+    if (cleanStr.startsWith('6000') && cleanStr.endsWith('180000')) {
+      return {
+        budget: 120000,
+        rawNote: 'Budget Range: ₹60,000 - ₹1,80,000',
+      };
+    }
+    if (cleanStr.startsWith('45000') && cleanStr.endsWith('60000')) {
+      return {
+        budget: 52500,
+        rawNote: 'Budget Range: ₹45,000 - ₹60,000',
+      };
+    }
+  }
+
+  const single = parseSingleAmountValue(cleanStr);
+  if (single) {
+    if (single > 50000000) {
+      return { rawNote: `Original Budget: ${str}` };
+    }
+    return {
+      budget: single,
+      rawNote: str !== String(single) ? `Budget: ${str}` : undefined,
+    };
+  }
+
+  return { rawNote: `Budget: ${str}` };
+}
+
+function parsePaxInputBackend(val: any): {
+  travellerCount?: number;
+  adults?: number;
+  children?: number;
+  infants?: number;
+  rawNote?: string;
+} {
+  if (val === undefined || val === null) return {};
+  const str = cleanLeadText(val);
+  if (!str) return {};
+
+  // 1. Range: "3-4 Adults", "1-2 Adults", "3 - 4"
+  const rangeMatch = str.match(/(\d+)\s*(?:-|to|\/)\s*(\d+)/i);
+  if (rangeMatch) {
+    const low = parseInt(rangeMatch[1], 10);
+    const high = parseInt(rangeMatch[2], 10);
+    const count = Math.max(low, high);
+    return {
+      travellerCount: count,
+      adults: count,
+      rawNote: str,
+    };
+  }
+
+  // 2. Adult/child breakdown
+  const adultMatch = str.match(/(\d+)\s*(?:adult|adt|audlt|adlt)/i);
+  const childMatch = str.match(/(\d+)\s*(?:child|kid|chd)/i);
+  const infantMatch = str.match(/(\d+)\s*(?:infant|baby|inf)/i);
+
+  if (adultMatch || childMatch || infantMatch) {
+    const adults = adultMatch ? parseInt(adultMatch[1], 10) : undefined;
+    const children = childMatch ? parseInt(childMatch[1], 10) : undefined;
+    const infants = infantMatch ? parseInt(infantMatch[1], 10) : undefined;
+    const total = (adults || 0) + (children || 0) + (infants || 0);
+    return {
+      travellerCount: total > 0 ? total : adults,
+      adults,
+      children,
+      infants,
+      rawNote: str !== String(total) ? str : undefined,
+    };
+  }
+
+  // 3. "5+ Adults"
+  const plusMatch = str.match(/(\d+)\s*\+/);
+  if (plusMatch) {
+    const count = parseInt(plusMatch[1], 10);
+    return { travellerCount: count, adults: count, rawNote: str };
+  }
+
+  if (/couple/i.test(str)) {
+    return { travellerCount: 2, adults: 2, rawNote: str };
+  }
+  if (/solo|single/i.test(str)) {
+    return { travellerCount: 1, adults: 1, rawNote: str };
+  }
+
+  const numMatch = str.match(/\b\d+\b/);
+  if (numMatch) {
+    const count = parseInt(numMatch[0], 10);
+    return {
+      travellerCount: count,
+      adults: count,
+      rawNote: str !== String(count) ? str : undefined,
+    };
+  }
+
+  return { rawNote: str };
+}
+
+function parseTravelDateBackend(val: any): {
+  date?: Date;
+  dateString?: string;
+  rawNote?: string;
+} {
+  if (val === undefined || val === null) return {};
+  if (val instanceof Date && !isNaN(val.getTime())) {
+    return {
+      date: val,
+      dateString: val.toISOString().split('T')[0],
+    };
+  }
+
+  const str = cleanLeadText(val);
+  if (!str) return {};
+
+  // 1. Excel serial number (40000 - 60000)
+  if (/^\d{5}$/.test(str)) {
+    const serial = parseInt(str, 10);
+    if (serial >= 40000 && serial <= 60000) {
+      const d = new Date(Math.round((serial - 25569) * 86400 * 1000));
+      if (!isNaN(d.getTime())) {
+        return {
+          date: d,
+          dateString: d.toISOString().split('T')[0],
+          rawNote: `Travel Date: ${d.toLocaleDateString('en-IN')}`,
+        };
+      }
+    }
+  }
+
+  // 2. DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
+  const ddmmyyyy = str.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+  if (ddmmyyyy) {
+    const day = parseInt(ddmmyyyy[1], 10);
+    const month = parseInt(ddmmyyyy[2], 10) - 1;
+    const year = parseInt(ddmmyyyy[3], 10);
+    const d = new Date(Date.UTC(year, month, day));
+    if (!isNaN(d.getTime())) {
+      return {
+        date: d,
+        dateString: d.toISOString().split('T')[0],
+        rawNote: `Travel Date: ${str}`,
+      };
+    }
+  }
+
+  // 3. YYYY-MM-DD
+  const yyyymmdd = str.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/);
+  if (yyyymmdd) {
+    const year = parseInt(yyyymmdd[1], 10);
+    const month = parseInt(yyyymmdd[2], 10) - 1;
+    const day = parseInt(yyyymmdd[3], 10);
+    const d = new Date(Date.UTC(year, month, day));
+    if (!isNaN(d.getTime())) {
+      return {
+        date: d,
+        dateString: d.toISOString().split('T')[0],
+        rawNote: `Travel Date: ${str}`,
+      };
+    }
+  }
+
+  // 4. Month + Year e.g. "November 2026", "March 2027"
+  const monthNames: Record<string, number> = {
+    jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2,
+    apr: 3, april: 3, may: 4, jun: 5, june: 5, jul: 6, july: 6,
+    aug: 7, august: 7, sep: 8, sept: 8, september: 8, oct: 9, october: 9,
+    nov: 10, november: 10, dec: 11, december: 11,
+  };
+  const monthYearMatch = str.match(/([a-zA-Z]+)[,\s\-]+(\d{2,4})/);
+  if (monthYearMatch) {
+    const mStr = monthYearMatch[1].toLowerCase().slice(0, 3);
+    let yStr = monthYearMatch[2];
+    if (yStr.length === 2) yStr = `20${yStr}`;
+    const year = parseInt(yStr, 10);
+    if (mStr in monthNames && year >= 2024 && year <= 2035) {
+      const month = monthNames[mStr];
+      const d = new Date(Date.UTC(year, month, 15));
+      return {
+        date: d,
+        dateString: d.toISOString().split('T')[0],
+        rawNote: `Travel Plan: ${str}`,
+      };
+    }
+  }
+
+  // 5. Relative phrases
+  const now = new Date();
+  if (/next\s*month/i.test(str)) {
+    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 15));
+    return {
+      date: d,
+      dateString: d.toISOString().split('T')[0],
+      rawNote: 'Travel Plan: Next Month',
+    };
+  }
+  if (/this\s*month/i.test(str)) {
+    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 25));
+    return {
+      date: d,
+      dateString: d.toISOString().split('T')[0],
+      rawNote: 'Travel Plan: This Month',
+    };
+  }
+
+  return { rawNote: `Travel Plan: ${str}` };
+}
+
 // @desc    Import enquiries via CSV (bulk import with duplicate ID skipping & Meta Ads parser support)
 // @route   POST /api/enquiries/import
 export const importEnquiries = asyncHandler(async (req: Request, res: Response) => {
@@ -2323,12 +2670,12 @@ export const importEnquiries = asyncHandler(async (req: Request, res: Response) 
       if (emailLower) seenEmailsInBatch.add(emailLower);
     }
 
-    // Extract names
-    let firstName = (lead.firstName || '').toString().trim();
-    let lastName = (lead.lastName || '').toString().trim();
+    // Extract names and sanitize text
+    let firstName = cleanLeadText(lead.firstName || '');
+    let lastName = cleanLeadText(lead.lastName || '');
 
     if (!firstName && (lead.full_name || lead.name)) {
-      const fullName = (lead.full_name || lead.name).toString().trim();
+      const fullName = cleanLeadText(lead.full_name || lead.name);
       const parts = fullName.split(/\s+/);
       firstName = parts[0] || '';
       lastName = parts.slice(1).join(' ') || '';
@@ -2356,26 +2703,22 @@ export const importEnquiries = asyncHandler(async (req: Request, res: Response) 
       email = `lead_${safeId || Date.now()}@imported.letslivetours.com`;
     }
 
-    // Destination formatting
-    let destination = (
+    // Campaign details and tags
+    const campaignName = cleanLeadText(lead.campaign_name || lead.campaignName || '');
+    const adName = cleanLeadText(lead.ad_name || lead.adName || '');
+    const formName = cleanLeadText(lead.form_name || lead.formName || '');
+    const state = cleanLeadText(lead.state || '');
+
+    // Destination formatting & fallback to marketing creative (e.g. "Vietnam Reel" -> "Vietnam")
+    let rawDest = (
       lead.destination ||
       lead['which_destination_are_you_interested_in?'] ||
       lead.which_destination_are_you_interested_in ||
-      defaultDestination ||
       ''
     ).toString().trim();
+    rawDest = cleanLeadText(rawDest);
 
-    if (destination === 'not_decided_yet') {
-      destination = 'Not Decided Yet';
-    } else if (destination.length > 0 && !destination.includes('<test')) {
-      // Capitalize words in slug (e.g., "rajasthan" -> "Rajasthan")
-      destination = destination
-        .split(/[_\s]+/)
-        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-        .join(' ');
-    } else if (destination.includes('<test')) {
-      destination = '';
-    }
+    const destination = detectDestinationFromLead(rawDest, adName, campaignName, formName, defaultDestination);
 
     // Determine platform / source / channel
     const platformRaw = (lead.platform || lead.source || lead.channel || '').toString().toLowerCase().trim();
@@ -2415,25 +2758,29 @@ export const importEnquiries = asyncHandler(async (req: Request, res: Response) 
     const rawPriority = (lead.priority || 'medium').toString().toLowerCase().trim();
     const resolvedPriority = ['low', 'medium', 'high', 'urgent'].includes(rawPriority) ? rawPriority : 'medium';
 
-    // Budget & Travellers numeric parsing
-    const budget = lead.budget !== undefined && lead.budget !== '' && !isNaN(Number(lead.budget))
-      ? Number(lead.budget)
-      : undefined;
+    // Budget & Travellers numeric parsing (safe range handling)
+    const rawBudget = lead.budget !== undefined && lead.budget !== null ? lead.budget : lead.budgetrange;
+    const parsedBudget = parseBudgetInputBackend(rawBudget);
+    const budget = parsedBudget.budget;
 
-    const travellerCount = lead.travellerCount !== undefined && lead.travellerCount !== '' && !isNaN(Number(lead.travellerCount))
-      ? Number(lead.travellerCount)
-      : (lead.pax !== undefined && lead.pax !== '' && !isNaN(Number(lead.pax)) ? Number(lead.pax) : undefined);
+    const rawPax = lead.travellerCount !== undefined && lead.travellerCount !== null
+      ? lead.travellerCount
+      : (lead.pax !== undefined ? lead.pax : lead.adults);
+    const parsedPax = parsePaxInputBackend(rawPax);
+    const travellerCount = parsedPax.travellerCount;
+    const adultCount = lead.adultCount !== undefined && !isNaN(Number(lead.adultCount))
+      ? Number(lead.adultCount)
+      : parsedPax.adults;
+    const childCount = lead.childCount !== undefined && !isNaN(Number(lead.childCount))
+      ? Number(lead.childCount)
+      : parsedPax.children;
+    const infantCount = lead.infantCount !== undefined && !isNaN(Number(lead.infantCount))
+      ? Number(lead.infantCount)
+      : parsedPax.infants;
 
-    let travelDate: Date | undefined = undefined;
-    if (lead.travelDate && !isNaN(new Date(lead.travelDate).getTime())) {
-      travelDate = new Date(lead.travelDate);
-    }
-
-    // Campaign details and tags
-    const campaignName = (lead.campaign_name || lead.campaignName || '').toString().trim();
-    const adName = (lead.ad_name || lead.adName || '').toString().trim();
-    const formName = (lead.form_name || lead.formName || '').toString().trim();
-    const state = (lead.state || '').toString().trim();
+    const rawTravelDate = lead.travelDate || lead.departureDate || lead.travel_date;
+    const parsedTravelDate = parseTravelDateBackend(rawTravelDate);
+    const travelDate = parsedTravelDate.date;
 
     const tags: string[] = Array.isArray(lead.tags) ? [...lead.tags] : [];
     tags.push('csv-import');
@@ -2441,11 +2788,26 @@ export const importEnquiries = asyncHandler(async (req: Request, res: Response) 
     if (campaignName && !tags.includes(campaignName)) tags.push(campaignName);
     if (formName && !tags.includes(formName)) tags.push(formName);
 
-    // Build message
+    // Build message and preserve customer requirement context
     const messageParts: string[] = [];
-    if (lead.message) messageParts.push(lead.message);
-    else if (lead.notes) messageParts.push(lead.notes);
-    else if (lead.requirements) messageParts.push(lead.requirements);
+    const leadMessage = cleanLeadText(lead.message || lead.notes || lead.requirements || '');
+    if (leadMessage) messageParts.push(leadMessage);
+
+    const extraNotes: string[] = [];
+    if (rawDest && (isTripCategorySlug(rawDest) || destination !== formatDestinationSlug(rawDest))) {
+      extraNotes.push(`Trip Type: ${formatDestinationSlug(rawDest)}`);
+    }
+    if (parsedPax.rawNote && parsedPax.rawNote !== String(travellerCount)) {
+      extraNotes.push(`Travellers: ${parsedPax.rawNote}`);
+    }
+    if (parsedBudget.rawNote) {
+      extraNotes.push(parsedBudget.rawNote);
+    }
+    if (parsedTravelDate.rawNote) {
+      extraNotes.push(parsedTravelDate.rawNote);
+    }
+    if (extraNotes.length > 0) messageParts.push(extraNotes.join(' • '));
+
     if (campaignName) messageParts.push(`Campaign: ${campaignName}`);
     if (adName) messageParts.push(`Ad: ${adName}`);
     if (formName) messageParts.push(`Form: ${formName}`);
@@ -2477,11 +2839,11 @@ export const importEnquiries = asyncHandler(async (req: Request, res: Response) 
       timeline.push({
         type: 'requirements',
         title: 'Trip interest recorded',
-        description: `Destination: ${destination}`,
+        description: `Destination: ${destination}${travellerCount ? ` • Travellers: ${travellerCount} pax` : ''}${budget ? ` • Budget: ₹${budget.toLocaleString('en-IN')}` : ''}`,
         by: req.user?._id,
         byName: creatorName,
         date: new Date(Date.now() + 100),
-        meta: { destination },
+        meta: { destination, travellerCount, budget },
       });
     }
 
@@ -2514,6 +2876,9 @@ export const importEnquiries = asyncHandler(async (req: Request, res: Response) 
             priority: resolvedPriority,
             budget,
             travellerCount,
+            adultCount,
+            childCount,
+            infantCount,
             travelDate,
             assignedTo: assignedStaffId,
             externalLeadId: rawExternalId || undefined,
