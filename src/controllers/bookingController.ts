@@ -722,6 +722,7 @@ export const getBookingVoucherData = asyncHandler(async (req: Request, res: Resp
     packageSlug: pkg?.slug || '',
     hasPolicies,
     dateChangeHistory: booking.dateChangeHistory,
+    travellersDetails: bkgDetails,
   };
 
   res.status(200).json({
