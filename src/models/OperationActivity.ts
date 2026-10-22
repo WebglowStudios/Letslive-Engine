@@ -20,6 +20,8 @@ export interface IActivityTransfer {
   paidAmount?: number;
   sellingPrice?: number;
   paymentStatus?: 'pending' | 'paid' | 'partial';
+  paymentDueDate?: Date | null;
+  remarks?: string;
 }
 
 export interface IOperationActivity extends Document {
@@ -66,6 +68,8 @@ const activityTransferSchema = new Schema<IActivityTransfer>(
     paidAmount: { type: Number, default: 0 },
     sellingPrice: { type: Number, default: 0 },
     paymentStatus: { type: String, enum: ['pending', 'paid', 'partial'], default: 'pending' },
+    paymentDueDate: { type: Date },
+    remarks: { type: String, default: '' },
   },
   { _id: true }
 );

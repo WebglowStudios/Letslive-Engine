@@ -435,6 +435,8 @@ router.put('/:id/assignments/:category/:serviceId/payment', asyncHandler(async (
         } else if (paymentStatus === 'paid') {
           parent.transfers[trIndex].paidAmount = parent.transfers[trIndex].vendorCost || 0;
         }
+        if (paymentDueDate !== undefined) parent.transfers[trIndex].paymentDueDate = paymentDueDate ? new Date(paymentDueDate) : null;
+        if (remarks !== undefined) parent.transfers[trIndex].remarks = remarks;
         await parent.save();
         updatedDoc = parent.transfers[trIndex];
       }
