@@ -50,6 +50,7 @@ export const getOperations = asyncHandler(async (req: Request, res: Response) =>
         populate: { path: 'user', select: 'firstName lastName email phone' }
       })
       .populate('assignedTo', 'firstName lastName')
+      .populate('salesperson', 'firstName lastName')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit),
@@ -128,7 +129,7 @@ export const getOperationById = asyncHandler(async (req: Request, res: Response)
     populate: [
       { path: 'package', select: 'name slug isCustom description itinerary adultCount childCount isInternational visaIncluded flightsIncluded trainsIncluded hideTrainInfo mergeHotelAndActivity flightPrice landCost hotelPrice activityPrice transferPrice activityAndTransportPrice extraMealsIncluded extraMealsCount extraMealsPrice visaPrice trainPrice cruiseIncluded cruisePrice flights' }
     ]
-  }).populate('package', 'name slug isCustom description itinerary isInternational visaIncluded flightsIncluded trainsIncluded hideTrainInfo mergeHotelAndActivity flightPrice landCost hotelPrice activityPrice transferPrice activityAndTransportPrice extraMealsIncluded extraMealsCount extraMealsPrice visaPrice trainPrice cruiseIncluded cruisePrice flights').populate('assignedTo', 'firstName lastName email');
+  }).populate('package', 'name slug isCustom description itinerary isInternational visaIncluded flightsIncluded trainsIncluded hideTrainInfo mergeHotelAndActivity flightPrice landCost hotelPrice activityPrice transferPrice activityAndTransportPrice extraMealsIncluded extraMealsCount extraMealsPrice visaPrice trainPrice cruiseIncluded cruisePrice flights').populate('assignedTo', 'firstName lastName email').populate('salesperson', 'firstName lastName email');
   if (!operation) throw new AppError('Operation not found', 404);
   if ((req.user!.role === 'staff' || req.user!.role === 'ops-staff') && operation.assignedTo?.toString() !== req.user!._id.toString()) throw new AppError('Access denied', 403);
 
