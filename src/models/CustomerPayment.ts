@@ -17,6 +17,7 @@ export interface ICustomerPayment extends Document {
   paymentLinkEnabled: boolean;
   paymentLink: string;
   remarks: string;
+  splitFrom?: mongoose.Types.ObjectId;  // reference to parent CP if this was created via split
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,6 +54,7 @@ const customerPaymentSchema = new Schema<ICustomerPayment>(
     paymentLinkEnabled: { type: Boolean, default: false },
     paymentLink: { type: String, default: '' },
     remarks: { type: String, default: '' },
+    splitFrom: { type: Schema.Types.ObjectId, ref: 'CustomerPayment' },  // parent CP if split
   },
   { timestamps: true }
 );

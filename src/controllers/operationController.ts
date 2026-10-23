@@ -847,7 +847,7 @@ export const splitCustomerPayment = asyncHandler(async (req: Request, res: Respo
   }
   await primaryPayment.save();
 
-  // Create new split payment
+  // Create new split payment — record splitFrom so deletion can restore the parent
   const newPayment = await CustomerPayment.create({
     operation: operationId,
     booking: primaryPayment.booking,
@@ -856,6 +856,7 @@ export const splitCustomerPayment = asyncHandler(async (req: Request, res: Respo
     paidAmount: 0,
     dueDate: primaryPayment.dueDate,
     status: 'upcoming',
+    splitFrom: primaryPayment._id,  // ← tracks which parent was deducted
   });
 
   res.status(201).json({ status: 'success', data: { newPayment, primaryPayment } });
@@ -899,10 +900,23 @@ export const deleteCustomerPayment = asyncHandler(async (req: Request, res: Resp
   const milestoneLower = (payment.milestone || '').toLowerCase();
   const isExtraCharge = milestoneLower.includes('extra passenger') || milestoneLower.includes('extra charge');
 
+  // ── SPLIT CHILD HANDLING ──
+  // If this is a split child, conditionally restore its amount to the parent
+  // based on the user's choice (restoreToParent=true → add back, false → eliminate)
+  const splitParentId = (payment as any).splitFrom;
+  const restoreToParent = req.query.restoreToParent === 'true';
+  if (splitParentId && paymentAmount > 0 && (payment.paidAmount || 0) === 0 && restoreToParent) {
+    const parentPayment = await CustomerPayment.findById(splitParentId);
+    if (parentPayment) {
+      parentPayment.amount += paymentAmount;  // restore the deducted amount to parent
+      await parentPayment.save();
+    }
+  }
+
   await CustomerPayment.findByIdAndDelete(req.params.paymentId);
 
   // If this payment was an extra passenger or extra charge milestone, deduct it from booking.totalAmount
-  if (bookingId && isExtraCharge && paymentAmount > 0) {
+  if (bookingId && isExtraCharge && paymentAmount > 0 && !splitParentId) {
     const booking = await Booking.findById(bookingId);
     if (booking && booking.totalAmount) {
       booking.totalAmount = Math.max(0, booking.totalAmount - paymentAmount);
