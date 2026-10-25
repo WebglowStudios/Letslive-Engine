@@ -369,7 +369,7 @@ const packageSchema = new Schema<IPackage>(
     approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
     // Custom itinerary fields
     isCustom: { type: Boolean, default: false },
-    showOnDestination: { type: Boolean, default: true },
+    showOnDestination: { type: Boolean, default: false },
     isInternational: { type: Boolean, default: false },
     visaIncluded: { type: Boolean, default: false },
     clientName: { type: String },

@@ -299,8 +299,14 @@ export const createPackage = asyncHandler(async (req: Request, res: Response) =>
     });
   }
 
-  if (canDirectChange || req.body.isCustom) {
+  if (canDirectChange) {
+    // Admins/managers can publish directly
     req.body.approvalStatus = req.body.approvalStatus || 'approved';
+  } else if (req.body.isCustom) {
+    // Custom itineraries created by staff start as pending — admin must approve before going live
+    req.body.approvalStatus = 'pending';
+    // Never show on destination page until explicitly approved by admin
+    req.body.showOnDestination = false;
   }
 
   if (req.body.isCustom && req.user) {
@@ -358,6 +364,22 @@ export const updatePackage = asyncHandler(async (req: Request, res: Response) =>
   const canDirectChange = req.user?.role === 'admin' || req.user?.role === 'manager';
   const isLiveApproved = pkgCheck.approvalStatus === 'approved' && pkgCheck.isActive === true;
   const isCustomItinerary = pkgCheck.isCustom || Boolean(pkgCheck.enquiryId);
+
+  // If a non-admin is trying to push a custom itinerary onto the destination page, require approval
+  if (!canDirectChange && isCustomItinerary && req.body.showOnDestination === true && !pkgCheck.showOnDestination) {
+    await ApprovalRequest.create({
+      entityType: 'Package',
+      entityId: req.params.id as any,
+      action: 'update',
+      payload: { showOnDestination: true },
+      requestedBy: req.user?._id,
+    });
+    return res.status(202).json({
+      status: 'success',
+      approvalRequired: true,
+      message: 'Request submitted for admin approval before showing on destination page',
+    });
+  }
 
   if (!canDirectChange && isLiveApproved && !isCustomItinerary) {
     await ApprovalRequest.create({
