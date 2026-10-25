@@ -320,16 +320,42 @@ export const getUserPerformance = asyncHandler(async (req: Request, res: Respons
   const inquiriesManaged = enquiriesStats[0]?.totalManaged || 0;
   const conversions = enquiriesStats[0]?.totalConverted || 0;
 
-  // 2. Revenue, Profit & Clients Handled (Operations) within timeframe
+  // 2a. Clients / Ops Handled — count operations WHERE THIS PERSON IS THE OPS HANDLER
+  //     Uses `assignedTo` — this is purely about who is MANAGING the trip logistics
   const opsMatch: Record<string, any> = { assignedTo: userId };
   if (dateFilter) opsMatch.createdAt = dateFilter;
 
-  const opsStats = await Operation.aggregate([
+  const opsHandledStats = await Operation.aggregate([
     { $match: opsMatch },
     {
       $group: {
         _id: null,
-        clientsHandled: { $sum: 1 }, // counting number of operations handled/sales closed
+        clientsHandled: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const clientsHandled = opsHandledStats[0]?.clientsHandled || 0;
+
+  // 2b. Revenue, Profit & Incentives — count operations WHERE THIS PERSON IS THE SALESPERSON
+  //     Uses `salesperson` — this is purely about who CLOSED the sale / gets the credit
+  //     Falls back to `assignedTo` only for legacy operations that predate the salesperson field
+  const salesMatch: Record<string, any> = {
+    $or: [
+      { salesperson: userId },
+      // Legacy fallback: if no salesperson is set, fall back to assignedTo
+      // so pre-migration ops are still credited correctly
+      { salesperson: { $exists: false }, assignedTo: userId },
+      { salesperson: null, assignedTo: userId },
+    ],
+  };
+  if (dateFilter) salesMatch.createdAt = dateFilter;
+
+  const opsStats = await Operation.aggregate([
+    { $match: salesMatch },
+    {
+      $group: {
+        _id: null,
         totalRevenue: { $sum: '$sellingPrice' },
         totalProfit: { $sum: '$grossProfit' },
         totalIncentives: { $sum: { $ifNull: ['$incentiveAmount', 0] } },
@@ -351,7 +377,6 @@ export const getUserPerformance = asyncHandler(async (req: Request, res: Respons
     },
   ]);
 
-  const clientsHandled = opsStats[0]?.clientsHandled || 0;
   const revenueGenerated = opsStats[0]?.totalRevenue || 0;
   const grossProfit = opsStats[0]?.totalProfit || 0;
   const profitGenerated = grossProfit;
@@ -444,8 +469,9 @@ export const getUserPerformance = asyncHandler(async (req: Request, res: Respons
     }
   }
 
-  // Actual sales is the number of bookings / operations closed
-  const salesAchieved = clientsHandled;
+  // Actual sales = number of operations WHERE THIS PERSON IS THE SALESPERSON (not ops handler)
+  const salesClosedCount = opsStats[0] ? (await Operation.countDocuments(salesMatch)) : 0;
+  const salesAchieved = salesClosedCount;
   const isSalesAchieved = salesTarget > 0 ? salesAchieved >= salesTarget : null;
   const grossProfitTarget = targetDoc?.grossProfitTarget || 0;
   const netProfitTarget = targetDoc?.netProfitTarget || 0;
@@ -507,8 +533,15 @@ export const getUserPerformance = asyncHandler(async (req: Request, res: Respons
     overallStatus,
   };
 
-  // Recent Conversions/Bookings for activity table within timeframe
-  const recentOpsMatch: Record<string, any> = { assignedTo: userId };
+  // Recent Converted Operations — show operations WHERE THIS PERSON IS THE SALESPERSON
+  // (same salesperson match with legacy fallback as the revenue/profit query above)
+  const recentOpsMatch: Record<string, any> = {
+    $or: [
+      { salesperson: userId },
+      { salesperson: { $exists: false }, assignedTo: userId },
+      { salesperson: null, assignedTo: userId },
+    ],
+  };
   if (dateFilter) recentOpsMatch.createdAt = dateFilter;
   const recentOperations = await Operation.find(recentOpsMatch)
     .sort({ createdAt: -1 })
