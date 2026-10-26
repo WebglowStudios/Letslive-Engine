@@ -2054,17 +2054,22 @@ export const sendBookingLinkHandler = asyncHandler(async (req: Request, res: Res
     enquiry.email = recipientEmail.toLowerCase();
   }
 
-  await sendBookingLink({
-    customerEmail: recipientEmail,
-    customerName: `${enquiry.firstName} ${enquiry.lastName || ''}`.trim(),
-    packageName: packageName || 'Your Custom Package',
-    packageSlug: slug,
-    staffName,
-    price: req.body.price || pkg?.price,
-    departureId: enquiry.departureId?.toString(),
-    travelDate: enquiry.travelDate,
-    enquiryId: enquiry._id.toString(),
-  });
+  try {
+    await sendBookingLink({
+      customerEmail: recipientEmail,
+      customerName: `${enquiry.firstName} ${enquiry.lastName || ''}`.trim(),
+      packageName: packageName || 'Your Custom Package',
+      packageSlug: slug,
+      staffName,
+      price: req.body.price || pkg?.price,
+      departureId: enquiry.departureId?.toString(),
+      travelDate: enquiry.travelDate,
+      enquiryId: enquiry._id.toString(),
+    });
+  } catch (err: any) {
+    console.error(`[EMAIL ERROR] Failed to send booking link to ${recipientEmail}:`, err?.message || err);
+    throw new AppError(`Could not deliver email: ${err?.message || 'SMTP connection error'}. Please verify server email configuration or share link via WhatsApp.`, 400);
+  }
 
   const finalPrice = req.body.price || pkg?.price;
   enquiry.timeline = enquiry.timeline || [];
