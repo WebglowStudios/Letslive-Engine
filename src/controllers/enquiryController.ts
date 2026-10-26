@@ -2043,8 +2043,19 @@ export const sendBookingLinkHandler = asyncHandler(async (req: Request, res: Res
   const staff = req.user!;
   const staffName = `${staff.firstName} ${staff.lastName || ''}`.trim();
 
+  // Allow custom recipient email from request, fallback to enquiry.email
+  const recipientEmail = (req.body.customerEmail || req.body.email || enquiry.email || '').trim();
+  if (!recipientEmail) {
+    throw new AppError('Customer email is required to send booking link.', 400);
+  }
+
+  // Update enquiry email if staff provided a different/updated email
+  if (recipientEmail && recipientEmail.toLowerCase() !== (enquiry.email || '').toLowerCase()) {
+    enquiry.email = recipientEmail.toLowerCase();
+  }
+
   await sendBookingLink({
-    customerEmail: enquiry.email,
+    customerEmail: recipientEmail,
     customerName: `${enquiry.firstName} ${enquiry.lastName || ''}`.trim(),
     packageName: packageName || 'Your Custom Package',
     packageSlug: slug,
@@ -2059,18 +2070,18 @@ export const sendBookingLinkHandler = asyncHandler(async (req: Request, res: Res
   enquiry.timeline = enquiry.timeline || [];
   enquiry.timeline.push({
     type: 'booking_link_sent',
-    title: `Booking link sent to ${enquiry.email}`,
+    title: `Booking link sent to ${recipientEmail}`,
     description: `Package: ${packageName || 'Custom Package'}${finalPrice ? ` • ₹${Number(finalPrice).toLocaleString('en-IN')}` : ''}`,
     by: req.user!._id,
     byName: staffName,
     date: new Date(),
-    meta: { packageSlug: slug, packageName, price: finalPrice },
+    meta: { packageSlug: slug, packageName, price: finalPrice, recipientEmail },
   });
   await enquiry.save();
 
   res.status(200).json({
     status: 'success',
-    message: `Booking link sent to ${enquiry.email}`,
+    message: `Booking link sent to ${recipientEmail}`,
   });
 });
 

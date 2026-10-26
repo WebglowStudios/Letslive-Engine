@@ -453,7 +453,11 @@ export const createManualBooking = asyncHandler(async (req: Request, res: Respon
 
 export const getUserBookings = asyncHandler(async (req: Request, res: Response) => {
   const bookings = await Booking.find({ user: req.user!._id })
-    .populate('package', 'name slug images duration isInternational visaIncluded flightsIncluded trainsIncluded hideTrainInfo')
+    .populate({
+      path: 'package',
+      select: 'name slug images duration isInternational visaIncluded flightsIncluded trainsIncluded hideTrainInfo destination customDestinationText',
+      populate: { path: 'destination', select: 'name slug country region' },
+    })
     .populate('destination', 'name slug')
     .sort({ createdAt: -1 })
     .lean();
@@ -496,7 +500,10 @@ export const getUserBookings = asyncHandler(async (req: Request, res: Response) 
 export const getBookingById = asyncHandler(async (req: Request, res: Response) => {
   const booking = await Booking.findById(req.params.id)
     .populate('user', 'firstName lastName email phone')
-    .populate('package')
+    .populate({
+      path: 'package',
+      populate: { path: 'destination', select: 'name slug country region' },
+    })
     .populate('destination')
     .populate({
       path: 'enquiry',
@@ -579,7 +586,11 @@ export const getBookingById = asyncHandler(async (req: Request, res: Response) =
 export const getBookingVoucherData = asyncHandler(async (req: Request, res: Response) => {
   const booking = await Booking.findById(req.params.id)
     .populate('user', 'firstName lastName email phone')
-    .populate('package');
+    .populate({
+      path: 'package',
+      populate: { path: 'destination', select: 'name slug country region' },
+    })
+    .populate('destination');
 
   if (!booking) {
     throw new AppError('Booking not found', 404);

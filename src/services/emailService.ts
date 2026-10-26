@@ -114,6 +114,7 @@ export async function sendEmail({ to, subject, html, brand }: SendEmailOptions):
     });
   } catch (error: any) {
     console.error(`[EMAIL ERROR] Could not send email to ${to} ("${subject}"):`, error?.message || error);
+    throw new Error(`Failed to send email to ${to}: ${error?.message || error}`);
   }
 }
 
@@ -448,6 +449,7 @@ export async function sendBookingLink(opts: {
   const { customerEmail, customerName, packageName, packageSlug, staffName, price, departureId, travelDate, enquiryId } = opts;
   
   const params = new URLSearchParams();
+  params.append("guest", "true");
   if (departureId) params.append("departureId", departureId.toString());
   if (travelDate) params.append("travelDate", new Date(travelDate).toISOString().split('T')[0]);
   if (enquiryId) params.append("enquiryId", enquiryId.toString());
