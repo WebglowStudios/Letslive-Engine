@@ -316,9 +316,13 @@ export const recalculateOperation = asyncHandler(async (req: Request, res: Respo
   // 5. Update and save Operation
   operation.totalVendorCost = totalVendorCost;
   operation.sellingPrice = newSellingPrice;
-  operation.grossProfit = newSellingPrice - totalVendorCost;
+  // Include visa cost + misc charges in profit calculation
+  const visaCost = (operation as any).visaCost || 0;
+  const miscTotal = ((operation as any).miscCharges || []).reduce((s: number, c: any) => s + (c.amount || 0), 0);
+  const totalCostIncludingExtras = totalVendorCost + visaCost + miscTotal;
+  operation.grossProfit = newSellingPrice - totalCostIncludingExtras;
   operation.profitPercentage = newSellingPrice > 0
-    ? Math.round(((newSellingPrice - totalVendorCost) / newSellingPrice) * 100)
+    ? Math.round(((newSellingPrice - totalCostIncludingExtras) / newSellingPrice) * 100)
     : 0;
 
   await operation.save();

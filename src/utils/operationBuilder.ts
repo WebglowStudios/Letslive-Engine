@@ -18,7 +18,7 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
     }
 
     const populatedBooking = await Booking.findById(bookingId)
-      .populate('package', 'name price isGroupTour')
+      .populate('package', 'name price isGroupTour customDestinationText')
       .populate('destination', 'name')
       .populate('user', 'firstName lastName email phone');
 
@@ -26,7 +26,7 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
       return null;
     }
 
-    const pkg = populatedBooking.package as unknown as { name?: string; price?: number; _id?: string; adultCount?: number; childCount?: number; isGroupTour?: boolean };
+    const pkg = populatedBooking.package as unknown as { name?: string; price?: number; _id?: string; adultCount?: number; childCount?: number; isGroupTour?: boolean; customDestinationText?: string };
     const dest = populatedBooking.destination as unknown as { name?: string };
     const usr = populatedBooking.user as unknown as { firstName?: string; lastName?: string; email?: string; phone?: string };
     const travellers = populatedBooking.travellers as { adults?: number; children?: number; infants?: number };
@@ -84,7 +84,7 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
         enquiry: populatedBooking.enquiry || undefined,
         customer: customerObj,
         customers: [customerObj],
-        destination: dest?.name || 'TBD',
+        destination: dest?.name || pkg?.customDestinationText || 'TBD',
         travelDates: {
           start: populatedBooking.travelDate,
           end: populatedBooking.returnDate || populatedBooking.travelDate,

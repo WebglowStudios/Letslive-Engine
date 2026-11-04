@@ -32,6 +32,9 @@ export interface IOperation extends Document {
   salesperson?: mongoose.Types.ObjectId;  // who made the sale (credit stays here regardless of ops assignment)
   sellingPrice: number;
   totalVendorCost: number;
+  visaCost: number;
+  miscCharges: { label: string; amount: number; isVendorCost: boolean }[];
+  miscTotal: number;
   grossProfit: number;
   profitPercentage: number;
   incentiveAmount?: number;
@@ -75,6 +78,13 @@ export interface IOperation extends Document {
     salesperson: { type: Schema.Types.ObjectId, ref: 'User' },  // sale credit – never changes on ops reassign
     sellingPrice: { type: Number, default: 0 },
     totalVendorCost: { type: Number, default: 0 },
+    visaCost: { type: Number, default: 0 },
+    miscCharges: [{
+      label: { type: String, default: '' },
+      amount: { type: Number, default: 0 },
+      isVendorCost: { type: Boolean, default: false },
+    }],
+    miscTotal: { type: Number, default: 0 },
     grossProfit: { type: Number, default: 0 },
     profitPercentage: { type: Number, default: 0 },
     incentiveAmount: { type: Number },
@@ -132,7 +142,9 @@ operationSchema.pre('save', async function () {
 
 // Auto-calculate profit on save
 operationSchema.pre('save', function () {
-  this.grossProfit = this.sellingPrice - this.totalVendorCost;
+  this.miscTotal = (this.miscCharges || []).reduce((s, c) => s + (c.amount || 0), 0);
+  const totalCost = this.totalVendorCost + (this.visaCost || 0) + this.miscTotal;
+  this.grossProfit = this.sellingPrice - totalCost;
   this.profitPercentage = this.sellingPrice > 0
     ? Math.round((this.grossProfit / this.sellingPrice) * 100)
     : 0;
