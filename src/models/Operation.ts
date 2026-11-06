@@ -33,6 +33,7 @@ export interface IOperation extends Document {
   sellingPrice: number;
   totalVendorCost: number;
   visaCost: number;
+  insuranceCost: number;
   miscCharges: { label: string; amount: number; isVendorCost: boolean }[];
   miscTotal: number;
   grossProfit: number;
@@ -79,6 +80,7 @@ export interface IOperation extends Document {
     sellingPrice: { type: Number, default: 0 },
     totalVendorCost: { type: Number, default: 0 },
     visaCost: { type: Number, default: 0 },
+    insuranceCost: { type: Number, default: 0 },
     miscCharges: [{
       label: { type: String, default: '' },
       amount: { type: Number, default: 0 },
@@ -143,7 +145,7 @@ operationSchema.pre('save', async function () {
 // Auto-calculate profit on save
 operationSchema.pre('save', function () {
   this.miscTotal = (this.miscCharges || []).reduce((s, c) => s + (c.amount || 0), 0);
-  const totalCost = this.totalVendorCost + (this.visaCost || 0) + this.miscTotal;
+  const totalCost = this.totalVendorCost + (this.visaCost || 0) + (this.insuranceCost || 0) + this.miscTotal;
   this.grossProfit = this.sellingPrice - totalCost;
   this.profitPercentage = this.sellingPrice > 0
     ? Math.round((this.grossProfit / this.sellingPrice) * 100)

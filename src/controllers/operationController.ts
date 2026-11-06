@@ -98,7 +98,9 @@ export const getOperations = asyncHandler(async (req: Request, res: Response) =>
     // Use stored sellingPrice if no CPs exist (new ops), otherwise use live CP total as billing
     const effectiveSelling = totalBilled > 0 ? totalBilled : (op.sellingPrice || 0);
     const vendorCost = op.totalVendorCost || 0;
-    const grossProfit = effectiveSelling - vendorCost;
+    const extraCosts = (op.visaCost || 0) + (op.insuranceCost || 0) + (op.miscTotal || 0);
+    const totalCost = vendorCost + extraCosts;
+    const grossProfit = effectiveSelling - totalCost;
     const profitPercentage = effectiveSelling > 0 ? Math.round((grossProfit / effectiveSelling) * 100) : 0;
 
     return {
@@ -147,7 +149,9 @@ export const getOperationById = asyncHandler(async (req: Request, res: Response)
   const pendingPayment = Math.max(0, totalBilled - totalReceived);
   const effectiveSelling = totalBilled > 0 ? totalBilled : (operation.sellingPrice || 0);
   const vendorCost = operation.totalVendorCost || 0;
-  const grossProfit = effectiveSelling - vendorCost;
+  const extraCosts = (operation.visaCost || 0) + (operation.insuranceCost || 0) + (operation.miscTotal || 0);
+  const totalCost = vendorCost + extraCosts;
+  const grossProfit = effectiveSelling - totalCost;
   const profitPercentage = effectiveSelling > 0 ? Math.round((grossProfit / effectiveSelling) * 100) : 0;
 
   // Multi-source lead customer derivation (ensures customer snapshot is never blank)
@@ -213,8 +217,23 @@ export const createOperation = asyncHandler(async (req: Request, res: Response) 
 });
 
 export const updateOperation = asyncHandler(async (req: Request, res: Response) => {
-  const operation = await Operation.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+  const operation = await Operation.findById(req.params.id);
   if (!operation) throw new AppError('Operation not found', 404);
+
+  Object.assign(operation, req.body);
+
+  if (req.body.miscCharges) {
+    operation.miscTotal = (operation.miscCharges || []).reduce((s: number, c: any) => s + (c.amount || 0), 0);
+  }
+
+  const extraCosts = (operation.visaCost || 0) + (operation.insuranceCost || 0) + (operation.miscTotal || 0);
+  const totalCost = (operation.totalVendorCost || 0) + extraCosts;
+  operation.grossProfit = (operation.sellingPrice || 0) - totalCost;
+  operation.profitPercentage = operation.sellingPrice > 0
+    ? Math.round((operation.grossProfit / operation.sellingPrice) * 100)
+    : 0;
+
+  await operation.save();
 
   const bookingIds = [...(operation.bookings || [])];
   if ((operation as any).booking && !bookingIds.includes((operation as any).booking)) {
@@ -316,10 +335,12 @@ export const recalculateOperation = asyncHandler(async (req: Request, res: Respo
   // 5. Update and save Operation
   operation.totalVendorCost = totalVendorCost;
   operation.sellingPrice = newSellingPrice;
-  // Include visa cost + misc charges in profit calculation
+  // Include visa cost + insurance cost + misc charges in profit calculation
   const visaCost = (operation as any).visaCost || 0;
+  const insuranceCost = (operation as any).insuranceCost || 0;
   const miscTotal = ((operation as any).miscCharges || []).reduce((s: number, c: any) => s + (c.amount || 0), 0);
-  const totalCostIncludingExtras = totalVendorCost + visaCost + miscTotal;
+  operation.miscTotal = miscTotal;
+  const totalCostIncludingExtras = totalVendorCost + visaCost + insuranceCost + miscTotal;
   operation.grossProfit = newSellingPrice - totalCostIncludingExtras;
   operation.profitPercentage = newSellingPrice > 0
     ? Math.round(((newSellingPrice - totalCostIncludingExtras) / newSellingPrice) * 100)

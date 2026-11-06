@@ -4,6 +4,7 @@ export interface ICustomerPayment extends Document {
   operation: mongoose.Types.ObjectId;
   booking?: mongoose.Types.ObjectId;
   milestone: string;
+  category?: 'all' | 'flight' | 'hotel' | 'land' | 'visa' | 'insurance' | 'misc';
   amount: number;
   dueDate?: Date;
   paidDate?: Date;
@@ -27,6 +28,7 @@ const customerPaymentSchema = new Schema<ICustomerPayment>(
     operation: { type: Schema.Types.ObjectId, ref: 'Operation', required: true, index: true },
     booking: { type: Schema.Types.ObjectId, ref: 'Booking', index: true },
     milestone: { type: String, default: '' },
+    category: { type: String, enum: ['all', 'flight', 'hotel', 'land', 'visa', 'insurance', 'misc'], default: 'all' },
     amount: { type: Number, default: 0 },
     dueDate: { type: Date },
     paidDate: { type: Date },

@@ -251,7 +251,7 @@ export const searchUniversal = asyncHandler(async (req: Request, res: Response) 
         phone: booking.primaryTraveller?.phone || booking.user?.phone || operation?.customers?.[0]?.phone || enquiry?.phone || '',
         pax: (booking.travellers?.adults || 1) + (booking.travellers?.children || 0),
       },
-      destination: (booking.destination as any)?.name || operation?.destination || enquiry?.destination || 'TBD',
+      destination: (booking.destination as any)?.name || (booking.package as any)?.customDestinationText || operation?.destination || enquiry?.destination || 'TBD',
       packageName: (booking.package as any)?.name || operation?.package?.name || enquiry?.packageName || 'Package Tour',
       travelDates: {
         start: booking.travelDate || operation?.travelDates?.start,
