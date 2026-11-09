@@ -126,6 +126,8 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
   let hotelUpgradeTotal = 0;
   if (pkg.priceUnit === 'group' || pkg.priceUnit === 'family') {
     hotelUpgradeTotal = hotelUpgradePerPax;
+  } else if (pkg.priceUnit === 'couple') {
+    hotelUpgradeTotal = hotelUpgradePerPax * Math.max(1, Math.round((adults + children) / 2));
   } else {
     hotelUpgradeTotal = hotelUpgradePerPax * (adults + children);
   }
@@ -139,6 +141,10 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
     } else {
       totalAmount = basePrice + hotelUpgradeTotal;
     }
+  } else if (pkg.priceUnit === 'couple') {
+    const totalPax = adults + children;
+    const couplesCount = Math.max(1, Math.round(totalPax / 2));
+    totalAmount = basePrice * couplesCount + hotelUpgradeTotal;
   }
   
   let discountAmount = 0;
@@ -1248,6 +1254,8 @@ export const updateBookingHotelOptions = asyncHandler(async (req: Request, res: 
   let newHotelUpgradeTotal = 0;
   if (pkg?.priceUnit === 'group' || pkg?.priceUnit === 'family') {
     newHotelUpgradeTotal = hotelUpgradePerPax;
+  } else if (pkg?.priceUnit === 'couple') {
+    newHotelUpgradeTotal = hotelUpgradePerPax * Math.max(1, Math.round((adults + children) / 2));
   } else {
     newHotelUpgradeTotal = hotelUpgradePerPax * (adults + children);
   }

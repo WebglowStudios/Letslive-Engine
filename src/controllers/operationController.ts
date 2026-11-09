@@ -886,6 +886,148 @@ export const splitCustomerPayment = asyncHandler(async (req: Request, res: Respo
 
   res.status(201).json({ status: 'success', data: { newPayment, primaryPayment } });
 });
+
+export const allotCustomerPaymentAdvance = asyncHandler(async (req: Request, res: Response) => {
+  const operationId = req.params.id as string;
+  const { allocations, resetToPool } = req.body;
+
+  const operation = await Operation.findById(operationId);
+  if (!operation) throw new AppError('Operation not found', 404);
+
+  const payments = await CustomerPayment.find({ operation: operationId }).sort({ createdAt: 1 });
+
+  // If user requests a reset back to single general advance pool
+  if (resetToPool) {
+    const categorizedPaidPayments = payments.filter(p => p.category && p.category !== 'all');
+    if (categorizedPaidPayments.length === 0) {
+      return res.status(200).json({ status: 'success', message: 'No categorized payments to reset' });
+    }
+
+    const totalToPool = categorizedPaidPayments.reduce((s, p) => s + (p.paidAmount || p.amount || 0), 0);
+    const booking = categorizedPaidPayments[0]?.booking || operation.bookings?.[0] || operation.booking;
+    const mode = categorizedPaidPayments[0]?.paymentMode || 'Advance';
+    const txnId = categorizedPaidPayments.map(p => p.transactionId).filter(Boolean).join(', ');
+
+    // Delete the categorized advance payments
+    const idsToDelete = categorizedPaidPayments.map(p => p._id);
+    await CustomerPayment.deleteMany({ _id: { $in: idsToDelete } });
+
+    // Look for existing unassigned / general payment
+    const existingGeneral = await CustomerPayment.findOne({
+      operation: operationId,
+      $or: [{ category: 'all' }, { category: { $exists: false } }, { category: null }]
+    });
+
+    if (existingGeneral) {
+      existingGeneral.amount = (existingGeneral.amount || 0) + totalToPool;
+      existingGeneral.paidAmount = (existingGeneral.paidAmount || 0) + totalToPool;
+      existingGeneral.status = 'paid';
+      await existingGeneral.save();
+    } else {
+      await CustomerPayment.create({
+        operation: operationId,
+        booking,
+        milestone: 'General Advance (Consolidated Pool)',
+        category: 'all',
+        amount: totalToPool,
+        paidAmount: totalToPool,
+        status: 'paid',
+        paymentMode: mode,
+        transactionId: txnId,
+        paidDate: new Date(),
+        dueDate: new Date(),
+      });
+    }
+
+    const updated = await CustomerPayment.find({ operation: operationId }).sort({ createdAt: 1 });
+    return res.status(200).json({ status: 'success', data: updated });
+  }
+
+  if (!Array.isArray(allocations) || allocations.length === 0) {
+    throw new AppError('Please provide allocations array', 400);
+  }
+
+  // Find unassigned / general advance payments
+  const unassignedPayments = payments.filter(p => !p.category || p.category === 'all');
+  const availablePaid = unassignedPayments.reduce((s, p) => s + (p.paidAmount || (p.status === 'paid' ? p.amount : 0)), 0);
+  const availableAmount = unassignedPayments.reduce((s, p) => s + (p.amount || 0), 0);
+
+  if (availablePaid <= 0 && availableAmount <= 0) {
+    throw new AppError('No unassigned advance available in pool to allot.', 400);
+  }
+
+  const validAllocations = allocations
+    .map((a: any) => ({
+      category: a.category,
+      amount: Math.round(Number(a.amount) || 0),
+      milestone: a.milestone || '',
+    }))
+    .filter((a: any) => a.amount > 0);
+
+  const totalRequested = validAllocations.reduce((s: number, a: any) => s + a.amount, 0);
+  const maxPool = Math.max(availablePaid, availableAmount);
+
+  if (totalRequested <= 0) {
+    throw new AppError('Total allocated amount must be greater than zero.', 400);
+  }
+
+  if (totalRequested > maxPool + 10) {
+    throw new AppError(`Total allocated (₹${totalRequested.toLocaleString('en-IN')}) cannot exceed available advance pool (₹${maxPool.toLocaleString('en-IN')}).`, 400);
+  }
+
+  const sampleBooking = unassignedPayments[0]?.booking || operation.bookings?.[0] || operation.booking;
+  const sampleMode = unassignedPayments[0]?.paymentMode || 'Advance';
+  const sampleTxn = unassignedPayments[0]?.transactionId || '';
+  const samplePaidDate = unassignedPayments[0]?.paidDate || new Date();
+  const sampleDueDate = unassignedPayments[0]?.dueDate || new Date();
+
+  const categoryNames: Record<string, string> = {
+    flight: 'Flights & Trains Payment',
+    hotel: 'Hotel & Stay Payment',
+    land: 'Land Package & Activities Payment',
+    visa: 'Visa Fees Payment',
+    insurance: 'Travel Insurance Payment',
+    misc: 'Misc Charges Payment',
+  };
+
+  for (const a of validAllocations) {
+    await CustomerPayment.create({
+      operation: operationId,
+      booking: sampleBooking,
+      milestone: a.milestone || `${categoryNames[a.category] || 'Service Payment'} (Advance Allotment)`,
+      category: a.category,
+      amount: a.amount,
+      paidAmount: a.amount,
+      status: 'paid',
+      paymentMode: sampleMode,
+      transactionId: sampleTxn,
+      paidDate: samplePaidDate,
+      dueDate: sampleDueDate,
+      remarks: 'Allotted from General Advance Pool',
+    });
+  }
+
+  // Deduct allocated amounts from existing unassigned payments
+  let toDeduct = totalRequested;
+  for (const p of unassignedPayments) {
+    if (toDeduct <= 0) break;
+    const currentVal = (p.paidAmount || (p.status === 'paid' ? p.amount : 0));
+    const deductAmt = Math.min(currentVal, toDeduct);
+
+    p.paidAmount = Math.max(0, (p.paidAmount || 0) - deductAmt);
+    p.amount = Math.max(0, (p.amount || 0) - deductAmt);
+    toDeduct -= deductAmt;
+
+    if (p.amount <= 0 && p.paidAmount <= 0) {
+      await CustomerPayment.findByIdAndDelete(p._id);
+    } else {
+      await p.save();
+    }
+  }
+
+  const updatedPayments = await CustomerPayment.find({ operation: operationId }).sort({ createdAt: 1 });
+  res.status(200).json({ status: 'success', data: updatedPayments });
+});
 export const updateCustomerPayment = asyncHandler(async (req: Request, res: Response) => {
   const payment = await CustomerPayment.findById(req.params.paymentId);
   if (!payment) throw new AppError('Payment not found', 404);
