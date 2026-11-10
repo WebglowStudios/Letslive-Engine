@@ -18,7 +18,7 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
     }
 
     const populatedBooking = await Booking.findById(bookingId)
-      .populate('package', 'name price isGroupTour customDestinationText')
+      .populate('package', 'name price isGroupTour customDestinationText priceUnit flightPrice hotelPrice landCost activityAndTransportPrice visaPrice')
       .populate('destination', 'name')
       .populate('user', 'firstName lastName email phone');
 
@@ -26,7 +26,7 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
       return null;
     }
 
-    const pkg = populatedBooking.package as unknown as { name?: string; price?: number; _id?: string; adultCount?: number; childCount?: number; isGroupTour?: boolean; customDestinationText?: string };
+    const pkg = populatedBooking.package as any;
     const dest = populatedBooking.destination as unknown as { name?: string };
     const usr = populatedBooking.user as unknown as { firstName?: string; lastName?: string; email?: string; phone?: string };
     const travellers = populatedBooking.travellers as { adults?: number; children?: number; infants?: number };
@@ -90,6 +90,13 @@ export async function autoCreateOperationFromBooking(bookingId: string | mongoos
           end: populatedBooking.returnDate || populatedBooking.travelDate,
         },
         assignedTo: undefined,
+        priceUnit: (pkg?.priceUnit as any) || 'person',
+        customPricing: pkg ? {
+          flightPrice: pkg.flightPrice,
+          hotelPrice: pkg.hotelPrice,
+          landPrice: (pkg.landCost || 0) + (pkg.activityAndTransportPrice || 0),
+          visaPrice: pkg.visaPrice,
+        } : undefined,
         sellingPrice: populatedBooking.totalAmount || 0,
         status: 'planning',
       });

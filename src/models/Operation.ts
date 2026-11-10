@@ -30,6 +30,14 @@ export interface IOperation extends Document {
   };
   assignedTo?: mongoose.Types.ObjectId;
   salesperson?: mongoose.Types.ObjectId;  // who made the sale (credit stays here regardless of ops assignment)
+  priceUnit?: 'person' | 'couple' | 'group' | 'family';
+  customPricing?: {
+    flightPrice?: number;
+    hotelPrice?: number;
+    landPrice?: number;
+    visaPrice?: number;
+    insurancePrice?: number;
+  };
   sellingPrice: number;
   totalVendorCost: number;
   visaCost: number;
@@ -77,6 +85,17 @@ export interface IOperation extends Document {
     },
     assignedTo: { type: Schema.Types.ObjectId, ref: 'User' },
     salesperson: { type: Schema.Types.ObjectId, ref: 'User' },  // sale credit – never changes on ops reassign
+    priceUnit: {
+      type: String,
+      enum: ['person', 'couple', 'group', 'family'],
+    },
+    customPricing: {
+      flightPrice: { type: Number },
+      hotelPrice: { type: Number },
+      landPrice: { type: Number },
+      visaPrice: { type: Number },
+      insurancePrice: { type: Number },
+    },
     sellingPrice: { type: Number, default: 0 },
     totalVendorCost: { type: Number, default: 0 },
     visaCost: { type: Number, default: 0 },

@@ -316,20 +316,137 @@ export const recalculateOperation = asyncHandler(async (req: Request, res: Respo
   const operation = await Operation.findById(opId);
   if (!operation) throw new AppError('Operation not found', 404);
 
-  // 4. Resolve Selling Price
-  // - Priority 1: Customer Payments (actual installment schedule agreed with client)
-  // - Priority 2: Sum of individual line item selling prices (if set by ops team)
-  // - Priority 3: Current stored selling price
-  // - Priority 4: Booking total amount
-  let newSellingPrice = operation.sellingPrice || 0;
-  if (totalCustomerBilled > 0) {
-    newSellingPrice = totalCustomerBilled;
-  } else if (totalLineItemSelling > 0) {
-    newSellingPrice = totalLineItemSelling;
-  } else if (newSellingPrice === 0 && operation.bookings?.length) {
-    const linkedBookings = await Booking.find({ _id: { $in: operation.bookings } });
-    const bSum = linkedBookings.reduce((s, b) => s + (b.totalAmount || 0), 0);
-    if (bSum > 0) newSellingPrice = bSum;
+  // 4. Resolve Target Selling Price
+  // Fetch linked booking and package to inspect pricing configuration and person quantity
+  const linkedBooking = operation.booking 
+    ? await Booking.findById(operation.booking).populate('package') 
+    : (operation.bookings?.length ? await Booking.findById(operation.bookings[0]).populate('package') : null);
+  const pkg: any = (linkedBooking?.package as any) || (operation.package ? await Package.findById(operation.package) : null);
+
+  const totalAdults = operation.customers?.reduce((s: number, c: any) => s + (c.adults || c.pax || 1), 0) 
+    || (operation as any).customer?.adults || (operation as any).customer?.pax || 1;
+  const totalChildren = operation.customers?.reduce((s: number, c: any) => s + (c.children || 0), 0) 
+    || (operation as any).customer?.children || 0;
+  const paxCount = Math.max(1, totalAdults + totalChildren);
+
+  const priceUnit = ((operation as any).priceUnit || pkg?.priceUnit || 'person').toLowerCase();
+  let unitMultiplier = 1;
+  if (priceUnit === 'couple') {
+    unitMultiplier = Math.max(1, Math.ceil(paxCount / 2));
+  } else if (priceUnit === 'group' || priceUnit === 'family') {
+    unitMultiplier = 1;
+  } else {
+    unitMultiplier = Math.max(1, paxCount);
+  }
+
+  // Detect payment milestone installments by category
+  const isFlightPayment = (p: any) => p.category === 'flight' || ((!p.category || p.category === 'all') && (p.milestone || '').toLowerCase().includes('flight'));
+  const isHotelPayment = (p: any) => p.category === 'hotel' || ((!p.category || p.category === 'all') && (p.milestone || '').toLowerCase().includes('hotel'));
+  const isLandPayment = (p: any) => p.category === 'land' || ((!p.category || p.category === 'all') && (p.milestone || '').toLowerCase().includes('land'));
+  const isVisaPayment = (p: any) => p.category === 'visa' || ((!p.category || p.category === 'all') && (p.milestone || '').toLowerCase().includes('visa'));
+
+  const flightMilestonesTotal = customerPayments.filter(isFlightPayment).reduce((s, p) => s + (p.amount || 0), 0);
+  const hotelMilestonesTotal = customerPayments.filter(isHotelPayment).reduce((s, p) => s + (p.amount || 0), 0);
+  const landMilestonesTotal = customerPayments.filter(isLandPayment).reduce((s, p) => s + (p.amount || 0), 0);
+  const visaMilestonesTotal = customerPayments.filter(isVisaPayment).reduce((s, p) => s + (p.amount || 0), 0);
+
+  // Calculate component selling prices based on line items, customPricing overrides, package rates, or payment installments
+  const transportSelling = transports.reduce((s, t) => s + (t.sellingPrice || 0), 0);
+  const baseFlight = transportSelling > 0
+    ? transportSelling
+    : ((operation as any).customPricing?.flightPrice !== undefined
+        ? ((operation as any).customPricing.flightPrice || 0) * (priceUnit === 'group' ? 1 : unitMultiplier)
+        : ((pkg?.flightPrice || 0) * unitMultiplier));
+  const computedFlight = Math.max(baseFlight, flightMilestonesTotal);
+
+  const hotelSelling = accommodations.reduce((s, a) => s + (a.sellingPrice || 0), 0);
+  const baseHotel = hotelSelling > 0
+    ? hotelSelling
+    : ((operation as any).customPricing?.hotelPrice !== undefined
+        ? ((operation as any).customPricing.hotelPrice || 0) * (priceUnit === 'group' ? 1 : unitMultiplier)
+        : ((pkg?.hotelPrice || 0) * unitMultiplier));
+  const computedHotel = Math.max(baseHotel, hotelMilestonesTotal);
+
+  const actSelling = activities.reduce((s, a) => s + (a.sellingPrice || 0) + (a.transfers || []).reduce((ts: number, tr: any) => ts + (tr.hasPricing ? (tr.sellingPrice || 0) : 0), 0), 0);
+  const rawLand = (pkg?.landCost || 0) + (pkg?.activityAndTransportPrice || 0);
+  let baseLand = actSelling > 0
+    ? actSelling
+    : ((operation as any).customPricing?.landPrice !== undefined
+        ? ((operation as any).customPricing.landPrice || 0) * (priceUnit === 'group' ? 1 : unitMultiplier)
+        : (rawLand > 0 ? rawLand * unitMultiplier : 0));
+
+  // If Hotel and Land are not explicitly itemized in ops and exceed the package price, reconcile to avoid duplicate counting
+  if (hotelSelling === 0 && actSelling === 0 && pkg?.price) {
+    const pkgTotalAvailable = (pkg.price || 0) * unitMultiplier;
+    if (computedHotel > 0 && baseLand > 0 && (computedFlight + computedHotel + baseLand > pkgTotalAvailable)) {
+      baseLand = Math.max(0, pkgTotalAvailable - computedFlight - computedHotel);
+    }
+  }
+  const computedLand = Math.max(baseLand, landMilestonesTotal);
+
+  const baseVisa = (operation as any).customPricing?.visaPrice !== undefined
+    ? ((operation as any).customPricing.visaPrice || 0) * (priceUnit === 'group' ? 1 : unitMultiplier)
+    : ((pkg?.visaPrice || 0) * unitMultiplier);
+  const computedVisa = Math.max(baseVisa, visaMilestonesTotal);
+
+  const computedInsurance = (operation as any).customPricing?.insurancePrice ?? operation.insuranceCost ?? 0;
+  const miscChargesSum = ((operation as any).miscCharges || []).reduce((s: number, c: any) => s + (c.amount || 0), 0);
+  const computedMisc = operation.miscTotal || miscChargesSum;
+
+  let computedPackageRemaining = 0;
+  if (computedHotel === 0 && computedLand === 0 && pkg?.price) {
+    const rawRem = Math.max(0, (pkg.price || 0) - (pkg.flightPrice || 0) - (pkg.visaPrice || 0));
+    computedPackageRemaining = rawRem * unitMultiplier;
+  }
+
+  const formulaSelling = computedFlight + computedHotel + computedLand + computedVisa + computedInsurance + computedMisc + computedPackageRemaining;
+
+  let newSellingPrice = formulaSelling > 0
+    ? formulaSelling
+    : (totalCustomerBilled > 0 ? totalCustomerBilled : (operation.sellingPrice || 0));
+
+  // Sync CustomerPayment schedule so pending amount automatically reflects the new selling price
+  if (newSellingPrice > 0 && Math.abs(newSellingPrice - totalCustomerBilled) > 0.01) {
+    const diff = newSellingPrice - totalCustomerBilled;
+    if (diff > 0) {
+      // Find an existing upcoming/pending installment to absorb the increase
+      const unpaid = customerPayments.find(cp => (cp.paidAmount || 0) === 0 && cp.status !== 'paid');
+      if (unpaid) {
+        unpaid.amount = (unpaid.amount || 0) + diff;
+        await unpaid.save();
+        totalCustomerBilled += diff;
+      } else {
+        const newCp = await CustomerPayment.create({
+          operation: operation._id,
+          booking: operation.bookings?.[0] || operation.booking,
+          milestone: 'Balance Due (Pricing / Pax Adjustment)',
+          category: 'all',
+          amount: diff,
+          paidAmount: 0,
+          status: 'upcoming',
+          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        });
+        customerPayments.push(newCp);
+        totalCustomerBilled += diff;
+      }
+    } else if (diff < 0) {
+      let toReduce = Math.abs(diff);
+      for (const cp of [...customerPayments].reverse()) {
+        if (toReduce <= 0) break;
+        if ((cp.paidAmount || 0) === 0 && cp.status !== 'paid') {
+          if (cp.amount <= toReduce) {
+            toReduce -= cp.amount;
+            totalCustomerBilled -= cp.amount;
+            await CustomerPayment.findByIdAndDelete(cp._id);
+          } else {
+            cp.amount -= toReduce;
+            totalCustomerBilled -= toReduce;
+            toReduce = 0;
+            await cp.save();
+          }
+        }
+      }
+    }
   }
 
   // 5. Update and save Operation
@@ -395,6 +512,74 @@ export const recalculateOperation = asyncHandler(async (req: Request, res: Respo
   };
 
   res.status(200).json({ status: 'success', message: 'Pricing and payments recalculated successfully', data: operationWithLiveData });
+});
+
+export const syncOperationPricing = asyncHandler(async (req: Request, res: Response) => {
+  const opId = req.params.id;
+  const operation = await Operation.findById(opId);
+  if (!operation) throw new AppError('Operation not found', 404);
+
+  const { priceUnit, adults, children, pax, customPricing, component, price } = req.body;
+
+  if (priceUnit && ['person', 'couple', 'group', 'family'].includes(priceUnit)) {
+    (operation as any).priceUnit = priceUnit;
+  }
+
+  // Handle single component update if passed
+  if (component && price !== undefined) {
+    (operation as any).customPricing = (operation as any).customPricing || {};
+    const numPrice = Number(price);
+    if (component === 'hotel') (operation as any).customPricing.hotelPrice = numPrice;
+    else if (component === 'flight') (operation as any).customPricing.flightPrice = numPrice;
+    else if (component === 'land') (operation as any).customPricing.landPrice = numPrice;
+    else if (component === 'visa') (operation as any).customPricing.visaPrice = numPrice;
+    else if (component === 'insurance') (operation as any).customPricing.insurancePrice = numPrice;
+  }
+
+  // Handle full customPricing object if passed
+  if (customPricing) {
+    (operation as any).customPricing = {
+      ...((operation as any).customPricing || {}),
+      ...customPricing,
+    };
+  }
+
+  // Update pax counts if passed
+  if (adults !== undefined || children !== undefined || pax !== undefined) {
+    const newAdults = adults !== undefined ? Math.max(1, Number(adults)) : (operation.customers?.[0]?.adults || (operation as any).customer?.adults || 1);
+    const newChildren = children !== undefined ? Math.max(0, Number(children)) : (operation.customers?.[0]?.children || (operation as any).customer?.children || 0);
+    const newPax = pax !== undefined ? Math.max(1, Number(pax)) : (newAdults + newChildren);
+
+    if (operation.customers && operation.customers.length > 0) {
+      operation.customers[0].adults = newAdults;
+      operation.customers[0].children = newChildren;
+      operation.customers[0].pax = newPax;
+      operation.markModified('customers');
+    }
+    if ((operation as any).customer) {
+      (operation as any).customer.adults = newAdults;
+      (operation as any).customer.children = newChildren;
+      (operation as any).customer.pax = newPax;
+      operation.markModified('customer');
+    }
+
+    // Sync to linked booking travellers
+    const bookingId = operation.bookings?.[0] || operation.booking;
+    if (bookingId) {
+      await Booking.findByIdAndUpdate(bookingId, {
+        $set: {
+          'travellers.adults': newAdults,
+          'travellers.children': newChildren,
+        }
+      });
+    }
+  }
+
+  await operation.save();
+
+  // Forward to recalculate
+  req.params.id = opId;
+  return (recalculateOperation as any)(req, res);
 });
 
 export const deleteOperation = asyncHandler(async (req: Request, res: Response) => {
@@ -1205,7 +1390,7 @@ export const getSalespersonStats = asyncHandler(async (_req: Request, res: Respo
 
 export const addOperationPassenger = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params; // operation ID
-  const { mode, passengerData, bookingId, email, phone, firstName, lastName, billExtra, extraAmount } = req.body;
+  const { mode, passengerData, bookingId, email, phone, firstName, lastName, billExtra, extraAmount, flightPrice, landPrice, visaPrice } = req.body;
 
   const operation = await Operation.findById(id).populate('package');
   if (!operation) throw new AppError('Operation not found', 404);
@@ -1232,11 +1417,14 @@ export const addOperationPassenger = asyncHandler(async (req: Request, res: Resp
     if (calculatedAge >= 0) sanitizedPassenger.age = calculatedAge;
   }
 
-  // Determine if extra billing is requested
-  const shouldBillExtra = Boolean(billExtra);
-  const extraPrice = shouldBillExtra
-    ? (extraAmount !== undefined && extraAmount !== '' && !isNaN(Number(extraAmount)) ? Number(extraAmount) : basePrice)
-    : 0;
+  // Component price breakdown for passenger addition
+  const rawFlightPrice = Number(flightPrice) || 0;
+  const rawLandPrice = Number(landPrice) || 0;
+  const rawVisaPrice = Number(visaPrice) || 0;
+  const rawGenericExtra = (extraAmount !== undefined && extraAmount !== '' && !isNaN(Number(extraAmount))) ? Number(extraAmount) : 0;
+  const componentTotal = rawFlightPrice + rawLandPrice + rawVisaPrice;
+  const totalPassengerExtra = componentTotal > 0 ? (componentTotal + rawGenericExtra) : (rawGenericExtra > 0 ? rawGenericExtra : basePrice);
+  const shouldBillExtra = Boolean(billExtra) && totalPassengerExtra > 0;
 
   if (mode === 'existing') {
     if (!bookingId) throw new AppError('Booking ID is required for existing mode', 400);
@@ -1264,19 +1452,62 @@ export const addOperationPassenger = asyncHandler(async (req: Request, res: Resp
     const totalWithInfants = newPax + (booking.travellers.infants || 0);
 
     // 2. Financial Bookkeeping: ONLY bill if explicitly requested
-    if (shouldBillExtra && extraPrice > 0) {
-      booking.totalAmount = (booking.totalAmount || 0) + extraPrice;
-      operation.sellingPrice = (operation.sellingPrice || 0) + extraPrice;
+    if (shouldBillExtra && totalPassengerExtra > 0) {
+      booking.totalAmount = (booking.totalAmount || 0) + totalPassengerExtra;
+      operation.sellingPrice = (operation.sellingPrice || 0) + totalPassengerExtra;
 
-      await CustomerPayment.create({
-        operation: operation._id,
-        booking: booking._id,
-        milestone: `Extra Passenger: ${sanitizedPassenger.name || 'Additional'}`,
-        amount: extraPrice,
-        paidAmount: 0,
-        status: 'upcoming',
-        dueDate: new Date(),
-      });
+      if (rawFlightPrice > 0) {
+        await CustomerPayment.create({
+          operation: operation._id,
+          booking: booking._id,
+          milestone: `Flight Booking - ${sanitizedPassenger.name || 'Passenger'}`,
+          category: 'flight',
+          amount: rawFlightPrice,
+          paidAmount: 0,
+          status: 'upcoming',
+          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        });
+      }
+
+      if (rawLandPrice > 0) {
+        await CustomerPayment.create({
+          operation: operation._id,
+          booking: booking._id,
+          milestone: `Land Package - ${sanitizedPassenger.name || 'Passenger'}`,
+          category: 'land',
+          amount: rawLandPrice,
+          paidAmount: 0,
+          status: 'upcoming',
+          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        });
+      }
+
+      if (rawVisaPrice > 0) {
+        await CustomerPayment.create({
+          operation: operation._id,
+          booking: booking._id,
+          milestone: `Visa Fee - ${sanitizedPassenger.name || 'Passenger'}`,
+          category: 'visa',
+          amount: rawVisaPrice,
+          paidAmount: 0,
+          status: 'upcoming',
+          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        });
+      }
+
+      const remainingExtra = componentTotal > 0 ? rawGenericExtra : totalPassengerExtra;
+      if (remainingExtra > 0 && componentTotal === 0) {
+        await CustomerPayment.create({
+          operation: operation._id,
+          booking: booking._id,
+          milestone: `Extra Passenger: ${sanitizedPassenger.name || 'Additional'}`,
+          category: 'all',
+          amount: remainingExtra,
+          paidAmount: 0,
+          status: 'upcoming',
+          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        });
+      }
     }
 
     await booking.save();
@@ -1306,15 +1537,14 @@ export const addOperationPassenger = asyncHandler(async (req: Request, res: Resp
       );
     }
 
-    res.status(200).json({ status: 'success', message: 'Passenger added to existing booking', data: operation });
+    // Forward to recalculate so updated totals and pending amounts are returned
+    req.params.id = String(operation._id);
+    return (recalculateOperation as any)(req, res);
 
   } else if (mode === 'new') {
     if (!email) throw new AppError('Email is required for new booking mode', 400);
     
-    // Allow custom price if specified in extraAmount, otherwise fallback to pkg.price
-    const newBookingPrice = (extraAmount !== undefined && extraAmount !== '' && !isNaN(Number(extraAmount)))
-      ? Number(extraAmount)
-      : basePrice;
+    const newBookingPrice = totalPassengerExtra;
 
     // 1. Resolve User
     let user = await mongoose.model('User').findOne({ email });
@@ -1367,16 +1597,58 @@ export const addOperationPassenger = asyncHandler(async (req: Request, res: Resp
     operation.sellingPrice = (operation.sellingPrice || 0) + newBookingPrice;
     await operation.save();
 
-    // 4. Create Payment
-    await CustomerPayment.create({
-      operation: operation._id,
-      booking: newBooking._id,
-      milestone: 'Full Payment',
-      amount: newBookingPrice,
-      paidAmount: 0,
-      status: 'upcoming',
-      dueDate: new Date(),
-    });
+    // 4. Create Categorized Payments
+    if (rawFlightPrice > 0) {
+      await CustomerPayment.create({
+        operation: operation._id,
+        booking: newBooking._id,
+        milestone: `Flight Booking - ${sanitizedPassenger.name || 'Passenger'}`,
+        category: 'flight',
+        amount: rawFlightPrice,
+        paidAmount: 0,
+        status: 'upcoming',
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      });
+    }
+
+    if (rawLandPrice > 0) {
+      await CustomerPayment.create({
+        operation: operation._id,
+        booking: newBooking._id,
+        milestone: `Land Package - ${sanitizedPassenger.name || 'Passenger'}`,
+        category: 'land',
+        amount: rawLandPrice,
+        paidAmount: 0,
+        status: 'upcoming',
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      });
+    }
+
+    if (rawVisaPrice > 0) {
+      await CustomerPayment.create({
+        operation: operation._id,
+        booking: newBooking._id,
+        milestone: `Visa Fee - ${sanitizedPassenger.name || 'Passenger'}`,
+        category: 'visa',
+        amount: rawVisaPrice,
+        paidAmount: 0,
+        status: 'upcoming',
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      });
+    }
+
+    const remainingNewExtra = componentTotal > 0 ? rawGenericExtra : totalPassengerExtra;
+    if (remainingNewExtra > 0 && componentTotal === 0) {
+      await CustomerPayment.create({
+        operation: operation._id,
+        booking: newBooking._id,
+        milestone: 'Full Payment',
+        amount: remainingNewExtra,
+        paidAmount: 0,
+        status: 'upcoming',
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      });
+    }
 
     // 5. Update Package Slots
     if (pkg && operation.departureId) {
@@ -1386,7 +1658,9 @@ export const addOperationPassenger = asyncHandler(async (req: Request, res: Resp
       );
     }
 
-    res.status(200).json({ status: 'success', message: 'New booking created and added to operation', data: operation });
+    // Forward to recalculate
+    req.params.id = String(operation._id);
+    return (recalculateOperation as any)(req, res);
   } else {
     throw new AppError('Invalid mode. Must be existing or new', 400);
   }
