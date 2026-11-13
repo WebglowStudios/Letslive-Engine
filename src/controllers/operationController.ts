@@ -365,7 +365,7 @@ export const recalculateOperation = asyncHandler(async (req: Request, res: Respo
     : ((operation as any).customPricing?.hotelPrice !== undefined
         ? ((operation as any).customPricing.hotelPrice || 0) * (priceUnit === 'group' ? 1 : unitMultiplier)
         : ((pkg?.hotelPrice || 0) * unitMultiplier));
-  const computedHotel = Math.max(baseHotel, hotelMilestonesTotal);
+  let computedHotel = Math.max(baseHotel, hotelMilestonesTotal);
 
   const actSelling = activities.reduce((s, a) => s + (a.sellingPrice || 0) + (a.transfers || []).reduce((ts: number, tr: any) => ts + (tr.hasPricing ? (tr.sellingPrice || 0) : 0), 0), 0);
   const rawLand = (pkg?.landCost || 0) + (pkg?.activityAndTransportPrice || 0);
@@ -374,15 +374,37 @@ export const recalculateOperation = asyncHandler(async (req: Request, res: Respo
     : ((operation as any).customPricing?.landPrice !== undefined
         ? ((operation as any).customPricing.landPrice || 0) * (priceUnit === 'group' ? 1 : unitMultiplier)
         : (rawLand > 0 ? rawLand * unitMultiplier : 0));
+  let computedLand = Math.max(baseLand, landMilestonesTotal);
 
-  // If Hotel and Land are not explicitly itemized in ops and exceed the package price, reconcile to avoid duplicate counting
-  if (hotelSelling === 0 && actSelling === 0 && pkg?.price) {
+  // Check if Hotel and Land are merged in the package or handled by a combined "Land & Stay" / "Stay & Activities" milestone
+  const hasMergedHotelLandMilestone = customerPayments.some((p: any) => {
+    const m = (p.milestone || '').toLowerCase();
+    return (m.includes('land') && (m.includes('stay') || m.includes('hotel'))) ||
+           (m.includes('stay') && m.includes('activit'));
+  });
+  const isHotelLandMerged = Boolean((pkg?.mergeHotelAndActivity && (hotelSelling === 0 || actSelling === 0)) || hasMergedHotelLandMilestone);
+
+  if (isHotelLandMerged) {
+    // Hotel and Land are bundled together into a single component (e.g. "Land & Stay")
+    const mergedMilestones = hotelMilestonesTotal + landMilestonesTotal;
+    const mergedBase = Math.max(baseHotel, baseLand);
+    const finalMerged = Math.max(mergedMilestones, mergedBase);
+    computedHotel = 0;
+    computedLand = finalMerged;
+  } else if (hotelSelling === 0 && actSelling === 0 && pkg?.price) {
+    // If Hotel and Land are not explicitly itemized in ops and exceed the package price, reconcile to avoid duplicate counting
     const pkgTotalAvailable = (pkg.price || 0) * unitMultiplier;
-    if (computedHotel > 0 && baseLand > 0 && (computedFlight + computedHotel + baseLand > pkgTotalAvailable)) {
-      baseLand = Math.max(0, pkgTotalAvailable - computedFlight - computedHotel);
+    const availableForHotelAndLand = Math.max(0, pkgTotalAvailable - computedFlight);
+    if (computedHotel + computedLand > availableForHotelAndLand) {
+      if (landMilestonesTotal > 0 && hotelMilestonesTotal === 0) {
+        computedHotel = Math.max(0, availableForHotelAndLand - computedLand);
+      } else if (hotelMilestonesTotal > 0 && landMilestonesTotal === 0) {
+        computedLand = Math.max(0, availableForHotelAndLand - computedHotel);
+      } else {
+        computedLand = Math.max(0, availableForHotelAndLand - computedHotel);
+      }
     }
   }
-  const computedLand = Math.max(baseLand, landMilestonesTotal);
 
   const baseVisa = (operation as any).customPricing?.visaPrice !== undefined
     ? ((operation as any).customPricing.visaPrice || 0) * (priceUnit === 'group' ? 1 : unitMultiplier)
