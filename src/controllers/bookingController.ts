@@ -667,7 +667,22 @@ export const getBookingVoucherData = asyncHandler(async (req: Request, res: Resp
   let pdfFlights: any[] = transports
     .filter((t: any) => t.type === 'flight')
     .flatMap((t: any) => (t.legs || []).map((leg: any) => ({
-      airline: t.vendorName || t.title,
+      airline: leg.airline || t.airline || (t.title && !t.title.toLowerCase().includes('transfer') && !t.title.toLowerCase().includes('flight group') ? t.title.replace(/\s*flight$/i, '') : '') || 'Flight',
+      flightNumber: leg.flightNumber || t.flightNumber || '',
+      pnr: leg.pnr || t.pnr || '',
+      date: leg.date,
+      from: leg.from,
+      to: leg.to,
+      departure: leg.departureTime,
+      arrival: leg.arrivalTime,
+    })));
+
+  let pdfTrains: any[] = transports
+    .filter((t: any) => t.type === 'train')
+    .flatMap((t: any) => (t.legs || []).map((leg: any) => ({
+      airline: leg.airline || t.airline || (t.title && !t.title.toLowerCase().includes('train group') ? t.title : '') || 'Railway',
+      flightNumber: leg.flightNumber || t.flightNumber || '',
+      pnr: leg.pnr || t.pnr || '',
       date: leg.date,
       from: leg.from,
       to: leg.to,
@@ -679,6 +694,8 @@ export const getBookingVoucherData = asyncHandler(async (req: Request, res: Resp
     const pkgFlights = pkg?.flights || [];
     pdfFlights = pkgFlights.filter((f: any) => f && (f.airline || f.from || f.to)).map((f: any) => ({
       airline: f.airline || 'Flight',
+      flightNumber: f.flightNumber || f.flightNo || '',
+      pnr: f.pnr || '',
       date: f.day ? `Day ${f.day}` : undefined,
       from: f.from,
       to: f.to,
@@ -731,6 +748,7 @@ export const getBookingVoucherData = asyncHandler(async (req: Request, res: Resp
     trainsIncluded: pkg?.trainsIncluded,
     hideTrainInfo: pkg?.hideTrainInfo,
     flights: pdfFlights,
+    trains: pdfTrains,
     accommodations,
     transports: pdfTransports,
     itinerary,

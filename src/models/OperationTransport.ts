@@ -9,6 +9,8 @@ export interface ITransferLeg {
   vehicleType: string;   // free text: Car, SUV, Bus, Flight, Train, Ferry, etc.
   notes: string;         // leg-specific notes
   pnr?: string;
+  airline?: string;      // Airline or Railway name e.g. "IndiGo", "Thai Airways"
+  flightNumber?: string; // Flight or Train number e.g. "6E-1054", "TG-317"
   departureTime?: string;
   arrivalTime?: string;
   driverName?: string;
@@ -22,6 +24,9 @@ export interface IOperationTransport extends Document {
   operation: mongoose.Types.ObjectId;
   type: string;
   title: string;           // e.g. "Airport Transfer - Day 1" (auto-filled from itinerary)
+  airline?: string;
+  flightNumber?: string;
+  pnr?: string;
   vendorName: string;      // e.g. "Ravi Travels" (filled manually by ops team)
   vendorContact: string;
   vendorEmail: string;
@@ -50,6 +55,8 @@ const legSchema = new Schema<ITransferLeg>(
     vehicleType: { type: String, default: '' },
     notes:       { type: String, default: '' },
     pnr:         { type: String, default: '' },
+    airline:     { type: String, default: '' },
+    flightNumber:{ type: String, default: '' },
     departureTime:{ type: String, default: '' },
     arrivalTime: { type: String, default: '' },
     driverName:  { type: String, default: '' },
@@ -66,6 +73,9 @@ const schema = new Schema<IOperationTransport>(
     operation:     { type: Schema.Types.ObjectId, ref: 'Operation', required: true, index: true },
     type:          { type: String, default: 'other' },
     title:         { type: String, default: '' },
+    airline:       { type: String, default: '' },
+    flightNumber:  { type: String, default: '' },
+    pnr:           { type: String, default: '' },
     vendorName:    { type: String, default: '' },
     vendorContact: { type: String, default: '' },
     vendorEmail:   { type: String, default: '' },
