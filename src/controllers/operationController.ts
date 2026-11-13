@@ -1003,6 +1003,41 @@ export const addAccommodation = asyncHandler(async (req: Request, res: Response)
 export const updateAccommodation = asyncHandler(async (req: Request, res: Response) => {
   const item = await OperationAccommodation.findByIdAndUpdate(req.params.itemId, req.body, { new: true });
   if (!item) throw new AppError('Accommodation not found', 404);
+
+  // Sync hotel name and roomCategory to linked booking's selectedHotelOptions if changed
+  if (req.body.name !== undefined || req.body.roomCategory !== undefined) {
+    try {
+      const op = await Operation.findById(item.operation);
+      const bookingId = item.linkedBooking || op?.booking || (op?.bookings && op.bookings[0]);
+      if (bookingId) {
+        const booking = await Booking.findById(bookingId);
+        if (booking) {
+          const allAccs = await OperationAccommodation.find({ operation: item.operation }).sort({ checkIn: 1, createdAt: 1 });
+          const accIdx = allAccs.findIndex(a => a._id.toString() === item._id.toString());
+          if (accIdx !== -1) {
+            const selectedOpts = [...(booking.selectedHotelOptions || [])];
+            let opt = selectedOpts.find(o => o.stayIndex === accIdx);
+            if (opt) {
+              if (req.body.name !== undefined) opt.hotelName = req.body.name;
+              if (req.body.roomCategory !== undefined) opt.roomType = req.body.roomCategory;
+            } else {
+              selectedOpts.push({
+                stayIndex: accIdx,
+                hotelName: item.name || '',
+                roomType: item.roomCategory || '',
+                priceDifferenceApplied: 0,
+              });
+            }
+            booking.selectedHotelOptions = selectedOpts;
+            await booking.save();
+          }
+        }
+      }
+    } catch (syncErr) {
+      console.error('Failed to sync hotel change to booking:', syncErr);
+    }
+  }
+
   res.status(200).json({ status: 'success', data: item });
 });
 export const deleteAccommodation = asyncHandler(async (req: Request, res: Response) => {
