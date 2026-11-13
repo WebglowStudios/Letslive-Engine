@@ -121,17 +121,17 @@ export const getOperations = asyncHandler(async (req: Request, res: Response) =>
 export const getOperationById = asyncHandler(async (req: Request, res: Response) => {
   const operation = await Operation.findById(req.params.id).populate({
     path: 'bookings',
-    select: 'bookingId brand totalAmount paidAmount paymentStatus travellersDetails primaryTraveller travellers dateChangeHistory package',
+    select: 'bookingId brand totalAmount paidAmount paymentStatus travellersDetails primaryTraveller travellers dateChangeHistory package selectedHotelOptions hotelUpgradeTotal',
     populate: [
-      { path: 'package', select: 'name slug isCustom description itinerary adultCount childCount isInternational visaIncluded flightsIncluded trainsIncluded hideTrainInfo mergeHotelAndActivity flightPrice landCost hotelPrice activityPrice transferPrice activityAndTransportPrice extraMealsIncluded extraMealsCount extraMealsPrice visaPrice trainPrice cruiseIncluded cruisePrice flights' }
+      { path: 'package', select: 'name slug isCustom description itinerary adultCount childCount isInternational visaIncluded flightsIncluded trainsIncluded hideTrainInfo mergeHotelAndActivity flightPrice landCost hotelPrice activityPrice transferPrice activityAndTransportPrice extraMealsIncluded extraMealsCount extraMealsPrice visaPrice trainPrice cruiseIncluded cruisePrice flights stays' }
     ]
   }).populate({
     path: 'booking',
-    select: 'bookingId brand totalAmount paidAmount paymentStatus travellersDetails primaryTraveller travellers dateChangeHistory package',
+    select: 'bookingId brand totalAmount paidAmount paymentStatus travellersDetails primaryTraveller travellers dateChangeHistory package selectedHotelOptions hotelUpgradeTotal',
     populate: [
-      { path: 'package', select: 'name slug isCustom description itinerary adultCount childCount isInternational visaIncluded flightsIncluded trainsIncluded hideTrainInfo mergeHotelAndActivity flightPrice landCost hotelPrice activityPrice transferPrice activityAndTransportPrice extraMealsIncluded extraMealsCount extraMealsPrice visaPrice trainPrice cruiseIncluded cruisePrice flights' }
+      { path: 'package', select: 'name slug isCustom description itinerary adultCount childCount isInternational visaIncluded flightsIncluded trainsIncluded hideTrainInfo mergeHotelAndActivity flightPrice landCost hotelPrice activityPrice transferPrice activityAndTransportPrice extraMealsIncluded extraMealsCount extraMealsPrice visaPrice trainPrice cruiseIncluded cruisePrice flights stays' }
     ]
-  }).populate('package', 'name slug isCustom description itinerary isInternational visaIncluded flightsIncluded trainsIncluded hideTrainInfo mergeHotelAndActivity flightPrice landCost hotelPrice activityPrice transferPrice activityAndTransportPrice extraMealsIncluded extraMealsCount extraMealsPrice visaPrice trainPrice cruiseIncluded cruisePrice flights').populate('assignedTo', 'firstName lastName email').populate('salesperson', 'firstName lastName email');
+  }).populate('package', 'name slug isCustom description itinerary isInternational visaIncluded flightsIncluded trainsIncluded hideTrainInfo mergeHotelAndActivity flightPrice landCost hotelPrice activityPrice transferPrice activityAndTransportPrice extraMealsIncluded extraMealsCount extraMealsPrice visaPrice trainPrice cruiseIncluded cruisePrice flights stays').populate('assignedTo', 'firstName lastName email').populate('salesperson', 'firstName lastName email');
   if (!operation) throw new AppError('Operation not found', 404);
   if ((req.user!.role === 'staff' || req.user!.role === 'ops-staff') && operation.assignedTo?.toString() !== req.user!._id.toString()) throw new AppError('Access denied', 403);
 
@@ -906,12 +906,12 @@ export const importFromItinerary = asyncHandler(async (req: Request, res: Respon
       
       // Check if linked booking has a selected hotel option for this stay
       const selectedOption = linkedBooking?.selectedHotelOptions?.find(
-        (o: any) => o.stayIndex === stayIdx || (o.stayName && o.stayName === stay.name)
+        (o: any) => o.stayIndex === stayIdx || (o.stayName && (o.stayName === stay.name || o.stayName === stay.hotelName || o.stayName === stay.stayLocation))
       );
 
-      const hotelName = selectedOption?.hotelName || stay.name || '';
+      const hotelName = selectedOption?.hotelName || stay.hotelName || stay.name || '';
       const roomType = selectedOption?.roomType || stay.roomType || '';
-      const hotelRating = selectedOption?.rating || stay.rating || '';
+      const hotelRating = selectedOption?.rating || selectedOption?.hotelRating || stay.hotelRating || stay.rating || '';
 
       accDocs.push({
         operation: opId,
