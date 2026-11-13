@@ -73,11 +73,12 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
   const event = payload.event as string;
   console.log(`[WEBHOOK] Received event: ${event}`);
 
-  // ── 4. Handle payment.captured OR payment_link.paid ─────────────────────
+  // ── 4. Handle payment.captured, payment_link.paid OR order.paid ─────────
   const isPaymentCapture = event === 'payment.captured';
   const isPaymentLinkPaid = event === 'payment_link.paid';
+  const isOrderPaid = event === 'order.paid';
 
-  if (!isPaymentCapture && !isPaymentLinkPaid) {
+  if (!isPaymentCapture && !isPaymentLinkPaid && !isOrderPaid) {
     // Acknowledge other events without doing anything
     res.status(200).json({ status: 'ok', message: `Event ${event} acknowledged` });
     return;
@@ -86,37 +87,51 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
   // ── 5. Extract payment data ───────────────────────────────────────────────
   // payment.captured  → payload.payment.entity
   // payment_link.paid → payload.payment.entity (payment data) + payload.payment_link.entity (link data/notes)
+  // order.paid        → payload.order.entity (order data) + optional payload.payment.entity
   const paymentEntityWrapper = (payload.payload as Record<string, unknown>)?.payment as Record<string, unknown> | undefined;
-  const entity = paymentEntityWrapper?.entity as Record<string, unknown> | undefined;
+  let entity = paymentEntityWrapper?.entity as Record<string, unknown> | undefined;
+
+  const orderEntityWrapper = (payload.payload as Record<string, unknown>)?.order as Record<string, unknown> | undefined;
+  const orderEntity = orderEntityWrapper?.entity as Record<string, unknown> | undefined;
 
   // For payment_link.paid, notes are on the payment_link entity
   const paymentLinkEntityWrapper = (payload.payload as Record<string, unknown>)?.payment_link as Record<string, unknown> | undefined;
   const paymentLinkEntity = paymentLinkEntityWrapper?.entity as Record<string, unknown> | undefined;
 
+  if (!entity && orderEntity) {
+    entity = orderEntity;
+  }
+
   if (!entity) {
-    console.error('[WEBHOOK] Malformed payload — no payment.entity');
+    console.error('[WEBHOOK] Malformed payload — no payment.entity or order.entity');
     res.status(200).json({ status: 'ok', message: 'Malformed payload ignored' });
     return;
   }
 
-  const razorpayPaymentId = entity.id as string;
-  const razorpayOrderId = entity.order_id as string;
+  const razorpayPaymentId = (entity.id as string) || (paymentEntityWrapper?.entity as any)?.id;
+  const razorpayOrderId = (entity.order_id as string) || (orderEntity?.id as string);
   // Razorpay amounts are in paise — convert to INR
   const amountPaise = entity.amount as number;
   let amountINR = Math.round(amountPaise / 100);
 
   // Notes: for payment_link.paid, the notes we set are on the payment_link entity
-  // For payment.captured (order-based), notes are on the payment entity itself
+  // For order.paid, notes are on the order entity
+  // For payment.captured (order-based), notes are on the payment entity or order entity
   let linkNotes = paymentLinkEntity?.notes as Record<string, string> | undefined;
   let paymentNotes = entity.notes as Record<string, string> | undefined;
+  let orderNotes = orderEntity?.notes as Record<string, string> | undefined;
   
   // Try to safely extract notes
-  let notes = (linkNotes && Object.keys(linkNotes).length > 0) ? linkNotes : ((paymentNotes && Object.keys(paymentNotes).length > 0) ? paymentNotes : undefined);
+  let notes = (linkNotes && Object.keys(linkNotes).length > 0)
+    ? linkNotes
+    : ((orderNotes && Object.keys(orderNotes).length > 0)
+      ? orderNotes
+      : ((paymentNotes && Object.keys(paymentNotes).length > 0) ? paymentNotes : undefined));
 
   let bookingId = notes?.bookingId;
   let customerPaymentId = notes?.customerPaymentId;
 
-  // Fallback: If Razorpay didn't include the notes in the webhook payload, but we know it's a payment link, fetch it directly!
+  // Fallback 1: If Razorpay didn't include the notes in the webhook payload, but we know it's a payment link, fetch it directly!
   if (!bookingId && !customerPaymentId && entity.payment_link_id) {
     console.log(`[WEBHOOK] Missing notes in payload for payment_link_id ${entity.payment_link_id}. Fetching from Razorpay API...`);
     try {
@@ -129,6 +144,22 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
       }
     } catch (fetchErr) {
       console.error(`[WEBHOOK] Failed to fetch payment link ${entity.payment_link_id}:`, fetchErr);
+    }
+  }
+
+  // Fallback 2: If notes missing from payment, fetch from order
+  if (!bookingId && !customerPaymentId && razorpayOrderId) {
+    console.log(`[WEBHOOK] Missing notes in payment payload for order ${razorpayOrderId}. Fetching order from Razorpay API...`);
+    try {
+      const razorpay = getRazorpay();
+      const rzpOrder = await razorpay.orders.fetch(razorpayOrderId);
+      if (rzpOrder && rzpOrder.notes) {
+        notes = { ...rzpOrder.notes, ...notes } as Record<string, string>;
+        bookingId = notes.bookingId;
+        customerPaymentId = notes.customerPaymentId;
+      }
+    } catch (fetchErr) {
+      console.error(`[WEBHOOK] Failed to fetch order ${razorpayOrderId}:`, fetchErr);
     }
   }
 
@@ -198,24 +229,30 @@ export async function razorpayWebhook(req: Request, res: Response): Promise<void
       cp.financeStatus = 'approved'; // Online payment — auto-approved, skip finance queue
       // We don't save cp yet, we update Booking first to keep sync
 
-      if (bookingId) {
-        const booking = await Booking.findById(bookingId);
+      const targetBookingId = bookingId || cp.booking;
+      if (targetBookingId) {
+        const booking = await Booking.findById(targetBookingId);
         if (booking) {
-          booking.paymentHistory.push({
-            amount: creditedAmount,
-            method: 'razorpay',
-            transactionId: razorpayPaymentId,
-            date: new Date(),
-            status: 'success',
-          });
-          booking.paidAmount = (booking.paidAmount || 0) + creditedAmount;
-          
-          if (booking.paidAmount >= booking.totalAmount) {
-            booking.paymentStatus = 'paid';
-          } else {
-            booking.paymentStatus = 'partial';
+          const alreadyRecorded = booking.paymentHistory.some(
+            (p) => p.transactionId === razorpayPaymentId
+          );
+          if (!alreadyRecorded) {
+            booking.paymentHistory.push({
+              amount: creditedAmount,
+              method: 'razorpay',
+              transactionId: razorpayPaymentId,
+              date: new Date(),
+              status: 'success',
+            });
+            booking.paidAmount = (booking.paidAmount || 0) + creditedAmount;
+            
+            if (booking.paidAmount >= booking.totalAmount) {
+              booking.paymentStatus = 'paid';
+            } else {
+              booking.paymentStatus = 'partial';
+            }
+            await booking.save();
           }
-          await booking.save();
         }
       }
 
