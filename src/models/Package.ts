@@ -32,12 +32,18 @@ export interface IStayOption {
   address?: string;
 }
 
+export interface IRoomCategory {
+  roomType: string;
+  rooms?: number;
+}
+
 export interface IStay {
   name: string;
   rating: string;
   nights: number;
   roomType: string;
   rooms?: number;
+  roomCategories?: IRoomCategory[];
   checkIn?: string;
   checkOut?: string;
   address?: string;
@@ -282,6 +288,12 @@ const packageSchema = new Schema<IPackage>(
         nights: { type: Number },
         roomType: { type: String },
         rooms: { type: Number },
+        roomCategories: [
+          {
+            roomType: { type: String },
+            rooms: { type: Number, default: 1 },
+          },
+        ],
         checkIn: { type: String },
         checkOut: { type: String },
         address: { type: String },
