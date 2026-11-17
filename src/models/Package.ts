@@ -290,6 +290,7 @@ const packageSchema = new Schema<IPackage>(
         rooms: { type: Number },
         roomCategories: [
           {
+            _id: false,
             roomType: { type: String },
             rooms: { type: Number, default: 1 },
           },
